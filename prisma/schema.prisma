@@ -1,0 +1,350 @@
+// Vocal Impact choir app — database schema.
+// Conventions: models PascalCase, fields camelCase, tables mapped to snake_case.
+// See docs/PROJECT_BLUEPRINT.md §4 for the rules behind each constraint.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  COMMITTEE
+  MEMBER
+}
+
+enum VoiceType {
+  SOPRANO
+  ALTO
+  TENOR
+  BASS
+  UNASSIGNED
+}
+
+enum MemberStatus {
+  PROSPECTIVE
+  ACTIVE
+  INACTIVE
+  ALUMNI
+}
+
+enum MemberSource {
+  CSV_IMPORT
+  MANUAL
+}
+
+enum InviteChannel {
+  EMAIL
+  WHATSAPP_LINK
+  MANUAL
+}
+
+enum InviteStatus {
+  SENT
+  JOINED
+  FAILED
+}
+
+enum EmailType {
+  BIRTHDAY_REMINDER
+  GROUP_INVITE
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ImportProfile {
+  REGISTRATION
+  SUPPLEMENTARY_DETAILS
+}
+
+enum GeocodeStatus {
+  PENDING
+  OK
+  NOT_FOUND
+  FAILED
+}
+
+enum CronRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+// ─── Auth (Better Auth core tables + app fields) ────────────────────────────
+
+model User {
+  id                        String   @id
+  name                      String
+  email                     String   @unique
+  emailVerified             Boolean  @default(false)
+  image                     String?
+  role                      Role     @default(COMMITTEE)
+  active                    Boolean  @default(true)
+  receivesBirthdayReminders Boolean  @default(false)
+  memberId                  String?  @unique @db.Uuid
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  member           Member?        @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  sessions         Session[]
+  accounts         Account[]
+  markedAttendance Attendance[]
+  sentInvites      GroupInvite[]
+  importBatches    ImportBatch[]
+  auditLogs        AuditLog[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Members ────────────────────────────────────────────────────────────────
+
+model Member {
+  id                String       @id @default(uuid()) @db.Uuid
+  firstName         String
+  lastName          String
+  studentId         String       @unique
+  yearOfStudy       Int
+  whatsappNumber    String
+  email             String       @unique
+  voiceType         VoiceType    @default(UNASSIGNED)
+  dateOfBirth       DateTime?    @db.Date
+  status            MemberStatus @default(PROSPECTIVE)
+  source            MemberSource @default(MANUAL)
+  addedToWhatsappAt DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user        User?
+  attendances Attendance[]
+  location    MemberLocation?
+  invites     GroupInvite[]
+  emailLogs   EmailLog[]
+
+  @@index([status])
+  @@index([lastName, firstName])
+  @@map("member")
+}
+
+model MemberLocation {
+  memberId      String        @id @db.Uuid
+  member        Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  areaLabel     String
+  /// Rounded to 3 decimal places (~100 m) — never an exact address.
+  latitude      Float?
+  longitude     Float?
+  geocodeStatus GeocodeStatus @default(PENDING)
+  consentGiven  Boolean       @default(false)
+  canDrive      Boolean       @default(false)
+  seats         Int           @default(0)
+  updatedAt     DateTime      @updatedAt
+
+  @@map("member_location")
+}
+
+// ─── Attendance ─────────────────────────────────────────────────────────────
+
+model Practice {
+  id          String       @id @default(uuid()) @db.Uuid
+  date        DateTime     @db.Date
+  title       String
+  venue       String?
+  createdAt   DateTime     @default(now())
+  attendances Attendance[]
+
+  @@index([date])
+  @@map("practice")
+}
+
+model Attendance {
+  practiceId String   @db.Uuid
+  memberId   String   @db.Uuid
+  markedById String?
+  markedAt   DateTime @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  markedBy User?    @relation(fields: [markedById], references: [id], onDelete: SetNull)
+
+  @@id([practiceId, memberId])
+  @@index([memberId])
+  @@map("attendance")
+}
+
+// ─── WhatsApp groups & invites ──────────────────────────────────────────────
+
+model WhatsAppGroup {
+  id                  String        @id @default(uuid()) @db.Uuid
+  name                String        @unique
+  description         String?
+  inviteLink          String
+  requiresEligibility Boolean       @default(true)
+  isMainGroup         Boolean       @default(false)
+  archived            Boolean       @default(false)
+  sortOrder           Int           @default(0)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  invites             GroupInvite[]
+
+  @@map("whatsapp_group")
+}
+
+model GroupInvite {
+  id       String        @id @default(uuid()) @db.Uuid
+  memberId String        @db.Uuid
+  groupId  String        @db.Uuid
+  sentById String?
+  channel  InviteChannel
+  status   InviteStatus  @default(SENT)
+  error    String?
+  sentAt   DateTime      @default(now())
+  joinedAt DateTime?
+
+  member Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  group  WhatsAppGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  sentBy User?         @relation(fields: [sentById], references: [id], onDelete: SetNull)
+
+  @@index([memberId, groupId])
+  @@map("group_invite")
+}
+
+// ─── Imports, email, settings, audit, jobs ──────────────────────────────────
+
+model ImportBatch {
+  id             String        @id @default(uuid()) @db.Uuid
+  profile        ImportProfile
+  fileName       String
+  uploadedById   String?
+  createdCount   Int           @default(0)
+  updatedCount   Int           @default(0)
+  unchangedCount Int           @default(0)
+  skippedCount   Int           @default(0)
+  errors         Json          @default("[]")
+  createdAt      DateTime      @default(now())
+
+  uploadedBy User? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@map("import_batch")
+}
+
+model EmailLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  type        EmailType
+  memberId    String?     @db.Uuid
+  recipient   String
+  /// For daily jobs: the local (Asia/Colombo) date the email is about.
+  sentForDate DateTime?   @db.Date
+  status      EmailStatus @default(PENDING)
+  error       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([type, memberId, sentForDate, recipient])
+  @@map("email_log")
+}
+
+model Setting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("setting")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  diff      Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model CronRun {
+  id         String        @id @default(uuid()) @db.Uuid
+  job        String
+  status     CronRunStatus @default(RUNNING)
+  summary    Json?
+  startedAt  DateTime      @default(now())
+  finishedAt DateTime?
+
+  @@index([job, startedAt])
+  @@map("cron_run")
+}
+
+model GeocodeCache {
+  query       String   @id
+  latitude    Float?
+  longitude   Float?
+  displayName String?
+  createdAt   DateTime @default(now())
+
+  @@map("geocode_cache")
+}
