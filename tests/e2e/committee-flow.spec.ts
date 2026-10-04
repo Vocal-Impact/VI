@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { isoDaysAgo, openDashboard } from "./helpers";
+import { E2E_MEMBER, MEMBER_STORAGE_STATE } from "./constants";
+import { formatShort, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -62,19 +63,23 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await expect(page.getByText("This person already exists")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open their profile" })).toBeVisible();
 
-  // Three practices: today's (one tap) plus two earlier dates.
+  // No practice scheduled today → no way to take attendance yet.
   await page.goto("/attendance");
-  await page.getByRole("button", { name: "Start today's practice" }).click();
-  await expect(page.getByRole("button", { name: /Nethmi Perera/ })).toBeVisible();
+  await expect(page.getByText("No practice is scheduled for today")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Take attendance" })).toHaveCount(0);
+
+  // Schedule today's practice, then take attendance.
+  await schedulePractice(page, { date: isoDaysAgo(0), start: "17:30", end: "19:30", venue: "IIT Auditorium" });
+  await page.getByRole("link", { name: "Take attendance" }).click();
+  await page.getByPlaceholder("Search by name or student ID").fill("nethmi");
   await page.getByRole("button", { name: /Nethmi Perera/ }).click();
   await expect(page.getByRole("button", { name: /Nethmi Perera/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("1 present")).toBeVisible();
 
+  // Two earlier practices (an admin may record past practices).
   for (const daysAgo of [7, 14]) {
-    await page.goto("/attendance");
-    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create practice" }) });
-    await form.getByLabel("Date").fill(isoDaysAgo(daysAgo));
-    await form.getByRole("button", { name: "Create practice" }).click();
+    await schedulePractice(page, { date: isoDaysAgo(daysAgo), start: "17:30" });
+    await page.getByRole("link", { name: new RegExp(`^${formatShort(isoDaysAgo(daysAgo))}`) }).click();
     await page.getByPlaceholder("Search by name or student ID").fill("nethmi");
     await page.getByRole("button", { name: /Nethmi Perera/ }).click();
     await expect(page.getByRole("button", { name: /Nethmi Perera/ })).toHaveAttribute("aria-pressed", "true");
@@ -156,4 +161,60 @@ test("the daily cron endpoint requires its secret", async ({ request }) => {
   });
   expect(ok.status()).toBe(200);
   expect((await ok.json()).ok).toBe(true);
+});
+
+test("members see scheduled practices and reply; committee sees who's coming", async ({ page, browser }) => {
+  // Committee schedules a practice three days from now.
+  await openDashboard(page);
+  const date = isoDaysAgo(-3);
+  await schedulePractice(page, { date, start: "18:00", end: "20:00", venue: "Main Hall", title: "Concert rehearsal" });
+
+  // A member signs in and sees it on their dashboard.
+  const memberContext = await browser.newContext({ storageState: MEMBER_STORAGE_STATE });
+  const member = await memberContext.newPage();
+  await member.goto("/");
+  await expect(member.getByRole("heading", { level: 1, name: `Hi ${E2E_MEMBER.firstName} 👋` })).toBeVisible();
+  await expect(member.getByText("Concert rehearsal")).toBeVisible();
+  await expect(member.getByText("6:00 PM – 8:00 PM")).toBeVisible();
+  await expect(member.getByText("Main Hall")).toBeVisible();
+  await member.getByRole("button", { name: /^Going — Concert rehearsal/ }).click();
+  await expect(member.getByText("See you there!")).toBeVisible();
+  await expect(member.getByRole("button", { name: /^Going — Concert rehearsal/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  // Members have no committee pages.
+  await member.goto("/attendance");
+  await expect(member).toHaveURL(/\/forbidden$/);
+  await member.goto("/members");
+  await expect(member).toHaveURL(/\/forbidden$/);
+
+  // Committee sees the reply with the member's name.
+  await page.goto("/attendance");
+  const card = page.locator("div.rounded-lg").filter({ hasText: "Concert rehearsal" }).first();
+  await expect(card.getByText("✓ 1 going")).toBeVisible();
+  await card.getByRole("link", { name: "Who's coming" }).click();
+  await expect(page.getByRole("heading", { name: "Going (1)" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: `${E2E_MEMBER.firstName} ${E2E_MEMBER.lastName}` }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Attendance opens on the practice day.")).toBeVisible();
+
+  // Committee edits the venue → the member sees the change.
+  await page.getByRole("link", { name: "Edit details" }).click();
+  await page.getByLabel("Venue").fill("Studio 2");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Studio 2")).toBeVisible();
+  await member.goto("/");
+  await expect(member.getByText("Studio 2")).toBeVisible();
+
+  // Cancelling shows it as cancelled and closes replies.
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Cancel practice" }).click();
+  await expect(page.getByRole("button", { name: "Restore practice" })).toBeVisible();
+  await member.goto("/");
+  await expect(member.getByText("Cancelled")).toBeVisible();
+  await expect(member.getByRole("button", { name: /^Going — Concert rehearsal/ })).toBeDisabled();
+  await memberContext.close();
 });

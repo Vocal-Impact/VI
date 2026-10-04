@@ -6,7 +6,7 @@ import { execSync } from "node:child_process";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import { PrismaClient } from "../../src/generated/prisma/client";
-import { E2E_ADMIN, E2E_DATABASE_URL } from "./constants";
+import { E2E_ADMIN, E2E_DATABASE_URL, E2E_MEMBER } from "./constants";
 
 async function main(): Promise<void> {
   execSync("npx prisma migrate deploy", {
@@ -42,6 +42,39 @@ async function main(): Promise<void> {
         providerId: "credential",
         userId: "e2e-admin",
         password: await hashPassword(E2E_ADMIN.password),
+      },
+    });
+
+    // A choir member who signs in to see practices and reply.
+    const member = await prisma.member.create({
+      data: {
+        firstName: E2E_MEMBER.firstName,
+        lastName: E2E_MEMBER.lastName,
+        studentId: "E2EMEMBER1",
+        yearOfStudy: 2,
+        whatsappNumber: "+94770009999",
+        email: E2E_MEMBER.email,
+        voiceType: "SOPRANO",
+        status: "ACTIVE",
+      },
+    });
+    await prisma.user.create({
+      data: {
+        id: "e2e-member",
+        name: `${E2E_MEMBER.firstName} ${E2E_MEMBER.lastName}`,
+        email: E2E_MEMBER.email,
+        role: "MEMBER",
+        emailVerified: true,
+        memberId: member.id,
+      },
+    });
+    await prisma.account.create({
+      data: {
+        id: "e2e-member-credential",
+        accountId: "e2e-member",
+        providerId: "credential",
+        userId: "e2e-member",
+        password: await hashPassword(E2E_MEMBER.password),
       },
     });
   } finally {

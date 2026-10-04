@@ -8,3 +8,12 @@ export const E2E_ADMIN = {
   password: "e2e-password-123",
 };
 export const STORAGE_STATE = "playwright/.auth/admin.json";
+
+/** A choir member with an ordinary MEMBER login (no committee powers). */
+export const E2E_MEMBER = {
+  firstName: "Mala",
+  lastName: "Member",
+  email: "mala.member@iit.ac.lk",
+  password: "e2e-member-password",
+};
+export const MEMBER_STORAGE_STATE = "playwright/.auth/member.json";
