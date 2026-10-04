@@ -1,0 +1,3 @@
+# Only needed for `geocode_locations.py db` (the csv and lookup commands use the standard library).
+cryptography>=42
+psycopg[binary]>=3.1

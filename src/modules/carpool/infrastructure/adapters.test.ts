@@ -3,6 +3,7 @@ import { NominatimGeocoder } from "./nominatim-geocoder";
 import { OrsRouteProvider } from "./ors-route-provider";
 import { PhotonGeocoder } from "./photon-geocoder";
 import { ChainGeocoder } from "./chain-geocoder";
+import { GoogleGeocoder } from "./google-geocoder";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -31,6 +32,39 @@ describe("NominatimGeocoder", () => {
     await expect(new NominatimGeocoder("ua", vi.fn().mockResolvedValue(json({}, 429))).geocode("x")).rejects.toThrow(
       "429",
     );
+  });
+});
+
+describe("GoogleGeocoder", () => {
+  it("restricts to Sri Lanka, sends the key and parses the first result", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      json({
+        status: "OK",
+        results: [
+          { formatted_address: "Arpico, Dehiwala, Sri Lanka", geometry: { location: { lat: 6.8512, lng: 79.8656 } } },
+        ],
+      }),
+    );
+    await expect(new GoogleGeocoder("key-123", fetchMock).geocode("Arpico Dehiwala")).resolves.toEqual({
+      latitude: 6.8512,
+      longitude: 79.8656,
+      displayName: "Arpico, Dehiwala, Sri Lanka",
+    });
+    const [url] = fetchMock.mock.calls[0] as [URL];
+    expect(url.searchParams.get("components")).toBe("country:LK");
+    expect(url.searchParams.get("key")).toBe("key-123");
+  });
+
+  it("returns null for no results and throws when Google refuses (so the next geocoder tries)", async () => {
+    await expect(
+      new GoogleGeocoder("k", vi.fn().mockResolvedValue(json({ status: "ZERO_RESULTS", results: [] }))).geocode("x"),
+    ).resolves.toBeNull();
+    await expect(
+      new GoogleGeocoder(
+        "k",
+        vi.fn().mockResolvedValue(json({ status: "REQUEST_DENIED", error_message: "Billing not enabled" })),
+      ).geocode("x"),
+    ).rejects.toThrow("REQUEST_DENIED");
   });
 });
 
