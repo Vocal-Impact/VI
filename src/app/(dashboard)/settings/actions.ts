@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAllowlistedUser, requirePermission, updateUser } from "@/modules/auth";
+import { requirePermission } from "@/modules/auth";
 import { sendBirthdayReminders } from "@/modules/birthdays";
 import { updateSetting } from "@/shared/settings/settings";
 import type { SettingKey } from "@/shared/settings/definitions";
@@ -45,30 +45,6 @@ export async function updateSettingAction(_prev: ActionState, formData: FormData
     : err("VALIDATION", "Unknown setting");
   if (result.ok) revalidatePath("/", "layout");
   return toActionState(result, "Setting saved", values);
-}
-
-export async function createUserAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requirePermission("users:manage");
-  const values = formValues(formData);
-  const result = await createAllowlistedUser(values, user.id);
-  if (result.ok) revalidatePath("/settings/users");
-  return toActionState(result, `${values.email} can now sign in with Google`, result.ok ? undefined : values);
-}
-
-export async function updateUserAction(userId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  const actor = await requirePermission("users:manage");
-  const values = formValues(formData);
-  const result = await updateUser(
-    {
-      userId,
-      role: values.role,
-      active: values.active === "on",
-      receivesBirthdayReminders: values.receivesBirthdayReminders === "on",
-    },
-    actor.id,
-  );
-  if (result.ok) revalidatePath("/settings/users");
-  return toActionState(result, "User updated");
 }
 
 export async function runBirthdayRemindersAction(): Promise<ActionState> {

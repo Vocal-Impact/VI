@@ -8,6 +8,7 @@ const NAV: Array<NavItem & { permission?: Permission }> = [
   { href: "/whatsapp-groups", label: "WhatsApp", icon: "chat", permission: "groups:read" },
   { href: "/birthdays", label: "Birthdays", icon: "cake", permission: "birthdays:read" },
   { href: "/carpool", label: "Carpool", icon: "car", permission: "carpool:read" },
+  { href: "/access", label: "Access & roles", icon: "shield", permission: "users:manage" },
   { href: "/settings", label: "Settings", icon: "cog", permission: "settings:manage" },
 ];
 

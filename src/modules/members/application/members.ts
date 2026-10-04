@@ -81,6 +81,7 @@ export async function getMember(id: string) {
     where: { id },
     include: {
       location: true,
+      user: { select: { role: true, active: true } },
       attendances: { include: { practice: true }, orderBy: { practice: { date: "desc" } } },
       invites: { include: { group: true, sentBy: { select: { name: true } } }, orderBy: { sentAt: "desc" } },
     },

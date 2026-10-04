@@ -6,7 +6,6 @@ import { cn } from "@/shared/lib/cn";
 
 const TABS = [
   { href: "/settings", label: "General" },
-  { href: "/settings/users", label: "Users & reminders" },
   { href: "/settings/system", label: "System & data" },
 ];
 

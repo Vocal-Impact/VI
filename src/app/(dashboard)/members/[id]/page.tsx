@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission, hasPermission } from "@/modules/auth";
+import { ACCESS_LEVEL_LABELS, accessLevelOf } from "@/modules/auth/domain";
 import { getMember } from "@/modules/members";
 import { MEMBER_STATUSES, MEMBER_STATUS_LABELS, formatYearOfStudy } from "@/modules/members/domain";
 import { StatusBadge, VoiceBadge } from "@/modules/members/ui";
@@ -66,6 +67,9 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
               <Badge tone={eligible ? "green" : "amber"}>{attendanceProgress(attended, threshold)} practices</Badge>
             ) : null}
             {member.source === "CSV_IMPORT" ? <Badge>Imported</Badge> : null}
+            {accessLevelOf(member.user) !== "NONE" ? (
+              <Badge tone="brand">App access: {ACCESS_LEVEL_LABELS[accessLevelOf(member.user)]}</Badge>
+            ) : null}
           </span>
         }
         actions={
@@ -276,6 +280,15 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                     Update
                   </Button>
                 </form>
+                {hasPermission(user.role, "users:manage") ? (
+                  <LinkButton
+                    href={`/access?q=${encodeURIComponent(member.email)}`}
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    App access: {ACCESS_LEVEL_LABELS[accessLevelOf(member.user)]} — change
+                  </LinkButton>
+                ) : null}
                 <form action={removeMemberAction.bind(null, member.id)}>
                   <ConfirmSubmit
                     variant="outline"

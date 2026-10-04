@@ -9,14 +9,14 @@ Built only with open-source tools and free hosting tiers.</p>
 
 ## What it does
 
-| Feature                 | Summary                                                                                                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🎤 **Members**          | Import Google Form CSVs (with a dry-run preview), or add people by hand with duplicate detection. Search, filter and export to CSV                                                     |
-| 🎼 **Attendance**       | One tap starts today's practice, and a phone-friendly checklist marks people present. New members who reach 3 practices land on the **"Ready for WhatsApp"** list                      |
-| 💬 **WhatsApp invites** | Store the choir's group links. Pick groups per member and send them by **email** (bulk), a **pre-filled WhatsApp chat** or **copy**. Mark "Joined", and a main group makes them Active |
-| 🎂 **Birthdays**        | Dashboard and calendar. A daily email to opted-in committee members (07:00 Sri Lanka time) that never sends twice                                                                      |
-| 🚗 **Carpool**          | Approximate home areas (with consent) on an OpenStreetMap map. Suggests driver groups and neighbour groups, each with **Open in Google Maps** directions                               |
-| 🔐 **Access**           | Google sign-in for allowlisted committee members only. Admin and Committee roles, with an audit log                                                                                    |
+| Feature                 | Summary                                                                                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🎤 **Members**          | Import Google Form CSVs (with a dry-run preview), or add people by hand with duplicate detection. Search, filter and export to CSV                                                      |
+| 🎼 **Attendance**       | One tap starts today's practice, and a phone-friendly checklist marks people present. New members who reach 3 practices land on the **"Ready for WhatsApp"** list                       |
+| 💬 **WhatsApp invites** | Store the choir's group links. Pick groups per member and send them by **email** (bulk), a **pre-filled WhatsApp chat** or **copy**. Mark "Joined", and a main group makes them Active  |
+| 🎂 **Birthdays**        | Dashboard and calendar. A daily email to opted-in committee members (07:00 Sri Lanka time) that never sends twice                                                                       |
+| 🚗 **Carpool**          | Approximate home areas (with consent) on an OpenStreetMap map. Suggests driver groups and neighbour groups, each with **Open in Google Maps** directions                                |
+| 🔐 **Access & roles**   | Google sign-in for approved people only. Admins promote choir members to **Committee** or **Admin** (or remove access) from the Access & roles page. Every change goes to the audit log |
 
 Read the full design in **[docs/PROJECT_BLUEPRINT.md](docs/PROJECT_BLUEPRINT.md)**: architecture, data model, security and roadmap.
 

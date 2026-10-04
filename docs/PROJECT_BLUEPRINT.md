@@ -835,6 +835,7 @@ The build follows this blueprint. These are the places where it differs, and why
 | Boundaries | `eslint-plugin-boundaries` | ESLint `no-restricted-imports` patterns | Built-in, so there is one less plugin to keep updated |
 | Tooling | pnpm, Docker Postgres | npm, `embedded-postgres` | Nothing to install beyond Node on Windows laptops |
 | Public entry points | `index.ts` only | `index.ts` (server), `domain/` (pure, client-safe), `ui/` (components), `client.ts` (auth client) | Client components need the pure rules without pulling in server code |
+| User management | Settings → Users (email allowlist) | Its own **Access & roles** page (`/access`). Logins hang off **member records** (`User.memberId`), so members are promoted to Committee or Admin, or set back to No access, over the years. Accounts for non-members (e.g. an advisor) are in a separate section. Admins can't change their own access, and the last admin can't be removed | Committee members are choir members first, and this keeps one history per person |
 | Settings | `Setting` table | Typed definitions in `src/shared/settings/definitions.ts`, editable in Settings → General | — |
 
 **Design system (music theme).** The look comes from the logo's black-and-white "sticker" lettering:

@@ -123,7 +123,7 @@ test("every section renders", async ({ page }) => {
     ["/carpool", "Carpool"],
     ["/attendance/reports", "Attendance reports"],
     ["/settings", "Settings"],
-    ["/settings/users", "Settings"],
+    ["/settings/users", "Access & roles"], // old URL redirects to the new page
     ["/settings/system", "Settings"],
   ] as const) {
     await page.goto(path);
@@ -131,6 +131,22 @@ test("every section renders", async ({ page }) => {
   }
   await page.goto("/this-page-does-not-exist");
   await expect(page.getByText("That note isn't in the score")).toBeVisible();
+});
+
+test("an admin promotes a member to committee from Access & roles", async ({ page }) => {
+  await openDashboard(page);
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Access & roles" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Access & roles" })).toBeVisible();
+
+  await page.getByLabel("Search").fill("nethmi");
+  await page.getByRole("button", { name: "Filter" }).click();
+  await page.getByLabel("Access for Nethmi Perera").selectOption("COMMITTEE");
+  await page.getByRole("button", { name: "Give access" }).click();
+  await expect(page.getByText("Saved: Committee")).toBeVisible();
+
+  // The member profile now shows their access.
+  await page.getByRole("link", { name: "Nethmi Perera" }).click();
+  await expect(page.getByText("App access: Committee", { exact: true })).toBeVisible();
 });
 
 test("the daily cron endpoint requires its secret", async ({ request }) => {

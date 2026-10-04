@@ -35,9 +35,16 @@ export async function createAllowlistedUser(input: unknown, actorId: string): Pr
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return err("CONFLICT", "A user with this email already exists", { email: ["Already on the list"] });
 
+  // If a choir member has this email, attach the login to them (see Access & roles).
+  const member = await prisma.member.findUnique({
+    where: { email },
+    select: { id: true, user: { select: { id: true } } },
+  });
+  const memberId = member && !member.user ? member.id : null;
+
   const id = randomUUID();
   await prisma.$transaction(async (tx) => {
-    await tx.user.create({ data: { id, name, email, role, emailVerified: true, active: true } });
+    await tx.user.create({ data: { id, name, email, role, emailVerified: true, active: true, memberId } });
     await writeAuditLog({ actorId, action: "user.create", entity: "user", entityId: id, diff: { email, role } }, tx);
   });
   return ok({ id });
@@ -50,6 +57,9 @@ export async function updateUser(input: unknown, actorId: string): Promise<Resul
 
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) return err("NOT_FOUND", "User not found");
+  if (userId === actorId && (role !== target.role || !active)) {
+    return err("FORBIDDEN", "You can't change your own role or disable yourself. Ask another admin.");
+  }
 
   const losesAdmin = target.role === "ADMIN" && target.active && (role !== "ADMIN" || !active);
   if (losesAdmin) {

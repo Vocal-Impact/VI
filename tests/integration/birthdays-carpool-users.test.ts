@@ -119,9 +119,10 @@ describe("user allowlist", () => {
       { userId: added.value.id, role: "ADMIN", active: true, receivesBirthdayReminders: true },
       admin.id,
     );
+    // Admins can't demote themselves, but another admin can.
     const demote = await updateUser(
       { userId: admin.id, role: "COMMITTEE", active: true, receivesBirthdayReminders: false },
-      admin.id,
+      added.value.id,
     );
     expect(demote.ok).toBe(true);
   });

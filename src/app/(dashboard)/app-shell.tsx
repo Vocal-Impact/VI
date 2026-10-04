@@ -3,7 +3,19 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { Cake, Car, Home, ListMusic, LogOut, Menu, MessageCircle, Mic2, SlidersHorizontal, X } from "lucide-react";
+import {
+  Cake,
+  Car,
+  Home,
+  ListMusic,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Mic2,
+  ShieldCheck,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { authClient } from "@/modules/auth/client";
 import { cn } from "@/shared/lib/cn";
 import { LogoWordmark } from "@/shared/ui/music";
@@ -17,6 +29,7 @@ const ICONS = {
   cake: Cake,
   car: Car,
   cog: SlidersHorizontal,
+  shield: ShieldCheck,
 } as const;
 
 export interface NavItem {
