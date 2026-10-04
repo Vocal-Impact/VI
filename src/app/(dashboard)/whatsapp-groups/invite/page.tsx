@@ -12,7 +12,10 @@ const memberIdsSchema = z.array(z.uuid()).min(1).max(200);
 
 export default async function InvitePage(props: PageProps<"/whatsapp-groups/invite">) {
   const user = await requirePermission("invites:send");
-  const { members: raw } = await props.searchParams;
+  const { members: raw, groups: groupsParam } = await props.searchParams;
+  const preselectGroupIds = String(Array.isArray(groupsParam) ? groupsParam.join(",") : (groupsParam ?? ""))
+    .split(",")
+    .filter(Boolean);
   const ids = memberIdsSchema.safeParse(
     String(Array.isArray(raw) ? raw.join(",") : (raw ?? ""))
       .split(",")
@@ -68,12 +71,14 @@ export default async function InvitePage(props: PageProps<"/whatsapp-groups/invi
               email: member.email,
               whatsappNumber: member.whatsappNumber,
               status: member.status,
+              voiceType: member.voiceType,
               attendedCount: member.attendedCount,
               groupStatus: member.groupStatus,
             })),
           }}
           canOverride={hasPermission(user.role, "invites:override-eligibility")}
           emailDelivery={isEmailDeliveryEnabled()}
+          preselectGroupIds={preselectGroupIds}
         />
       )}
     </>

@@ -2,40 +2,57 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { attendanceProgress } from "@/modules/attendance/domain";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
+import { cn } from "@/shared/lib/cn";
 import { Button, LinkButton } from "@/shared/ui/button";
 import { CopyButton } from "@/shared/ui/client";
-import { Badge, Card, EmptyState, Table, Td, Th } from "@/shared/ui/layout";
+import { Badge, Card, EmptyState } from "@/shared/ui/layout";
 
-interface EligibleMember {
+type Kind = "ACTIVE_NOT_IN_GROUP" | "READY" | "STILL_ATTENDING";
+
+interface QueueMember {
   id: string;
   name: string;
+  status: string;
+  kind: Kind;
   voiceType: string;
   whatsappNumber: string;
   attendedCount: number;
   invitedAt: string | null;
 }
 
+const SECTIONS: Array<{ kind: Kind; title: string; hint: string }> = [
+  {
+    kind: "ACTIVE_NOT_IN_GROUP",
+    title: "Active members not in the main group",
+    hint: "Already choir members — invite them, or open the group and mark them as joined.",
+  },
+  { kind: "READY", title: "Ready to join", hint: "Prospective members who have reached the practice count." },
+  {
+    kind: "STILL_ATTENDING",
+    title: "Still attending practices",
+    hint: "Not eligible for the main groups yet — open groups only.",
+  },
+];
+
 export function EligibleList({
   members,
+  threshold,
   canWrite,
   markAdded,
 }: {
-  members: EligibleMember[];
+  members: QueueMember[];
+  threshold: number;
   canWrite: boolean;
   markAdded: (memberId: string) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   if (members.length === 0) {
-    return (
-      <EmptyState title="Nobody is waiting right now">
-        Members show up here once they reach the practice threshold.
-      </EmptyState>
-    );
+    return <EmptyState title="Nobody here right now">Everyone in this view has been taken care of 🎉</EmptyState>;
   }
 
-  const allSelected = selected.size === members.length;
   const toggle = (id: string) =>
     setSelected((current) => {
       const next = new Set(current);
@@ -43,11 +60,13 @@ export function EligibleList({
       else next.add(id);
       return next;
     });
+  const selectAll = (kind: Kind) =>
+    setSelected((current) => new Set([...current, ...members.filter((m) => m.kind === kind).map((m) => m.id)]));
 
   return (
-    <Card>
+    <div className="space-y-4">
       {canWrite ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 p-4">
+        <Card className="flex flex-wrap items-center justify-between gap-2 p-3">
           <span className="text-sm text-slate-600">{selected.size} selected</span>
           <LinkButton
             href={`/whatsapp-groups/invite?members=${[...selected].join(",")}`}
@@ -56,82 +75,86 @@ export function EligibleList({
           >
             Send group invites to selected
           </LinkButton>
-        </div>
+        </Card>
       ) : null}
-      <Table>
-        <thead>
-          <tr>
-            {canWrite ? (
-              <Th className="w-10">
-                <input
-                  type="checkbox"
-                  aria-label="Select all"
-                  className="size-4 accent-brand-700"
-                  checked={allSelected}
-                  onChange={() => setSelected(allSelected ? new Set() : new Set(members.map((member) => member.id)))}
-                />
-              </Th>
-            ) : null}
-            <Th>Name</Th>
-            <Th>Voice</Th>
-            <Th className="text-right">Practices</Th>
-            <Th>WhatsApp</Th>
-            <Th>Invite</Th>
-            {canWrite ? <Th className="text-right">Actions</Th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {members.map((member) => (
-            <tr key={member.id}>
+
+      {SECTIONS.map(({ kind, title, hint }) => {
+        const rows = members.filter((member) => member.kind === kind);
+        if (rows.length === 0) return null;
+        const muted = kind === "STILL_ATTENDING";
+        return (
+          <Card key={kind}>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+              <div>
+                <h2 className="font-display font-extrabold text-ink">
+                  {title} <span className="text-slate-400">({rows.length})</span>
+                </h2>
+                <p className="text-xs text-slate-500">{hint}</p>
+              </div>
               {canWrite ? (
-                <Td>
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${member.name}`}
-                    className="size-4 accent-brand-700"
-                    checked={selected.has(member.id)}
-                    onChange={() => toggle(member.id)}
-                  />
-                </Td>
+                <Button size="sm" variant="ghost" onClick={() => selectAll(kind)}>
+                  Select all
+                </Button>
               ) : null}
-              <Td>
-                <Link href={`/members/${member.id}`} className="font-medium hover:underline">
-                  {member.name}
-                </Link>
-              </Td>
-              <Td>{VOICE_TYPE_LABELS[member.voiceType as VoiceType]}</Td>
-              <Td className="text-right tabular-nums">{member.attendedCount}</Td>
-              <Td>
-                <span className="flex items-center gap-2 tabular-nums">
-                  {member.whatsappNumber}
-                  <CopyButton text={member.whatsappNumber} label="Copy" />
-                </span>
-              </Td>
-              <Td>
-                {member.invitedAt ? (
-                  <Badge tone="blue">Sent {new Date(member.invitedAt).toLocaleDateString("en-GB")}</Badge>
-                ) : (
-                  <Badge>Not sent</Badge>
-                )}
-              </Td>
-              {canWrite ? (
-                <Td className="text-right">
-                  <span className="inline-flex gap-2">
-                    <LinkButton href={`/whatsapp-groups/invite?members=${member.id}`} size="sm" variant="secondary">
-                      Invite
-                    </LinkButton>
-                    <form action={markAdded.bind(null, member.id)}>
-                      <Button type="submit" size="sm" variant="outline">
-                        Mark as added
-                      </Button>
-                    </form>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {rows.map((member) => (
+                <li
+                  key={member.id}
+                  className={cn("flex flex-wrap items-center gap-3 px-4 py-2.5", muted && "bg-slate-50 text-slate-500")}
+                >
+                  {canWrite ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${member.name}`}
+                      className="size-4 accent-brand-700"
+                      checked={selected.has(member.id)}
+                      onChange={() => toggle(member.id)}
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/members/${member.id}`}
+                      className={cn("font-medium hover:underline", !muted && "text-ink")}
+                    >
+                      {member.name}
+                    </Link>
+                    <p className="text-xs">
+                      {VOICE_TYPE_LABELS[member.voiceType as VoiceType]}
+                      {member.status === "PROSPECTIVE"
+                        ? ` · ${attendanceProgress(member.attendedCount, threshold)} practices`
+                        : " · active"}
+                    </p>
+                  </div>
+                  <span className="hidden items-center gap-2 text-sm tabular-nums sm:flex">
+                    {member.whatsappNumber}
+                    <CopyButton text={member.whatsappNumber} label="Copy" />
                   </span>
-                </Td>
-              ) : null}
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    </Card>
+                  {member.invitedAt ? (
+                    <Badge tone="blue">Invited {new Date(member.invitedAt).toLocaleDateString("en-GB")}</Badge>
+                  ) : (
+                    <Badge>Not invited</Badge>
+                  )}
+                  {canWrite ? (
+                    <span className="inline-flex gap-2">
+                      <LinkButton href={`/whatsapp-groups/invite?members=${member.id}`} size="sm" variant="secondary">
+                        Invite
+                      </LinkButton>
+                      {member.kind === "READY" ? (
+                        <form action={markAdded.bind(null, member.id)}>
+                          <Button type="submit" size="sm" variant="outline">
+                            Mark as added
+                          </Button>
+                        </form>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        );
+      })}
+    </div>
   );
 }

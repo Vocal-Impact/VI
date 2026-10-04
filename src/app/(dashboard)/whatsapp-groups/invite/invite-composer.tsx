@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   buildWaMeUrl,
   canInviteToGroup,
+  describeAllowedParts,
   renderInviteMessage,
   type GroupMembershipStatus,
 } from "@/modules/whatsapp-groups/domain";
@@ -22,6 +23,7 @@ interface InviteMember {
   email: string;
   whatsappNumber: string;
   status: string;
+  voiceType: string;
   attendedCount: number;
   groupStatus: Record<string, GroupMembershipStatus>;
 }
@@ -33,6 +35,7 @@ interface InviteGroup {
   inviteLink: string;
   requiresEligibility: boolean;
   isMainGroup: boolean;
+  allowedVoiceTypes: string[];
 }
 
 type Channel = "EMAIL" | "WHATSAPP_LINK" | "MANUAL";
@@ -41,11 +44,14 @@ export function InviteComposer({
   context,
   canOverride,
   emailDelivery,
+  preselectGroupIds = [],
 }: {
   context: { threshold: number; template: string; groups: InviteGroup[]; members: InviteMember[] };
   canOverride: boolean;
   /** False when the server is in development email mode (nothing is delivered). */
   emailDelivery: boolean;
+  /** Groups to tick initially (e.g. when coming from a group's page). */
+  preselectGroupIds?: string[];
 }) {
   const { members, groups, threshold, template } = context;
   const single = members.length === 1;
@@ -56,10 +62,27 @@ export function InviteComposer({
 
   const allowedFor = (group: InviteGroup, allowOverride: boolean) =>
     members.every((member) => canInviteToGroup(member, group, threshold, allowOverride).allowed);
+  /** Why (some of) the selected members can't join, e.g. "For Tenors only · Needs 3 practices (has 1)". */
+  const blockedReason = (group: InviteGroup) => {
+    for (const member of members) {
+      const decision = canInviteToGroup(member, group, threshold, false);
+      if (!decision.allowed) return single ? decision.reason : `${member.firstName}: ${decision.reason}`;
+    }
+    return null;
+  };
   const allJoined = (group: InviteGroup) => members.every((member) => member.groupStatus[group.id] === "JOINED");
 
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(groups.filter((group) => allowedFor(group, false) && !allJoined(group)).map((group) => group.id)),
+    () =>
+      new Set(
+        groups
+          .filter((group) =>
+            preselectGroupIds.length
+              ? preselectGroupIds.includes(group.id)
+              : allowedFor(group, false) && !allJoined(group),
+          )
+          .map((group) => group.id),
+      ),
   );
   const chosenGroups = groups.filter((group) => selected.has(group.id));
   const blocked = chosenGroups.filter((group) => !allowedFor(group, override));
@@ -156,7 +179,7 @@ export function InviteComposer({
                     selected.has(group.id) ? "border-brand-300 bg-brand-50" : "border-slate-200",
                     (!eligible || joined) && "opacity-60",
                   )}
-                  title={!eligible ? `Needs ${threshold} practices` : undefined}
+                  title={!eligible ? (blockedReason(group) ?? undefined) : undefined}
                 >
                   <input
                     type="checkbox"
@@ -170,7 +193,10 @@ export function InviteComposer({
                       {group.name}
                       {group.isMainGroup ? <Badge tone="brand">Main</Badge> : null}
                       {joined ? <Badge tone="green">Already joined</Badge> : null}
-                      {!eligible ? <Badge tone="amber">Needs {threshold} practices</Badge> : null}
+                      {group.allowedVoiceTypes.length ? (
+                        <Badge tone="blue">{describeAllowedParts(group.allowedVoiceTypes)}</Badge>
+                      ) : null}
+                      {!eligible ? <Badge tone="amber">{blockedReason(group)}</Badge> : null}
                     </span>
                     {group.description ? <span className="block text-slate-500">{group.description}</span> : null}
                   </span>
@@ -181,7 +207,7 @@ export function InviteComposer({
               <Checkbox
                 checked={override}
                 onChange={(event) => setOverride(event.target.checked)}
-                label="Override the practice requirement (admin)"
+                label="Override group restrictions (admin)"
                 hint="Recorded in the audit log."
               />
             ) : null}
@@ -261,7 +287,7 @@ export function InviteComposer({
         ) : null}
         {blocked.length > 0 ? (
           <Alert tone="warning">
-            Some selected groups need {threshold} practices: {blocked.map((group) => group.name).join(", ")}.
+            Can&apos;t send to {blocked.map((group) => group.name).join(", ")} without an admin override.
           </Alert>
         ) : null}
         <Button

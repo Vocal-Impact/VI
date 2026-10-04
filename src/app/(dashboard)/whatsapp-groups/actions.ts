@@ -20,6 +20,8 @@ function groupPayload(values: Record<string, string>) {
     inviteLink: values.inviteLink ?? "",
     requiresEligibility: values.requiresEligibility === "on",
     isMainGroup: values.isMainGroup === "on",
+    // Sent as "TENOR,BASS"; empty means every part can join.
+    allowedVoiceTypes: (values.allowedVoiceTypes ?? "").split(",").filter(Boolean),
   };
 }
 
@@ -35,7 +37,10 @@ export async function updateGroupAction(groupId: string, _prev: ActionState, for
   const user = await requirePermission("groups:manage");
   const values = formValues(formData);
   const result = await updateGroup(groupId, groupPayload(values), user.id);
-  if (result.ok) revalidatePath("/whatsapp-groups");
+  if (result.ok) {
+    revalidatePath("/whatsapp-groups");
+    revalidatePath(`/whatsapp-groups/${groupId}`);
+  }
   return toActionState(result, "Group updated", result.ok ? undefined : values);
 }
 
@@ -62,6 +67,8 @@ export async function sendInvitesAction(input: {
   const user = await requirePermission("invites:send");
   const result = await sendInvites(input, user);
   revalidatePath("/attendance/eligible");
+  revalidatePath("/whatsapp-groups");
+  for (const groupId of input.groupIds) revalidatePath(`/whatsapp-groups/${groupId}`);
   for (const memberId of input.memberIds) revalidatePath(`/members/${memberId}`);
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true, value: result.value };
@@ -70,7 +77,27 @@ export async function sendInvitesAction(input: {
 export async function markJoinedAction(memberId: string, groupId: string): Promise<void> {
   const user = await requirePermission("invites:send");
   await markInviteJoined(memberId, groupId, user);
+  revalidatePath(`/whatsapp-groups/${groupId}`);
+  revalidatePath("/whatsapp-groups");
   revalidatePath(`/members/${memberId}`);
   revalidatePath("/attendance/eligible");
   revalidatePath("/");
+}
+
+/** Bulk "they're in the group" — e.g. for existing members added before the app. */
+export async function markManyJoinedAction(
+  groupId: string,
+  memberIds: string[],
+): Promise<{ ok: boolean; marked: number; error?: string }> {
+  const user = await requirePermission("invites:send");
+  let marked = 0;
+  for (const memberId of memberIds.slice(0, 300)) {
+    const result = await markInviteJoined(memberId, groupId, user);
+    if (result.ok) marked += 1;
+  }
+  revalidatePath(`/whatsapp-groups/${groupId}`);
+  revalidatePath("/whatsapp-groups");
+  revalidatePath("/attendance/eligible");
+  revalidatePath("/");
+  return { ok: true, marked };
 }

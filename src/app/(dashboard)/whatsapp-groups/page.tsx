@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { requirePermission, hasPermission } from "@/modules/auth";
 import { listGroups, listInviteHistory } from "@/modules/whatsapp-groups";
-import { INVITE_CHANNEL_LABELS } from "@/modules/whatsapp-groups/domain";
-import { Button } from "@/shared/ui/button";
+import { describeAllowedParts, INVITE_CHANNEL_LABELS } from "@/modules/whatsapp-groups/domain";
+import { LinkButton } from "@/shared/ui/button";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
-import { moveGroupAction, setGroupArchivedAction } from "./actions";
 import { GroupForm } from "./group-form";
 
 export const metadata = { title: "WhatsApp groups" };
@@ -13,84 +13,50 @@ export default async function WhatsAppGroupsPage() {
   const user = await requirePermission("groups:read");
   const canManage = hasPermission(user.role, "groups:manage");
   const [groups, history] = await Promise.all([listGroups({ includeArchived: canManage }), listInviteHistory(30)]);
-  const activeGroups = groups.filter((group) => !group.archived);
 
   return (
     <>
       <PageHeader
         title="WhatsApp groups"
-        description="The choir's groups and their invite links. Send links from a member's profile or the “Ready for WhatsApp” list."
+        description="Open a group to see who's in it and send invites. Invite links are private — anyone with a link can join."
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <CardHeader title="Groups" description="Invite links are private — anyone with a link can join." />
+            <CardHeader title="Groups" />
             <CardBody className="space-y-3">
               {groups.length === 0 ? (
                 <EmptyState title="No groups yet">
                   {canManage ? "Add your first group on the right." : "Ask an admin to add the groups."}
                 </EmptyState>
               ) : null}
-              {groups.map((group) => {
-                const position = activeGroups.findIndex((active) => active.id === group.id);
-                return (
-                  <details key={group.id} className="group rounded-lg border border-slate-200 open:bg-slate-50">
-                    <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{group.name}</span>
-                        {group.isMainGroup ? <Badge tone="brand">Main</Badge> : null}
-                        {group.requiresEligibility ? (
-                          <Badge tone="amber">After practices</Badge>
-                        ) : (
-                          <Badge tone="green">Open to new members</Badge>
-                        )}
-                        {group.archived ? <Badge>Archived</Badge> : null}
-                      </span>
-                      <span className="text-xs text-slate-500">{group._count.invites} invites sent</span>
-                    </summary>
-                    <div className="space-y-3 border-t border-slate-200 px-4 py-3">
-                      {group.description ? <p className="text-sm text-slate-600">{group.description}</p> : null}
-                      <p className="text-sm break-all">
-                        <a
-                          href={group.inviteLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-brand-700 hover:underline"
-                        >
-                          {group.inviteLink}
-                        </a>
-                      </p>
-                      {canManage ? (
-                        <>
-                          <GroupForm group={group} />
-                          <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-                            {!group.archived && position > 0 ? (
-                              <form action={moveGroupAction.bind(null, group.id, "up")}>
-                                <Button type="submit" size="sm" variant="ghost">
-                                  ↑ Move up
-                                </Button>
-                              </form>
-                            ) : null}
-                            {!group.archived && position >= 0 && position < activeGroups.length - 1 ? (
-                              <form action={moveGroupAction.bind(null, group.id, "down")}>
-                                <Button type="submit" size="sm" variant="ghost">
-                                  ↓ Move down
-                                </Button>
-                              </form>
-                            ) : null}
-                            <form action={setGroupArchivedAction.bind(null, group.id, !group.archived)}>
-                              <Button type="submit" size="sm" variant="ghost">
-                                {group.archived ? "Restore" : "Archive"}
-                              </Button>
-                            </form>
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                  </details>
-                );
-              })}
+              {groups.map((group) => (
+                <div
+                  key={group.id}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 transition-colors hover:border-brand-300 hover:bg-brand-50"
+                >
+                  <Link href={`/whatsapp-groups/${group.id}`} className="min-w-0 flex-1 px-4 py-3">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{group.name}</span>
+                      {group.isMainGroup ? <Badge tone="brand">Main</Badge> : null}
+                      <Badge tone="blue">{describeAllowedParts(group.allowedVoiceTypes)}</Badge>
+                      {group.requiresEligibility ? <Badge tone="amber">New members after practices</Badge> : null}
+                      {group.archived ? <Badge>Archived</Badge> : null}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate-600">
+                      {group.stats.joinedPeople} in the group · {group.stats.invitedPeople}{" "}
+                      {group.stats.invitedPeople === 1 ? "person" : "people"} invited
+                    </span>
+                  </Link>
+                  {canManage ? (
+                    <LinkButton href={`/whatsapp-groups/${group.id}/edit`} size="sm" variant="ghost">
+                      Edit
+                    </LinkButton>
+                  ) : null}
+                  <ChevronRight className="mr-3 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                </div>
+              ))}
             </CardBody>
           </Card>
 

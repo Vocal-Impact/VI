@@ -35,7 +35,7 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await addGroup.getByLabel("Main group").check();
   await addGroup.getByRole("button", { name: "Add group" }).click();
   await expect(page.getByText("Group added")).toBeVisible();
-  await expect(page.locator("summary").filter({ hasText: "VI Main" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /VI Main/ })).toBeVisible();
 
   // Add a member by hand; a bad email is caught first.
   await page.goto("/members/new");
@@ -88,7 +88,11 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   // Now on the "Ready for WhatsApp" list → send the invite by email.
   await page.goto("/attendance/eligible");
   await expect(page.getByRole("link", { name: "Nethmi Perera" })).toBeVisible();
-  await page.getByRole("link", { name: "Invite", exact: true }).click();
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Nethmi Perera" })
+    .getByRole("link", { name: "Invite", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "Send group invites" })).toBeVisible();
   await page.getByRole("radio", { name: /Email/ }).check();
   await expect(page.getByLabel("Message preview")).toHaveValue(
@@ -105,6 +109,47 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await page.getByRole("button", { name: "Joined" }).click();
   await expect(page.getByText("Joined", { exact: true })).toBeVisible();
   await expect(page.getByText("Active", { exact: true }).first()).toBeVisible();
+});
+
+test("a group page lists who to invite, sends bulk email invites and tracks who's in", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/whatsapp-groups");
+  await page.getByRole("link", { name: /VI Main/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "VI Main" })).toBeVisible();
+
+  // The active member who isn't in the group is at the top.
+  const activeSection = page.locator("section").filter({ hasText: "Active members not in this group" });
+  await expect(activeSection.getByRole("link", { name: "Mala Member" })).toBeVisible();
+  await activeSection.getByRole("checkbox", { name: "Select Mala Member" }).check();
+  await page.getByRole("button", { name: "Email invites (1)" }).click();
+  await expect(page.getByText(/Recorded 1 invite\(s\)/)).toBeVisible();
+
+  // Mark them as in the group (bulk) → they move to the "In the group" tab.
+  await page.getByRole("checkbox", { name: "Select Mala Member" }).check();
+  await page.getByRole("button", { name: "Mark as joined" }).click();
+  await expect(page.getByText("1 marked as in VI Main")).toBeVisible();
+  await page.getByRole("link", { name: /In the group/ }).click();
+  await expect(page.getByRole("link", { name: "Mala Member" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Nethmi Perera" })).toBeVisible();
+
+  // A Tenors-only group: other parts are greyed out with the reason.
+  await page.goto("/whatsapp-groups");
+  const addGroup = page.locator("form").filter({ has: page.getByRole("button", { name: "Add group" }) });
+  await addGroup.getByLabel("Group name").fill("VI Tenors");
+  await addGroup.getByLabel("Invite link").fill("https://chat.whatsapp.com/E2eTenorsGroupLink1");
+  await addGroup.getByLabel("Only some parts (e.g. a Tenors group)").check();
+  await addGroup.getByRole("button", { name: "Tenor", exact: true }).click();
+  await addGroup.getByLabel("New members only after the required practices").uncheck();
+  await addGroup.getByRole("button", { name: "Add group" }).click();
+  await expect(page.getByText("Group added")).toBeVisible();
+  await page.getByRole("link", { name: /VI Tenors/ }).click();
+  await expect(page.getByText("Tenors only").first()).toBeVisible();
+  const blocked = page.locator("section").filter({ hasText: "Can't join yet" });
+  await expect(blocked.getByText(/For Tenors only/).first()).toBeVisible();
+  await expect(blocked.getByRole("checkbox", { name: "Select Nethmi Perera" })).toBeDisabled();
+  // Admin override makes them selectable.
+  await page.getByLabel("Override restrictions").check();
+  await expect(blocked.getByRole("checkbox", { name: "Select Nethmi Perera" })).toBeEnabled();
 });
 
 test("CSV import shows a preview before saving", async ({ page }) => {
