@@ -54,10 +54,20 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
     canDrive: person.canDrive,
     groupIndex: groupOf.get(person.id) ?? null,
   }));
-  const lines = suggestions.driverGroups.map((group, index) => ({
-    groupIndex: index,
-    points: [venue, ...group.passengers, group.driver].map(({ latitude, longitude }) => ({ latitude, longitude })),
-  }));
+  // Real road routes when available; otherwise a dashed straight line through the stops.
+  const lines = suggestions.driverGroups.map((group, index) => {
+    const route = overview.routes[group.driver.id];
+    return {
+      groupIndex: index,
+      road: Boolean(route),
+      points: (route?.geometry ?? [venue, ...group.passengers, group.driver]).map(({ latitude, longitude }) => ({
+        latitude,
+        longitude,
+      })),
+    };
+  });
+  const road = overview.routingStatus === "road";
+  const km = (value: number) => `${road ? "" : "≈"}${value.toFixed(1)} km`;
   const phone = (id: string) => overview.whatsappById[id] ?? "";
 
   return (
@@ -97,12 +107,29 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {canWrite && overview.pending > 0 ? <GeocodeButton pending={overview.pending} /> : null}
-        <span className="text-sm text-slate-600">
-          {overview.people.length} on the map · matching by{" "}
-          {overview.routesEnabled ? "road routes (OpenRouteService)" : "straight-line distance"} · groups within{" "}
-          {overview.settings.clusterRadiusKm} km, detour ≤ {overview.settings.maxDetourKm} km
+        <span className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          {road ? <Badge tone="green">Real road distances</Badge> : <Badge tone="amber">Estimated distances</Badge>}
+          {overview.people.length} on the map · max detour {overview.settings.maxDetourKm} km · neighbours within{" "}
+          {overview.settings.clusterRadiusKm} km
         </span>
       </div>
+
+      {overview.routingStatus === "not-configured" ? (
+        <Alert tone="warning" title="Distances are estimates, not real roads" className="mb-4">
+          Without a routing service the app uses straight-line distance × 1.3, so a real detour can be longer than
+          shown. Add a free OpenRouteService key (ORS_API_KEY — see README) to match on actual roads. The “Open in
+          Google Maps” buttons always use real roads.
+        </Alert>
+      ) : overview.routingStatus === "too-many" ? (
+        <Alert tone="info" className="mb-4">
+          Too many people for one free road-distance lookup, so these are estimates. Pick a specific practice to use
+          real roads.
+        </Alert>
+      ) : overview.routingStatus === "unavailable" ? (
+        <Alert tone="warning" className="mb-4">
+          The road-distance service didn&apos;t respond, so these are estimates for now. Try again in a few minutes.
+        </Alert>
+      ) : null}
 
       {overview.unlocated.length > 0 ? (
         <Alert tone="warning" title="Some areas could not be found on the map" className="mb-4">
@@ -115,7 +142,8 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
               ({entry.areaLabel})
             </span>
           ))}
-          . Open their profile and drop a pin instead.
+          . Open their profile and paste the spot&apos;s coordinates from Google Maps (or drop a pin). If you fixed the
+          spelling, use Retry.
           {canWrite ? (
             <form action={requeueFailedAction} className="mt-2">
               <Button type="submit" size="sm" variant="outline">
@@ -162,9 +190,11 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
                       {group.driver.name} <span className="text-sm text-slate-500">({group.driver.areaLabel})</span>
                     </p>
                     <p className="text-xs text-slate-500">
-                      {group.passengers.length}/{group.driver.seats} seats · ~{group.detourKm.toFixed(1)} km detour ·{" "}
-                      {haversineKm(venue, group.driver).toFixed(1)} km from venue to their home
-                      {group.matchedBy === "route" ? " · along route" : ""}
+                      {group.passengers.length}/{group.driver.seats} seats · +{km(group.detourKm)} detour · trip home{" "}
+                      {km(overview.routes[group.driver.id]?.distanceKm ?? group.tripKm)}
+                      {overview.routes[group.driver.id]
+                        ? ` · ~${Math.round(overview.routes[group.driver.id]!.durationMin)} min`
+                        : ""}
                     </p>
                   </div>
                   <a

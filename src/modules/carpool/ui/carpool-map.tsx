@@ -21,7 +21,7 @@ export default function CarpoolMap({
 }: {
   venue: LatLng & { name: string };
   people: MapPerson[];
-  lines: Array<{ points: LatLng[]; groupIndex: number }>;
+  lines: Array<{ points: LatLng[]; groupIndex: number; road: boolean }>;
 }) {
   return (
     <MapContainer center={[venue.latitude, venue.longitude]} zoom={11} className="h-[28rem] w-full" scrollWheelZoom>
@@ -33,7 +33,13 @@ export default function CarpoolMap({
         <Polyline
           key={index}
           positions={line.points.map((point) => [point.latitude, point.longitude])}
-          pathOptions={{ color: groupColour(line.groupIndex), weight: 3, opacity: 0.7, dashArray: "6 6" }}
+          pathOptions={{
+            color: groupColour(line.groupIndex),
+            weight: line.road ? 4 : 3,
+            opacity: line.road ? 0.85 : 0.6,
+            // Dashed = straight-line guide, solid = the real road route.
+            dashArray: line.road ? undefined : "6 6",
+          }}
         />
       ))}
       {people.map((person) => (

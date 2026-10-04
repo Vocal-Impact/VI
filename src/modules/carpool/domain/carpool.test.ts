@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { distanceToPolylineKm, haversineKm, roundCoordinate } from "./geo";
 import { googleMapsDirectionsUrl } from "./google-maps";
-import { clusterNeighbours, suggestCarpools, type CarpoolPerson } from "./suggestions";
+import {
+  clusterNeighbours,
+  estimatedDistanceTable,
+  ROAD_FACTOR,
+  roadDistanceTable,
+  suggestCarpools,
+  VENUE_ID,
+  type CarpoolPerson,
+} from "./suggestions";
 
 const venue = { latitude: 6.868, longitude: 79.859 }; // Colombo 06
 
@@ -46,7 +54,7 @@ describe("googleMapsDirectionsUrl", () => {
 });
 
 describe("suggestCarpools", () => {
-  // Moratuwa driver heading north to Colombo 06; Dehiwala & Mount Lavinia are on the way, Wattala is not.
+  // Moratuwa driver heading home south from Colombo 06; Dehiwala & Mount Lavinia are on the way, Wattala is not.
   const driver = person("driver-moratuwa", 6.773, 79.882, 2);
   const onTheWay1 = person("mount-lavinia", 6.838, 79.866);
   const onTheWay2 = person("dehiwala", 6.851, 79.865);
@@ -56,14 +64,21 @@ describe("suggestCarpools", () => {
   it("drops people off on the driver's way home, nearest the venue first", () => {
     const result = suggestCarpools([driver, onTheWay2, offRoute, onTheWay1], venue, options);
     expect(result.driverGroups).toHaveLength(1);
+    const group = result.driverGroups[0]!;
     // Venue (Colombo 06) → Dehiwala → Mount Lavinia → driver's home in Moratuwa.
-    expect(result.driverGroups[0]?.passengers.map((p) => p.id)).toEqual(["dehiwala", "mount-lavinia"]);
-    expect(result.driverGroups[0]?.matchedBy).toBe("distance");
-    const url = new URL(result.driverGroups[0]!.googleMapsUrl);
+    expect(group.passengers.map((p) => p.id)).toEqual(["dehiwala", "mount-lavinia"]);
+    expect(group.distanceKind).toBe("estimate");
+    expect(group.detourKm).toBeLessThanOrEqual(options.maxDetourKm);
+    const url = new URL(group.googleMapsUrl);
     expect(url.searchParams.get("origin")).toBe("6.868,79.859"); // starts at the venue
     expect(url.searchParams.get("destination")).toBe("6.773,79.882"); // ends at the driver's home
     expect(url.searchParams.get("waypoints")).toBe("6.851,79.865|6.838,79.866");
     expect(result.alone.map((p) => p.id)).toEqual(["wattala"]);
+  });
+
+  it("estimates road distance as straight line × the road factor", () => {
+    const table = estimatedDistanceTable([driver], venue);
+    expect(table.km(VENUE_ID, driver.id)).toBeCloseTo(haversineKm(venue, driver) * ROAD_FACTOR, 6);
   });
 
   it("never exceeds the driver's seats", () => {
@@ -71,16 +86,50 @@ describe("suggestCarpools", () => {
     expect(result.driverGroups[0]?.passengers).toHaveLength(1);
   });
 
-  it("uses the road route corridor when one is known", () => {
-    const route = [
-      { latitude: 6.773, longitude: 79.882 },
-      { latitude: 6.95, longitude: 79.89 }, // detours north past Wattala's latitude band
-      { latitude: 6.99, longitude: 79.892 },
-      venue,
-    ];
-    const result = suggestCarpools([driver, offRoute], venue, options, new Map([[driver.id, route]]));
-    expect(result.driverGroups[0]?.passengers.map((p) => p.id)).toEqual(["wattala"]);
-    expect(result.driverGroups[0]?.matchedBy).toBe("route");
+  it("uses real road distances when available — a short straight line can still be a long drive", () => {
+    // Straight-line, the passenger looks on the way. By road (e.g. across a canal with no bridge) it's a 6 km detour.
+    const passenger = person("across-canal", 6.82, 79.87);
+    const ids = [VENUE_ID, driver.id, passenger.id];
+    const estimate = estimatedDistanceTable([driver, passenger], venue);
+    const road = roadDistanceTable(
+      ids,
+      [
+        [0, 12, 8],
+        [12, 0, 10],
+        [8, 10, 0],
+      ],
+      estimate,
+    );
+    expect(suggestCarpools([driver, passenger], venue, options).driverGroups).toHaveLength(1); // estimate says yes
+    const result = suggestCarpools([driver, passenger], venue, options, road);
+    expect(result.driverGroups).toHaveLength(0); // roads say no: 8 + 10 − 12 = 6 km > 2 km
+    expect(result.alone.map((p) => p.id)).toEqual(["across-canal"]);
+
+    // With a real road detour of 1 km, they match and the figures are road kilometres.
+    const close = roadDistanceTable(
+      ids,
+      [
+        [0, 12, 5],
+        [12, 0, 8],
+        [5, 8, 0],
+      ],
+      estimate,
+    );
+    const matched = suggestCarpools([driver, passenger], venue, options, close).driverGroups[0]!;
+    expect(matched).toMatchObject({ distanceKind: "road", directKm: 12, tripKm: 13, detourKm: 1 });
+  });
+
+  it("falls back to the estimate for pairs the road service couldn't route", () => {
+    const estimate = estimatedDistanceTable([driver], venue);
+    const table = roadDistanceTable(
+      [VENUE_ID, driver.id],
+      [
+        [0, null],
+        [null, 0],
+      ],
+      estimate,
+    );
+    expect(table.km(VENUE_ID, driver.id)).toBeCloseTo(estimate.km(VENUE_ID, driver.id), 6);
   });
 
   it("groups neighbours without a driver", () => {

@@ -4,20 +4,74 @@ import { getEnv } from "@/shared/config/env";
 import { getSettings } from "@/shared/settings/settings";
 import { errorMessage, logger } from "@/shared/lib/logger";
 import type { LatLng } from "../domain/geo";
-import type { RouteProvider } from "../domain/ports";
-import { suggestCarpools, type CarpoolPerson } from "../domain/suggestions";
-import { OrsRouteProvider } from "../infrastructure/ors-route-provider";
+import type { RoadRoute, RouteProvider } from "../domain/ports";
+import {
+  estimatedDistanceTable,
+  roadDistanceTable,
+  suggestCarpools,
+  VENUE_ID,
+  type CarpoolPerson,
+  type DistanceTable,
+} from "../domain/suggestions";
+import { MAX_MATRIX_POINTS, OrsRouteProvider } from "../infrastructure/ors-route-provider";
 
-const routeCache = new Map<string, LatLng[] | null>();
-const ROUTE_CACHE_LIMIT = 500;
+/**
+ * Small in-memory caches so reloading the page doesn't spend the free
+ * OpenRouteService quota. Keyed by the exact (rounded) coordinates.
+ */
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const CACHE_LIMIT = 200;
+const matrixCache = new Map<string, { at: number; value: Array<Array<number | null>> }>();
+const routeCache = new Map<string, { at: number; value: RoadRoute }>();
 
-async function cachedRoute(provider: RouteProvider, from: LatLng, to: LatLng): Promise<LatLng[] | null> {
-  const key = `${from.latitude},${from.longitude}->${to.latitude},${to.longitude}`;
-  if (routeCache.has(key)) return routeCache.get(key) ?? null;
+const pointsKey = (points: readonly LatLng[]) => points.map((p) => `${p.latitude},${p.longitude}`).join(";");
+
+function remember<T>(cache: Map<string, { at: number; value: T }>, key: string, value: T): void {
+  if (cache.size >= CACHE_LIMIT) cache.clear();
+  cache.set(key, { at: Date.now(), value });
+}
+
+function recall<T>(cache: Map<string, { at: number; value: T }>, key: string): T | undefined {
+  const hit = cache.get(key);
+  return hit && Date.now() - hit.at < CACHE_TTL_MS ? hit.value : undefined;
+}
+
+export type RoutingStatus =
+  | "road" // real road distances and routes
+  | "not-configured" // no ORS_API_KEY: straight-line estimate × road factor
+  | "too-many" // more people than one free matrix request allows
+  | "unavailable"; // the routing service failed — estimates for now
+
+async function buildDistanceTable(
+  provider: RouteProvider | null,
+  people: CarpoolPerson[],
+  venue: LatLng,
+): Promise<{ table: DistanceTable; status: RoutingStatus }> {
+  const estimate = estimatedDistanceTable(people, venue);
+  if (!provider) return { table: estimate, status: "not-configured" };
+  if (people.length + 1 > MAX_MATRIX_POINTS) return { table: estimate, status: "too-many" };
+
+  const ids = [VENUE_ID, ...people.map((person) => person.id)];
+  const points = [venue, ...people];
+  const key = pointsKey(points);
   try {
-    const route = await provider.route(from, to);
-    if (routeCache.size >= ROUTE_CACHE_LIMIT) routeCache.clear();
-    routeCache.set(key, route);
+    const matrix = recall(matrixCache, key) ?? (await provider.distanceMatrix(points));
+    if (!matrix) return { table: estimate, status: "unavailable" };
+    remember(matrixCache, key, matrix);
+    return { table: roadDistanceTable(ids, matrix, estimate), status: "road" };
+  } catch (error) {
+    logger.warn("Road distance lookup failed", { error: errorMessage(error) });
+    return { table: estimate, status: "unavailable" };
+  }
+}
+
+async function roadRoute(provider: RouteProvider, points: LatLng[]): Promise<RoadRoute | null> {
+  const key = pointsKey(points);
+  const cached = recall(routeCache, key);
+  if (cached) return cached;
+  try {
+    const route = await provider.route(points);
+    if (route) remember(routeCache, key, route);
     return route;
   } catch (error) {
     logger.warn("Route lookup failed", { error: errorMessage(error) });
@@ -58,29 +112,33 @@ export async function getCarpoolOverview(
     }));
 
   const apiKey = getEnv().ORS_API_KEY;
-  const routeProvider =
+  const provider =
     options.routeProvider === undefined ? (apiKey ? new OrsRouteProvider(apiKey) : null) : options.routeProvider;
-  const routes = new Map<string, LatLng[]>();
-  if (routeProvider) {
-    const drivers = located.filter((person) => person.canDrive && person.seats > 0);
-    for (const driver of drivers) {
-      // Lifts home: the driver's road route from the venue to their home.
-      const route = await cachedRoute(routeProvider, venue, driver);
-      if (route) routes.set(driver.id, route);
-    }
-  }
 
+  const { table, status } = await buildDistanceTable(provider, located, venue);
   const suggestions = suggestCarpools(
     located,
     venue,
     { clusterRadiusKm: settings.carpoolClusterRadiusKm, maxDetourKm: settings.carpoolMaxDetourKm },
-    routes,
+    table,
   );
+
+  // Real road routes for the suggested lifts (venue → drop-offs → driver's home), for the map.
+  const routes: Record<string, RoadRoute> = {};
+  if (provider && status === "road") {
+    await Promise.all(
+      suggestions.driverGroups.map(async (group) => {
+        const route = await roadRoute(provider, [venue, ...group.passengers, group.driver]);
+        if (route) routes[group.driver.id] = route;
+      }),
+    );
+  }
 
   return {
     venue,
     people: located,
-    routesEnabled: routeProvider !== null,
+    routingStatus: status,
+    routes,
     whatsappById: Object.fromEntries(locations.map((location) => [location.member.id, location.member.whatsappNumber])),
     pending: locations.filter((location) => location.geocodeStatus === "PENDING").length,
     /** Attendees we can't place: no location shared at all. */

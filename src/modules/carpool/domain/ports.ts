@@ -9,7 +9,17 @@ export interface Geocoder {
   geocode(query: string): Promise<GeocodeResult | null>;
 }
 
-/** Port: driving route geometry. Production adapter: OpenRouteService (optional). */
+export interface RoadRoute {
+  /** The route along real roads, for drawing on the map. */
+  geometry: LatLng[];
+  distanceKm: number;
+  durationMin: number;
+}
+
+/** Port: real road distances and routes. Production adapter: OpenRouteService (optional). */
 export interface RouteProvider {
-  route(from: LatLng, to: LatLng): Promise<LatLng[] | null>;
+  /** All-to-all driving distances in km (null where no road route exists), or null on failure. */
+  distanceMatrix(points: readonly LatLng[]): Promise<Array<Array<number | null>> | null>;
+  /** Driving route through the points in order, or null on failure. */
+  route(points: readonly LatLng[]): Promise<RoadRoute | null>;
 }

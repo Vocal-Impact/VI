@@ -16,7 +16,7 @@ const CarpoolMap = dynamic(() => import("@/modules/carpool/ui/carpool-map"), {
 export function MapClient(props: {
   venue: LatLng & { name: string };
   people: MapPerson[];
-  lines: Array<{ points: LatLng[]; groupIndex: number }>;
+  lines: Array<{ points: LatLng[]; groupIndex: number; road: boolean }>;
 }) {
   return <CarpoolMap {...props} />;
 }
