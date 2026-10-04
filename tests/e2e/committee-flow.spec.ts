@@ -121,6 +121,27 @@ test("CSV import shows a preview before saving", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Kavindu Silva" })).toBeVisible();
 });
 
+test("a removed member can be found under Removed and restored", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/members");
+  await page.getByRole("link", { name: "Amaya Perera" }).click();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Remove member" }).click();
+  await expect(page.getByText("This member has been removed")).toBeVisible();
+
+  // Gone from the normal list, but findable.
+  await page.goto("/members");
+  await expect(page.getByRole("link", { name: "Amaya Perera" })).toHaveCount(0);
+  await page.getByRole("link", { name: /1 removed \(can be restored\)/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Removed members" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Amaya Perera" })).toBeVisible();
+  await page.getByRole("button", { name: "Restore" }).click();
+  await expect(page.getByRole("link", { name: "Amaya Perera" })).toHaveCount(0);
+
+  await page.goto("/members");
+  await expect(page.getByRole("link", { name: "Amaya Perera" })).toBeVisible();
+});
+
 test("every section renders", async ({ page }) => {
   await openDashboard(page);
   for (const [path, heading] of [

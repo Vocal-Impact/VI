@@ -86,6 +86,7 @@ export async function removeMemberAction(memberId: string): Promise<void> {
 export async function restoreMemberAction(memberId: string): Promise<void> {
   const user = await requirePermission("members:write");
   await restoreMember(memberId, user.id);
+  revalidatePath("/members");
   revalidatePath(`/members/${memberId}`);
 }
 

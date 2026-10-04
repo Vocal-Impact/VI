@@ -91,6 +91,11 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
       ) : null}
       {member.deletedAt ? (
         <Alert tone="warning" title="This member has been removed" className="mb-4">
+          They&apos;re hidden from lists and attendance and can&apos;t sign in. You can always find them again under{" "}
+          <Link href="/members?status=REMOVED" className="font-semibold underline">
+            Members → Removed
+          </Link>
+          .
           {canWrite ? (
             <form action={restoreMemberAction.bind(null, member.id)} className="mt-2">
               <Button type="submit" size="sm" variant="outline">
@@ -289,11 +294,15 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                     App access: {ACCESS_LEVEL_LABELS[accessLevelOf(member.user)]} — change
                   </LinkButton>
                 ) : null}
+                <p className="text-xs text-slate-500">
+                  Stopped coming? Set them to <b>Inactive</b>. Graduated? <b>Alumni</b>. Use Remove only for records
+                  that shouldn&apos;t be here (duplicates, test entries).
+                </p>
                 <form action={removeMemberAction.bind(null, member.id)}>
                   <ConfirmSubmit
                     variant="outline"
                     className="w-full"
-                    message="Remove this member? They can be restored later."
+                    message="Remove this member? They'll be hidden everywhere, but you can restore them from Members → Removed."
                   >
                     Remove member
                   </ConfirmSubmit>

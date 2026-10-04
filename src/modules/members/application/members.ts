@@ -19,10 +19,13 @@ import {
 
 const DUPLICATE_LABELS = { studentId: "student ID", email: "email", whatsappNumber: "WhatsApp number" } as const;
 
+/** "REMOVED" in the status filter means removed (soft-deleted) members. */
+export const REMOVED_FILTER = "REMOVED";
+
 function whereForFilter(filter: MemberFilter, includeDeleted = false): Prisma.MemberWhereInput {
   const q = filter.q?.trim();
   return {
-    deletedAt: includeDeleted ? undefined : null,
+    deletedAt: includeDeleted ? undefined : filter.removed ? { not: null } : null,
     status: filter.status,
     voiceType: filter.voiceType,
     yearOfStudy: filter.year,
@@ -44,9 +47,11 @@ export function parseMemberFilter(searchParams: Record<string, string | string[]
     const single = Array.isArray(value) ? value[0] : value;
     return single === "" ? undefined : single;
   };
+  const status = pick("status");
   const parsed = memberFilterSchema.safeParse({
     q: pick("q"),
-    status: pick("status"),
+    status: status === REMOVED_FILTER ? undefined : status,
+    removed: status === REMOVED_FILTER ? true : undefined,
     voiceType: pick("voiceType"),
     year: pick("year"),
   });
@@ -59,6 +64,10 @@ export async function listMembers(filter: MemberFilter = {}) {
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     include: { _count: { select: { attendances: true } } },
   });
+}
+
+export async function countRemovedMembers(): Promise<number> {
+  return prisma.member.count({ where: { deletedAt: { not: null } } });
 }
 
 export async function countMembersByStatus(): Promise<Record<MemberStatus, number>> {

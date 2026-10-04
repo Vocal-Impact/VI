@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePermission, hasPermission } from "@/modules/auth";
-import { listMembers, parseMemberFilter } from "@/modules/members";
+import { countRemovedMembers, listMembers, parseMemberFilter, REMOVED_FILTER } from "@/modules/members";
 import {
   MEMBER_STATUSES,
   MEMBER_STATUS_LABELS,
@@ -9,9 +9,10 @@ import {
   formatYearOfStudy,
 } from "@/modules/members/domain";
 import { StatusBadge, VoiceBadge } from "@/modules/members/ui";
-import { buttonClasses, LinkButton } from "@/shared/ui/button";
+import { Button, buttonClasses, LinkButton } from "@/shared/ui/button";
 import { Input, Select } from "@/shared/ui/form";
-import { Alert, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
+import { Alert, Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
+import { restoreMemberAction } from "./actions";
 
 export const metadata = { title: "Members" };
 
@@ -19,19 +20,34 @@ export default async function MembersPage(props: PageProps<"/members">) {
   const user = await requirePermission("members:read");
   const searchParams = await props.searchParams;
   const filter = parseMemberFilter(searchParams);
-  const members = await listMembers(filter);
+  const [members, removedCount] = await Promise.all([listMembers(filter), countRemovedMembers()]);
+  const canWrite = hasPermission(user.role, "members:write");
   const exportQuery = new URLSearchParams(
-    Object.entries(filter).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)]])),
+    Object.entries({ ...filter, removed: undefined, status: filter.removed ? REMOVED_FILTER : filter.status }).flatMap(
+      ([key, value]) => (value === undefined ? [] : [[key, String(value)]]),
+    ),
   ).toString();
 
   return (
     <>
       <PageHeader
-        title="Members"
-        description={`${members.length} member${members.length === 1 ? "" : "s"}${Object.keys(filter).length ? " match your filters" : ""}`}
+        title={filter.removed ? "Removed members" : "Members"}
+        description={
+          <>
+            {`${members.length} member${members.length === 1 ? "" : "s"}${Object.keys(filter).length ? " match your filters" : ""}`}
+            {!filter.removed && removedCount > 0 ? (
+              <>
+                {" · "}
+                <Link href={`/members?status=${REMOVED_FILTER}`} className="text-brand-700 hover:underline">
+                  {removedCount} removed (can be restored)
+                </Link>
+              </>
+            ) : null}
+          </>
+        }
         actions={
           <>
-            {hasPermission(user.role, "members:write") ? <LinkButton href="/members/new">Add member</LinkButton> : null}
+            {canWrite ? <LinkButton href="/members/new">Add member</LinkButton> : null}
             {hasPermission(user.role, "imports:run") ? (
               <LinkButton href="/members/import" variant="outline">
                 Import CSV
@@ -43,6 +59,13 @@ export default async function MembersPage(props: PageProps<"/members">) {
           </>
         }
       />
+
+      {filter.removed ? (
+        <Alert tone="warning" title="Removed members" className="mb-4">
+          These records are hidden from lists, attendance and the carpool map, and can&apos;t sign in. Restore anyone
+          removed by mistake. Members who simply stopped coming should be set to <b>Inactive</b> instead.
+        </Alert>
+      ) : null}
 
       {searchParams.erased ? (
         <Alert tone="success" className="mb-4">
@@ -58,13 +81,18 @@ export default async function MembersPage(props: PageProps<"/members">) {
             defaultValue={filter.q ?? ""}
             aria-label="Search"
           />
-          <Select name="status" defaultValue={filter.status ?? ""} aria-label="Status">
+          <Select
+            name="status"
+            defaultValue={filter.removed ? REMOVED_FILTER : (filter.status ?? "")}
+            aria-label="Status"
+          >
             <option value="">All statuses</option>
             {MEMBER_STATUSES.map((status) => (
               <option key={status} value={status}>
                 {MEMBER_STATUS_LABELS[status]}
               </option>
             ))}
+            <option value={REMOVED_FILTER}>Removed (restorable)</option>
           </Select>
           <Select name="voiceType" defaultValue={filter.voiceType ?? ""} aria-label="Voice type">
             <option value="">All voices</option>
@@ -123,7 +151,20 @@ export default async function MembersPage(props: PageProps<"/members">) {
                   </Td>
                   <Td className="hidden sm:table-cell">{formatYearOfStudy(member.yearOfStudy)}</Td>
                   <Td>
-                    <StatusBadge status={member.status} />
+                    {member.deletedAt ? (
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Badge tone="red">Removed {member.deletedAt.toLocaleDateString("en-GB")}</Badge>
+                        {canWrite ? (
+                          <form action={restoreMemberAction.bind(null, member.id)}>
+                            <Button type="submit" size="sm" variant="outline">
+                              Restore
+                            </Button>
+                          </form>
+                        ) : null}
+                      </span>
+                    ) : (
+                      <StatusBadge status={member.status} />
+                    )}
                   </Td>
                   <Td className="text-right tabular-nums">{member._count.attendances}</Td>
                   <Td className="hidden tabular-nums lg:table-cell">{member.whatsappNumber}</Td>

@@ -4,6 +4,8 @@ export {
   getMember,
   getMembersByIds,
   countMembersByStatus,
+  countRemovedMembers,
+  REMOVED_FILTER,
   countMissingData,
   parseMemberFilter,
   createMember,

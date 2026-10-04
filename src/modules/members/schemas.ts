@@ -58,6 +58,8 @@ export const memberFilterSchema = z.object({
   status: z.enum(MEMBER_STATUSES).optional(),
   voiceType: z.enum(VOICE_TYPES).optional(),
   year: z.coerce.number().int().min(0).max(5).optional(),
+  /** Show removed (soft-deleted) members instead of current ones. */
+  removed: z.boolean().optional(),
 });
 
 export type MemberFilter = z.infer<typeof memberFilterSchema>;
