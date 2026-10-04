@@ -9,6 +9,7 @@ import { updateSetting } from "@/shared/settings/settings";
 import type { SettingKey } from "@/shared/settings/definitions";
 import { formValues, toActionState, type ActionState } from "@/shared/lib/action-state";
 import { err, type Result } from "@/shared/lib/result";
+import { parseCoordinates } from "@/shared/lib/coordinates";
 
 function parseSettingValue(key: SettingKey, values: Record<string, string>): unknown {
   switch (key) {
@@ -20,12 +21,11 @@ function parseSettingValue(key: SettingKey, values: Record<string, string>): unk
       return Number.parseFloat(values.value ?? "");
     case "inviteMessageTemplate":
       return (values.value ?? "").replace(/\r\n/g, "\n");
-    case "practiceVenue":
-      return {
-        name: values.name ?? "",
-        latitude: Number.parseFloat(values.latitude ?? ""),
-        longitude: Number.parseFloat(values.longitude ?? ""),
-      };
+    case "practiceVenue": {
+      // One field, pasted straight from Google Maps: "6.8953861, 79.8556737".
+      const coordinates = parseCoordinates(values.coordinates ?? "");
+      return coordinates ? { name: values.name ?? "", ...coordinates } : { name: values.name ?? "" };
+    }
   }
 }
 
@@ -42,6 +42,13 @@ export async function updateSettingAction(_prev: ActionState, formData: FormData
   const user = await requirePermission("settings:manage");
   const values = formValues(formData);
   const key = values.key as SettingKey;
+  if (key === "practiceVenue" && !parseCoordinates(values.coordinates ?? "")) {
+    return {
+      status: "error",
+      message: "Paste the coordinates as two numbers separated by a comma, e.g. 6.8953861, 79.8556737",
+      values,
+    };
+  }
   const result: Result<unknown> = KEYS.includes(key)
     ? await updateSetting(key, parseSettingValue(key, values), user.id)
     : err("VALIDATION", "Unknown setting");

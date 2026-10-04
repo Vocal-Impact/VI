@@ -2,6 +2,7 @@
 
 import { useActionState, type ReactNode } from "react";
 import { idleState } from "@/shared/lib/action-state";
+import { formatCoordinates } from "@/shared/lib/coordinates";
 import { ActionFeedback, SubmitButton } from "@/shared/ui/client";
 import { Field, Input, Textarea } from "@/shared/ui/form";
 import { Card, CardBody, CardHeader } from "@/shared/ui/layout";
@@ -87,19 +88,32 @@ export function VenueSetting({ value }: { value: { name: string; latitude: numbe
     <SettingCard
       settingKey="practiceVenue"
       title="Practice venue"
-      description="Used as the carpool destination. Right-click the spot in Google Maps to copy its coordinates."
+      description="Where lifts home start from, and the default venue for new practices."
     >
       <Field label="Name" htmlFor="venue-name">
         <Input id="venue-name" name="name" defaultValue={value.name} />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Latitude" htmlFor="venue-lat">
-          <Input id="venue-lat" name="latitude" type="number" step="0.000001" defaultValue={value.latitude} />
-        </Field>
-        <Field label="Longitude" htmlFor="venue-lng">
-          <Input id="venue-lng" name="longitude" type="number" step="0.000001" defaultValue={value.longitude} />
-        </Field>
-      </div>
+      <Field
+        label="Coordinates"
+        htmlFor="venue-coordinates"
+        hint="In Google Maps, right-click the spot and click the numbers at the top to copy them, then paste here."
+      >
+        <Input
+          id="venue-coordinates"
+          name="coordinates"
+          inputMode="decimal"
+          placeholder="6.8953861, 79.8556737"
+          defaultValue={formatCoordinates(value)}
+        />
+      </Field>
+      <a
+        href={`https://www.google.com/maps/search/?api=1&query=${value.latitude},${value.longitude}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block text-xs text-brand-700 hover:underline"
+      >
+        Check the current location in Google Maps ↗
+      </a>
     </SettingCard>
   );
 }

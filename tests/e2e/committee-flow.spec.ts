@@ -144,6 +144,22 @@ test("a removed member can be found under Removed and restored", async ({ page }
   await expect(page.getByRole("link", { name: "Amaya Perera" })).toBeVisible();
 });
 
+test("the practice venue accepts coordinates pasted from Google Maps", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/settings");
+  const venue = page.locator("form").filter({ has: page.getByLabel("Coordinates") });
+
+  await venue.getByLabel("Coordinates").fill("not a place");
+  await venue.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/two numbers separated by a comma/)).toBeVisible();
+
+  await venue.getByLabel("Coordinates").fill("6.895386124694451, 79.85567372806051");
+  await venue.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Setting saved")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Coordinates")).toHaveValue("6.895386, 79.855674");
+});
+
 test("every section renders", async ({ page }) => {
   await openDashboard(page);
   for (const [path, heading] of [
