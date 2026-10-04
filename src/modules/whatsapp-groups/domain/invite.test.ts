@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildWaMeUrl, canInviteToGroup, isValidInviteLink, membershipStatus, renderInviteMessage } from "./invite";
+import {
+  buildWaMeUrl,
+  canInviteToGroup,
+  isValidInviteLink,
+  membershipStatus,
+  renderInviteMessage,
+  renderInviteParts,
+} from "./invite";
 
 describe("isValidInviteLink", () => {
   it("accepts WhatsApp group invite links only", () => {
@@ -71,5 +78,22 @@ describe("membershipStatus", () => {
     expect(membershipStatus(invites, "g2")).toBe("JOINED");
     expect(membershipStatus(invites, "g3")).toBe("FAILED");
     expect(membershipStatus(invites, "g4")).toBe("NOT_INVITED");
+  });
+});
+
+describe("renderInviteParts", () => {
+  it("splits the filled-in message around {groupList}", () => {
+    expect(
+      renderInviteParts("Hi {firstName}!\n{groupList}\nBye {lastName}", { firstName: "A", lastName: "B" }),
+    ).toEqual({
+      before: "Hi A!\n",
+      after: "\nBye B",
+    });
+  });
+  it("puts everything before the buttons when there is no placeholder", () => {
+    expect(renderInviteParts("Hi {firstName}", { firstName: "A", lastName: "B" })).toEqual({
+      before: "Hi A",
+      after: "",
+    });
   });
 });

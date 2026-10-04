@@ -10,7 +10,13 @@ import { getMembersByIds, markAddedToWhatsapp } from "@/modules/members";
 import { getAttendedCounts } from "@/modules/attendance";
 import { brandLogoUrl, getEmailSender, groupInviteEmail } from "@/modules/notifications";
 import { hasPermission, type Role } from "@/modules/auth/domain";
-import { buildWaMeUrl, canInviteToGroup, membershipStatus, renderInviteMessage } from "../domain/invite";
+import {
+  buildWaMeUrl,
+  canInviteToGroup,
+  membershipStatus,
+  renderInviteMessage,
+  renderInviteParts,
+} from "../domain/invite";
 import { sendInvitesSchema } from "../schemas";
 
 export interface InviteActor {
@@ -101,7 +107,16 @@ export async function sendInvites(raw: unknown, actor: InviteActor): Promise<Res
 
     if (channel === "EMAIL") {
       try {
-        await sender.send(groupInviteEmail(member.email, message, brandLogoUrl()));
+        await sender.send(
+          groupInviteEmail({
+            to: member.email,
+            firstName: member.firstName,
+            text: message,
+            ...renderInviteParts(context.template, member),
+            groups: groups.map((group) => ({ name: group.name, inviteLink: group.inviteLink })),
+            logoUrl: brandLogoUrl(),
+          }),
+        );
       } catch (sendError) {
         status = "FAILED";
         error = errorMessage(sendError).slice(0, 500);

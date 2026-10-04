@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePermission } from "@/modules/auth";
 import { listCronRuns } from "@/modules/birthdays";
 import { describeEmailSetup } from "@/modules/notifications";
@@ -45,6 +46,9 @@ export default async function SystemPage() {
               From: <span className="font-mono">{email.from}</span>
             </p>
             <TestEmailButton />
+            <Link href="/settings/email-preview" className="inline-block text-sm text-brand-700 hover:underline">
+              Preview the email designs →
+            </Link>
           </CardBody>
         </Card>
         <Card>

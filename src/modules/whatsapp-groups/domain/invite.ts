@@ -56,6 +56,23 @@ export function renderInviteMessage(
 }
 
 /**
+ * The message split around {groupList}, so an email can show the groups as
+ * buttons in exactly the place the committee put the list.
+ */
+export function renderInviteParts(
+  template: string,
+  member: { firstName: string; lastName: string },
+): { before: string; after: string } {
+  const filled = template.replaceAll("{firstName}", member.firstName).replaceAll("{lastName}", member.lastName);
+  const index = filled.indexOf("{groupList}");
+  if (index < 0) return { before: filled, after: "" };
+  return {
+    before: filled.slice(0, index),
+    after: filled.slice(index + "{groupList}".length).replaceAll("{groupList}", ""),
+  };
+}
+
+/**
  * Click-to-chat link that opens WhatsApp with the message pre-filled. A
  * committee member presses Send — no automation, no paid API.
  */

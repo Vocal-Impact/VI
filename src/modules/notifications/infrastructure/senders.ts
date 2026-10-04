@@ -72,7 +72,8 @@ export function setEmailSenderForTesting(next: EmailSender | undefined): void {
  */
 export function brandLogoUrl(): string | undefined {
   const base = getEnv().BETTER_AUTH_URL.replace(/\/$/, "");
-  return base.startsWith("https://") ? `${base}/brand/logo-email.png` : undefined;
+  // White wordmark for the email's dark header band.
+  return base.startsWith("https://") ? `${base}/brand/logo-primary-white.png` : undefined;
 }
 
 /** False in development mode (EMAIL_TRANSPORT=console): emails are only printed, never delivered. */

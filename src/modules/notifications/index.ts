@@ -9,4 +9,12 @@ export {
 } from "./infrastructure/senders";
 export type { EmailMessage, EmailSender } from "./domain/email";
 export { escapeHtml, textToHtml } from "./domain/email";
-export { birthdayDigestEmail, groupInviteEmail, type BirthdayPerson } from "./domain/templates";
+export {
+  birthdayDigestEmail,
+  groupInviteEmail,
+  testEmail,
+  type BirthdayPerson,
+  type GroupInviteEmailInput,
+  type InviteEmailGroup,
+} from "./domain/templates";
+export { renderEmailLayout } from "./domain/layout";

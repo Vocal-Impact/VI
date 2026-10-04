@@ -7,6 +7,7 @@ import { cn } from "@/shared/lib/cn";
 const TABS = [
   { href: "/settings", label: "General" },
   { href: "/settings/system", label: "System & data" },
+  { href: "/settings/email-preview", label: "Email designs" },
 ];
 
 export function SettingsTabs() {

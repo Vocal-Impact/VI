@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/modules/auth";
 import { sendBirthdayReminders } from "@/modules/birthdays";
-import { brandLogoUrl, getEmailSender, isEmailDeliveryEnabled, textToHtml } from "@/modules/notifications";
+import { brandLogoUrl, getEmailSender, isEmailDeliveryEnabled, testEmail } from "@/modules/notifications";
 import { errorMessage } from "@/shared/lib/logger";
 import { updateSetting } from "@/shared/settings/settings";
 import type { SettingKey } from "@/shared/settings/definitions";
@@ -69,16 +69,8 @@ export async function runBirthdayRemindersAction(): Promise<ActionState> {
 /** Sends a test email to the signed-in admin and reports exactly what happened. */
 export async function sendTestEmailAction(): Promise<ActionState> {
   const user = await requirePermission("settings:manage");
-  const text = `Hi ${user.name},
-
-This is a test email from the Vocal Impact app. If you can read this, email is working. 🎶`;
   try {
-    await getEmailSender().send({
-      to: user.email,
-      subject: "Vocal Impact app — test email",
-      text,
-      html: textToHtml(text, brandLogoUrl()),
-    });
+    await getEmailSender().send(testEmail(user.email, user.name, brandLogoUrl()));
   } catch (error) {
     return { status: "error", message: `Sending failed: ${errorMessage(error)}` };
   }

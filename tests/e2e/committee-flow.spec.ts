@@ -169,6 +169,7 @@ test("every section renders", async ({ page }) => {
     ["/settings", "Settings"],
     ["/settings/users", "Access & roles"], // old URL redirects to the new page
     ["/settings/system", "Settings"],
+    ["/settings/email-preview", "Settings"],
   ] as const) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
