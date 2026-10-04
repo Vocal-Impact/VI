@@ -32,6 +32,7 @@ export async function createMember(
     dateOfBirth: string | null;
     studentId: string;
     email: string;
+    voiceType: "SOPRANO" | "ALTO" | "TENOR" | "BASS" | "UNASSIGNED";
   }> = {},
 ) {
   const n = next();
@@ -43,7 +44,7 @@ export async function createMember(
       yearOfStudy: 1,
       whatsappNumber: `+9477${String(1000000 + n).slice(0, 7)}`,
       email: overrides.email ?? `member${n}@iit.ac.lk`,
-      voiceType: "ALTO",
+      voiceType: overrides.voiceType ?? "ALTO",
       status: overrides.status ?? "PROSPECTIVE",
       dateOfBirth: overrides.dateOfBirth ? fromIsoDate(overrides.dateOfBirth) : null,
     },
@@ -55,7 +56,12 @@ export async function createPractice(date: string) {
 }
 
 export async function createGroup(
-  overrides: Partial<{ name: string; requiresEligibility: boolean; isMainGroup: boolean }> = {},
+  overrides: Partial<{
+    name: string;
+    requiresEligibility: boolean;
+    isMainGroup: boolean;
+    allowedVoiceTypes: Array<"SOPRANO" | "ALTO" | "TENOR" | "BASS">;
+  }> = {},
 ) {
   const n = next();
   return prisma.whatsAppGroup.create({
@@ -64,6 +70,7 @@ export async function createGroup(
       inviteLink: `https://chat.whatsapp.com/TestInvite${n}AbCdEfGh`,
       requiresEligibility: overrides.requiresEligibility ?? true,
       isMainGroup: overrides.isMainGroup ?? false,
+      allowedVoiceTypes: overrides.allowedVoiceTypes ?? [],
     },
   });
 }

@@ -272,6 +272,8 @@ model WhatsAppGroup {
   inviteLink          String
   requiresEligibility Boolean       @default(true)
   isMainGroup         Boolean       @default(false)
+  /// Voice parts that may join (e.g. only TENOR for a tenors group). Empty = all parts.
+  allowedVoiceTypes   VoiceType[]   @default([])
   archived            Boolean       @default(false)
   sortOrder           Int           @default(0)
   createdAt           DateTime      @default(now())

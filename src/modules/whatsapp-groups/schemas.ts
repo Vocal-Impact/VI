@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { isValidInviteLink } from "./domain/invite";
 
+/** Parts a group can be limited to. */
+export const GROUP_PARTS = ["SOPRANO", "ALTO", "TENOR", "BASS"] as const;
+
 export const groupInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(60),
   description: z
@@ -15,6 +18,8 @@ export const groupInputSchema = z.object({
     .refine(isValidInviteLink, "Paste the group's invite link, e.g. https://chat.whatsapp.com/AbCdEf123…"),
   requiresEligibility: z.boolean(),
   isMainGroup: z.boolean(),
+  /** Empty = all parts can join. */
+  allowedVoiceTypes: z.array(z.enum(GROUP_PARTS)).default([]),
 });
 
 export type GroupInput = z.infer<typeof groupInputSchema>;

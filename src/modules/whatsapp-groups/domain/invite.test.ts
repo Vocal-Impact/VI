@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildWaMeUrl,
   canInviteToGroup,
+  describeAllowedParts,
   isValidInviteLink,
   membershipStatus,
   renderInviteMessage,
@@ -19,24 +20,52 @@ describe("isValidInviteLink", () => {
 });
 
 describe("canInviteToGroup", () => {
-  const gated = { requiresEligibility: true };
-  const open = { requiresEligibility: false };
-  it("blocks prospective members below the threshold from gated groups", () => {
-    expect(canInviteToGroup({ status: "PROSPECTIVE", attendedCount: 1 }, gated, 3)).toEqual({
+  const gated = { requiresEligibility: true, allowedVoiceTypes: [] };
+  const open = { requiresEligibility: false, allowedVoiceTypes: [] };
+  const tenors = { requiresEligibility: false, allowedVoiceTypes: ["TENOR"] };
+  const member = (status: string, attendedCount: number, voiceType = "ALTO") => ({ status, attendedCount, voiceType });
+
+  it("holds back only prospective members below the practice count, only for gated groups", () => {
+    expect(canInviteToGroup(member("PROSPECTIVE", 1), gated, 3)).toEqual({
       allowed: false,
       reason: "Needs 3 practices (has 1)",
+      overridable: true,
+    });
+    expect(canInviteToGroup(member("PROSPECTIVE", 3), gated, 3).allowed).toBe(true);
+    expect(canInviteToGroup(member("PROSPECTIVE", 0), open, 3).allowed).toBe(true);
+  });
+
+  it("never holds back active or inactive members for practices", () => {
+    expect(canInviteToGroup(member("ACTIVE", 0), gated, 3).allowed).toBe(true);
+    expect(canInviteToGroup(member("INACTIVE", 0), gated, 3).allowed).toBe(true);
+  });
+
+  it("keeps part groups to their parts, for everyone", () => {
+    expect(canInviteToGroup(member("ACTIVE", 10, "TENOR"), tenors, 3).allowed).toBe(true);
+    expect(canInviteToGroup(member("ACTIVE", 10, "ALTO"), tenors, 3)).toEqual({
+      allowed: false,
+      reason: "For Tenors only",
+      overridable: true,
+    });
+    expect(
+      canInviteToGroup(member("PROSPECTIVE", 0, "BASS"), { ...tenors, requiresEligibility: true }, 3),
+    ).toMatchObject({
+      allowed: false,
+      reason: "For Tenors only · Needs 3 practices (has 0)",
     });
   });
-  it("allows open groups, eligible members and active members", () => {
-    expect(canInviteToGroup({ status: "PROSPECTIVE", attendedCount: 0 }, open, 3).allowed).toBe(true);
-    expect(canInviteToGroup({ status: "PROSPECTIVE", attendedCount: 3 }, gated, 3).allowed).toBe(true);
-    expect(canInviteToGroup({ status: "ACTIVE", attendedCount: 0 }, gated, 3).allowed).toBe(true);
+
+  it("lets an admin override (e.g. a committee member into a part group), flagged as such", () => {
+    expect(canInviteToGroup(member("ACTIVE", 0, "ALTO"), tenors, 3, true)).toEqual({ allowed: true, overridden: true });
+    expect(canInviteToGroup(member("PROSPECTIVE", 0), gated, 3, true)).toEqual({ allowed: true, overridden: true });
   });
-  it("lets an admin override, flagged as such", () => {
-    expect(canInviteToGroup({ status: "PROSPECTIVE", attendedCount: 0 }, gated, 3, true)).toEqual({
-      allowed: true,
-      overridden: true,
-    });
+});
+
+describe("describeAllowedParts", () => {
+  it("reads naturally", () => {
+    expect(describeAllowedParts([])).toBe("All parts");
+    expect(describeAllowedParts(["TENOR"])).toBe("Tenors only");
+    expect(describeAllowedParts(["SOPRANO", "ALTO"])).toBe("Sopranos & Altos only");
   });
 });
 

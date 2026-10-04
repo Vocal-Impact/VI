@@ -14,6 +14,7 @@ import {
   buildWaMeUrl,
   canInviteToGroup,
   membershipStatus,
+  type GroupMembershipStatus,
   renderInviteMessage,
   renderInviteParts,
 } from "../domain/invite";
@@ -47,6 +48,7 @@ export async function getInviteContext(memberIds: string[]) {
       inviteLink: group.inviteLink,
       requiresEligibility: group.requiresEligibility,
       isMainGroup: group.isMainGroup,
+      allowedVoiceTypes: group.allowedVoiceTypes,
     })),
     members: members.map((member) => {
       const memberInvites = invites.filter((invite) => invite.memberId === member.id);
@@ -77,7 +79,7 @@ export async function sendInvites(raw: unknown, actor: InviteActor): Promise<Res
     return err("VALIDATION", "WhatsApp and copy invites go to one member at a time. Use email for bulk invites.");
   }
   if (overrideEligibility && !hasPermission(actor.role, "invites:override-eligibility")) {
-    return err("FORBIDDEN", "Only admins can override the practice requirement");
+    return err("FORBIDDEN", "Only admins can override group restrictions");
   }
 
   const context = await getInviteContext(memberIds);
@@ -95,7 +97,7 @@ export async function sendInvites(raw: unknown, actor: InviteActor): Promise<Res
       else if (decision.overridden) overridden = true;
     }
   }
-  if (blocked.length > 0) return err("FORBIDDEN", `Not eligible yet:\n${blocked.join("\n")}`);
+  if (blocked.length > 0) return err("FORBIDDEN", `Can't be invited:\n${blocked.join("\n")}`);
 
   const result: SendInvitesResult = { sent: 0, failed: 0, failures: [] };
   const sender = getEmailSender();
@@ -239,4 +241,166 @@ export async function exportInvitesCsv(): Promise<string> {
       "Sent By": invite.sentBy?.name ?? "",
     })),
   );
+}
+
+// ─── Group roster ──────────────────────────────────────────────────────
+
+/** Members who can be in WhatsApp groups (not alumni, not removed). */
+const ROSTER_STATUSES = ["PROSPECTIVE", "ACTIVE", "INACTIVE"] as const;
+
+export interface RosterRow {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  whatsappNumber: string;
+  voiceType: string;
+  status: string;
+  attendedCount: number;
+  membership: GroupMembershipStatus;
+  lastInvitedAt: Date | null;
+  joinedAt: Date | null;
+  /** Can be invited without an admin override, and why not if not. */
+  eligible: boolean;
+  reason: string | null;
+}
+
+/**
+ * Everyone who could be in a group, split into "in the group" and "to invite",
+ * ordered: active members not in the group → eligible people not yet invited →
+ * people invited but not joined yet → people who can't join yet (greyed out).
+ */
+export async function getGroupRoster(groupId: string) {
+  const group = await prisma.whatsAppGroup.findUnique({ where: { id: groupId } });
+  if (!group) return null;
+  const [settings, members, invites] = await Promise.all([
+    getSettings(),
+    prisma.member.findMany({
+      where: { deletedAt: null, status: { in: [...ROSTER_STATUSES] } },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        whatsappNumber: true,
+        voiceType: true,
+        status: true,
+        _count: { select: { attendances: true } },
+      },
+    }),
+    prisma.groupInvite.findMany({
+      where: { groupId },
+      select: { memberId: true, groupId: true, status: true, sentAt: true, joinedAt: true },
+    }),
+  ]);
+
+  const rows: RosterRow[] = members.map((member) => {
+    const mine = invites.filter((invite) => invite.memberId === member.id);
+    const decision = canInviteToGroup(
+      { status: member.status, attendedCount: member._count.attendances, voiceType: member.voiceType },
+      group,
+      settings.attendanceThreshold,
+    );
+    const successful = mine.filter((invite) => invite.status !== "FAILED");
+    return {
+      id: member.id,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      email: member.email,
+      whatsappNumber: member.whatsappNumber,
+      voiceType: member.voiceType,
+      status: member.status,
+      attendedCount: member._count.attendances,
+      membership: membershipStatus(mine, groupId),
+      lastInvitedAt: successful.length ? new Date(Math.max(...successful.map((i) => i.sentAt.getTime()))) : null,
+      joinedAt: mine.find((invite) => invite.status === "JOINED")?.joinedAt ?? null,
+      eligible: decision.allowed,
+      reason: decision.allowed ? null : decision.reason,
+    };
+  });
+
+  const notInvited = (row: RosterRow) => row.membership === "NOT_INVITED" || row.membership === "FAILED";
+  const rank = (row: RosterRow) => {
+    if (!row.eligible) return 3;
+    if (row.status === "ACTIVE") return 0; // active members missing from the group come first
+    return notInvited(row) ? 1 : 2;
+  };
+  const toInvite = rows.filter((row) => row.membership !== "JOINED").sort((a, b) => rank(a) - rank(b));
+  const inGroup = rows
+    .filter((row) => row.membership === "JOINED")
+    .sort((a, b) => (b.joinedAt?.getTime() ?? 0) - (a.joinedAt?.getTime() ?? 0));
+
+  return {
+    group,
+    threshold: settings.attendanceThreshold,
+    toInvite,
+    inGroup,
+    stats: {
+      invitedPeople: rows.filter((row) => row.lastInvitedAt !== null).length,
+      joinedPeople: inGroup.length,
+    },
+  };
+}
+
+// ─── Ready for WhatsApp ────────────────────────────────────────────────
+
+export type WhatsAppQueueKind = "ACTIVE_NOT_IN_GROUP" | "READY" | "STILL_ATTENDING";
+
+/**
+ * The "Ready for WhatsApp" list, in this order:
+ *  1. active members not yet marked as in the main group(s),
+ *  2. prospective members who reached the practice threshold (not invited first),
+ *  3. prospective members still working towards it.
+ * "Main group(s)" = groups flagged main; if none is set up, any group counts.
+ */
+export async function listWhatsAppQueue() {
+  const [settings, groups, members] = await Promise.all([
+    getSettings(),
+    prisma.whatsAppGroup.findMany({ where: { archived: false }, select: { id: true, isMainGroup: true } }),
+    prisma.member.findMany({
+      where: { deletedAt: null, status: { in: ["PROSPECTIVE", "ACTIVE"] } },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      include: {
+        _count: { select: { attendances: true } },
+        invites: {
+          where: { status: { in: ["SENT", "JOINED"] } },
+          select: { groupId: true, status: true, sentAt: true },
+          orderBy: { sentAt: "desc" },
+        },
+      },
+    }),
+  ]);
+  const mainIds = new Set(groups.filter((group) => group.isMainGroup).map((group) => group.id));
+  const counts = (groupId: string) => (mainIds.size ? mainIds.has(groupId) : true);
+
+  const rows = members.flatMap((member) => {
+    const relevant = member.invites.filter((invite) => counts(invite.groupId));
+    const joined = relevant.some((invite) => invite.status === "JOINED");
+    const attendedCount = member._count.attendances;
+    const kind: WhatsAppQueueKind =
+      member.status === "ACTIVE"
+        ? "ACTIVE_NOT_IN_GROUP"
+        : attendedCount >= settings.attendanceThreshold
+          ? "READY"
+          : "STILL_ATTENDING";
+    // Active members already in the main group are done; nothing to show.
+    if (member.status === "ACTIVE" && (joined || groups.length === 0)) return [];
+    return [
+      {
+        id: member.id,
+        name: `${member.firstName} ${member.lastName}`,
+        status: member.status,
+        voiceType: member.voiceType,
+        whatsappNumber: member.whatsappNumber,
+        attendedCount,
+        kind,
+        invitedAt: relevant[0]?.sentAt ?? null,
+      },
+    ];
+  });
+
+  const rank = (row: (typeof rows)[number]) =>
+    row.kind === "ACTIVE_NOT_IN_GROUP" ? 0 : row.kind === "READY" ? (row.invitedAt ? 2 : 1) : 3;
+  return { threshold: settings.attendanceThreshold, rows: rows.sort((a, b) => rank(a) - rank(b)) };
 }

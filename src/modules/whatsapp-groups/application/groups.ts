@@ -5,12 +5,50 @@ import { err, ok, type Result } from "@/shared/lib/result";
 import { validationError } from "@/shared/lib/validation";
 import { groupInputSchema } from "../schemas";
 
+export interface GroupStats {
+  /** Distinct people who were successfully sent an invite (failed sends and repeats don't count). */
+  invitedPeople: number;
+  /** Distinct people marked as in the group. */
+  joinedPeople: number;
+}
+
+/** Per-group people counts. Removed members are left out. */
+export async function getGroupStats(groupIds?: string[]): Promise<Map<string, GroupStats>> {
+  const invites = await prisma.groupInvite.findMany({
+    where: {
+      groupId: groupIds ? { in: groupIds } : undefined,
+      status: { in: ["SENT", "JOINED"] },
+      member: { deletedAt: null },
+    },
+    select: { groupId: true, memberId: true, status: true },
+  });
+  const invited = new Map<string, Set<string>>();
+  const joined = new Map<string, Set<string>>();
+  for (const invite of invites) {
+    if (!invited.has(invite.groupId)) invited.set(invite.groupId, new Set());
+    invited.get(invite.groupId)!.add(invite.memberId);
+    if (invite.status === "JOINED") {
+      if (!joined.has(invite.groupId)) joined.set(invite.groupId, new Set());
+      joined.get(invite.groupId)!.add(invite.memberId);
+    }
+  }
+  const stats = new Map<string, GroupStats>();
+  for (const id of new Set([...invited.keys(), ...(groupIds ?? [])])) {
+    stats.set(id, { invitedPeople: invited.get(id)?.size ?? 0, joinedPeople: joined.get(id)?.size ?? 0 });
+  }
+  return stats;
+}
+
 export async function listGroups(options: { includeArchived?: boolean } = {}) {
-  return prisma.whatsAppGroup.findMany({
+  const groups = await prisma.whatsAppGroup.findMany({
     where: options.includeArchived ? undefined : { archived: false },
     orderBy: [{ archived: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
-    include: { _count: { select: { invites: true } } },
   });
+  const stats = await getGroupStats(groups.map((group) => group.id));
+  return groups.map((group) => ({
+    ...group,
+    stats: stats.get(group.id) ?? { invitedPeople: 0, joinedPeople: 0 },
+  }));
 }
 
 export async function getGroup(id: string) {
@@ -66,6 +104,7 @@ export async function updateGroup(id: string, raw: unknown, actorId: string): Pr
           linkChanged: current.inviteLink !== parsed.data.inviteLink,
           requiresEligibility: parsed.data.requiresEligibility,
           isMainGroup: parsed.data.isMainGroup,
+          allowedVoiceTypes: parsed.data.allowedVoiceTypes,
         },
       },
       tx,

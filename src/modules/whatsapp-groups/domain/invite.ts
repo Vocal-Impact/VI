@@ -13,29 +13,56 @@ export interface GroupRule {
   id: string;
   name: string;
   requiresEligibility: boolean;
+  /** Voice parts that may join; empty = every part. */
+  allowedVoiceTypes: readonly string[];
 }
 
 export interface MemberProgress {
   status: string;
   attendedCount: number;
+  voiceType: string;
 }
 
-export type InviteDecision = { allowed: true; overridden: boolean } | { allowed: false; reason: string };
+export type InviteDecision =
+  { allowed: true; overridden: boolean } | { allowed: false; reason: string; overridable: true };
+
+const PART_LABELS: Record<string, string> = {
+  SOPRANO: "Sopranos",
+  ALTO: "Altos",
+  TENOR: "Tenors",
+  BASS: "Basses",
+  UNASSIGNED: "members without a part",
+};
+
+/** "Tenors only", "Sopranos & Altos only", or "All parts". */
+export function describeAllowedParts(allowedVoiceTypes: readonly string[]): string {
+  if (allowedVoiceTypes.length === 0) return "All parts";
+  return `${allowedVoiceTypes.map((part) => PART_LABELS[part] ?? part).join(" & ")} only`;
+}
 
 /**
- * Groups flagged "requires eligibility" are only for members who have attended
- * enough practices (or are already active). Admins may override.
+ * Who may be invited to a group:
+ *  - Practice rule — only PROSPECTIVE members must reach the practice threshold
+ *    for groups flagged "requires eligibility". Active/inactive members never are.
+ *  - Part rule — part groups (e.g. Tenors) only take members of those parts.
+ * Admins may override either rule (e.g. to add a committee member to a part group).
  */
 export function canInviteToGroup(
   member: MemberProgress,
-  group: Pick<GroupRule, "requiresEligibility">,
+  group: Pick<GroupRule, "requiresEligibility" | "allowedVoiceTypes">,
   threshold: number,
   allowOverride = false,
 ): InviteDecision {
-  const needsMore = group.requiresEligibility && member.status === "PROSPECTIVE" && member.attendedCount < threshold;
-  if (!needsMore) return { allowed: true, overridden: false };
+  const reasons: string[] = [];
+  if (group.allowedVoiceTypes.length > 0 && !group.allowedVoiceTypes.includes(member.voiceType)) {
+    reasons.push(`For ${describeAllowedParts(group.allowedVoiceTypes).replace(/ only$/, "")} only`);
+  }
+  if (group.requiresEligibility && member.status === "PROSPECTIVE" && member.attendedCount < threshold) {
+    reasons.push(`Needs ${threshold} practices (has ${member.attendedCount})`);
+  }
+  if (reasons.length === 0) return { allowed: true, overridden: false };
   if (allowOverride) return { allowed: true, overridden: true };
-  return { allowed: false, reason: `Needs ${threshold} practices (has ${member.attendedCount})` };
+  return { allowed: false, reason: reasons.join(" · "), overridable: true };
 }
 
 export interface InviteGroup {
