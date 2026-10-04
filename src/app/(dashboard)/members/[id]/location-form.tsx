@@ -90,6 +90,21 @@ export function LocationForm({
           ) : null}
         </div>
 
+        <Field
+          label="Or paste coordinates from Google Maps"
+          htmlFor="coordinates"
+          hint="Find the spot (e.g. their nearest junction) in Google Maps, right-click it and click the numbers to copy."
+          errors={state.fieldErrors?.coordinates}
+        >
+          <Input
+            id="coordinates"
+            name="coordinates"
+            inputMode="decimal"
+            placeholder="6.8664, 79.8774"
+            defaultValue={state.values?.coordinates ?? ""}
+          />
+        </Field>
+
         <Checkbox
           name="canDrive"
           label="Can drive to practices"

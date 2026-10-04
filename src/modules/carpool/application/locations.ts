@@ -10,6 +10,11 @@ import { memberLocationInputSchema } from "../schemas";
 import { roundLatLng } from "../domain/geo";
 import type { Geocoder } from "../domain/ports";
 import { NominatimGeocoder } from "../infrastructure/nominatim-geocoder";
+import { PhotonGeocoder } from "../infrastructure/photon-geocoder";
+import { ChainGeocoder } from "../infrastructure/chain-geocoder";
+import { geocodeCacheKey } from "../domain/geocoding";
+import { parseCoordinates } from "@/shared/lib/coordinates";
+import { getSettings } from "@/shared/settings/settings";
 
 export interface LocationDetails {
   areaLabel: string;
@@ -87,13 +92,19 @@ export async function removeMemberLocation(memberId: string, actorId: string): P
   return ok(null);
 }
 
-function createGeocoder(): Geocoder | null {
+async function createGeocoder(): Promise<Geocoder | null> {
   const env = getEnv();
-  return env.GEOCODER === "nominatim" ? new NominatimGeocoder(env.NOMINATIM_USER_AGENT) : null;
+  if (env.GEOCODER !== "nominatim") return null;
+  const venue = (await getSettings()).practiceVenue;
+  // Nominatim first (precise for named areas), then Photon (forgiving, better with landmarks).
+  return new ChainGeocoder([
+    new NominatimGeocoder(env.NOMINATIM_USER_AGENT),
+    new PhotonGeocoder(env.NOMINATIM_USER_AGENT, venue),
+  ]);
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const NOMINATIM_INTERVAL_MS = 1100;
+/** Stop starting new lookups after this long, so a run fits in a 60 s serverless request. */
+const DEFAULT_TIME_BUDGET_MS = 40_000;
 
 export interface GeocodeRunSummary {
   processed: number;
@@ -104,46 +115,52 @@ export interface GeocodeRunSummary {
 }
 
 /**
- * Geocodes queued areas, reusing cached answers and pausing between live
- * requests to respect Nominatim's 1 request/second policy.
+ * Locates queued areas. Coordinates typed instead of an area are used as-is;
+ * otherwise cached answers are reused and new ones looked up (only successful
+ * lookups are cached, so a retry really searches again).
  */
 export async function geocodePendingLocations(
-  options: { geocoder?: Geocoder | null; limit?: number; intervalMs?: number } = {},
+  options: { geocoder?: Geocoder | null; limit?: number; timeBudgetMs?: number } = {},
 ): Promise<GeocodeRunSummary> {
-  const geocoder = options.geocoder === undefined ? createGeocoder() : options.geocoder;
+  const geocoder = options.geocoder === undefined ? await createGeocoder() : options.geocoder;
   const limit = options.limit ?? 8;
-  const intervalMs = options.intervalMs ?? NOMINATIM_INTERVAL_MS;
+  const deadline = Date.now() + (options.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS);
   const summary: GeocodeRunSummary = { processed: 0, located: 0, notFound: 0, failed: 0, remaining: 0 };
 
   const pending = await prisma.memberLocation.findMany({ where: { geocodeStatus: "PENDING" }, take: limit });
-  let liveCalls = 0;
+
+  const markLocated = async (memberId: string, point: { latitude: number; longitude: number }) => {
+    await prisma.memberLocation.update({ where: { memberId }, data: { ...roundLatLng(point), geocodeStatus: "OK" } });
+    summary.located += 1;
+  };
 
   for (const location of pending) {
-    const query = `${location.areaLabel}, Sri Lanka`.toLowerCase();
+    if (Date.now() > deadline) break;
+    const typedCoordinates = parseCoordinates(location.areaLabel);
+    if (typedCoordinates) {
+      summary.processed += 1;
+      await markLocated(location.memberId, typedCoordinates);
+      continue;
+    }
+
+    const query = geocodeCacheKey(location.areaLabel);
     try {
-      let cached = await prisma.geocodeCache.findUnique({ where: { query } });
-      if (!cached) {
+      const cached = await prisma.geocodeCache.findUnique({ where: { query } });
+      let hit = cached?.latitude != null && cached.longitude != null ? cached : null;
+      if (!hit) {
         if (!geocoder) break;
-        if (liveCalls > 0) await sleep(intervalMs);
-        liveCalls += 1;
-        const result = await geocoder.geocode(query);
-        cached = await prisma.geocodeCache.create({
-          data: {
-            query,
-            latitude: result?.latitude ?? null,
-            longitude: result?.longitude ?? null,
-            displayName: result?.displayName ?? null,
-          },
-        });
+        const result = await geocoder.geocode(location.areaLabel);
+        if (result) {
+          hit = await prisma.geocodeCache.upsert({
+            where: { query },
+            create: { query, latitude: result.latitude, longitude: result.longitude, displayName: result.displayName },
+            update: { latitude: result.latitude, longitude: result.longitude, displayName: result.displayName },
+          });
+        }
       }
       summary.processed += 1;
-      if (cached.latitude !== null && cached.longitude !== null) {
-        const rounded = roundLatLng({ latitude: cached.latitude, longitude: cached.longitude });
-        await prisma.memberLocation.update({
-          where: { memberId: location.memberId },
-          data: { ...rounded, geocodeStatus: "OK" },
-        });
-        summary.located += 1;
+      if (hit?.latitude != null && hit.longitude != null) {
+        await markLocated(location.memberId, { latitude: hit.latitude, longitude: hit.longitude });
       } else {
         await prisma.memberLocation.update({
           where: { memberId: location.memberId },
@@ -162,8 +179,9 @@ export async function geocodePendingLocations(
   return summary;
 }
 
-/** Puts failed / not-found areas back in the queue (e.g. after fixing a typo upstream). */
+/** Puts failed / not-found areas back in the queue and forgets old "not found" answers so they're searched again. */
 export async function requeueFailedGeocodes(): Promise<number> {
+  await prisma.geocodeCache.deleteMany({ where: { OR: [{ latitude: null }, { longitude: null }] } });
   const result = await prisma.memberLocation.updateMany({
     where: { geocodeStatus: { in: ["FAILED", "NOT_FOUND"] } },
     data: { geocodeStatus: "PENDING" },

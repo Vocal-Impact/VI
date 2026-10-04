@@ -102,7 +102,7 @@ Do this from a **committee IIT Google account**, and give **at least two committ
    - Settings → Users: tick "Birthday emails" for whoever should get reminders.
    - Members → Import CSV: upload the Google Form export.
 8. **Optional:**
-   - A free [OpenRouteService](https://openrouteservice.org) key → `ORS_API_KEY` for road-route carpool matching.
+   - A free [OpenRouteService](https://openrouteservice.org) key → `ORS_API_KEY` (**recommended**). Without it, "Lifts home" estimates distances as straight line × 1.3. With it, matching uses real road distances and the map shows the actual routes. The free plan allows 500 distance lookups and 2,000 routes a day, which is plenty.
    - GitHub secrets `BACKUP_DATABASE_URL` + `BACKUP_PASSPHRASE` turn on the weekly encrypted backup workflow.
 
 ## Contributing

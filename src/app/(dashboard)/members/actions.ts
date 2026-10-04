@@ -22,6 +22,7 @@ import {
   type ImportSummary,
 } from "@/modules/imports";
 import { formValues, toActionState, type ActionState } from "@/shared/lib/action-state";
+import { parseCoordinates } from "@/shared/lib/coordinates";
 
 function memberPayload(values: Record<string, string>) {
   return {
@@ -104,8 +105,19 @@ export async function saveLocationAction(
 ): Promise<ActionState> {
   const user = await requirePermission("carpool:write");
   const values = formValues(formData);
-  const latitude = Number.parseFloat(values.latitude ?? "");
-  const longitude = Number.parseFloat(values.longitude ?? "");
+  // Pasted Google Maps coordinates win over a dropped pin.
+  const pastedText = values.coordinates?.trim() ?? "";
+  const pasted = pastedText ? parseCoordinates(pastedText) : null;
+  if (pastedText && !pasted) {
+    return {
+      status: "error",
+      message: "Paste the coordinates as two numbers separated by a comma, e.g. 6.8664, 79.8774",
+      fieldErrors: { coordinates: ["Not a coordinate pair"] },
+      values,
+    };
+  }
+  const latitude = pasted?.latitude ?? Number.parseFloat(values.latitude ?? "");
+  const longitude = pasted?.longitude ?? Number.parseFloat(values.longitude ?? "");
   const result = await saveMemberLocation(
     memberId,
     {

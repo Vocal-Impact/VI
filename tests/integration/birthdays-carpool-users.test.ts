@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { sendBirthdayReminders } from "@/modules/birthdays";
-import { geocodePendingLocations, getCarpoolOverview, saveLocationFromImport } from "@/modules/carpool";
+import {
+  geocodePendingLocations,
+  getCarpoolOverview,
+  requeueFailedGeocodes,
+  saveLocationFromImport,
+} from "@/modules/carpool";
 import { createAllowlistedUser, updateUser } from "@/modules/auth";
 import type { EmailMessage, EmailSender } from "@/modules/notifications";
 import { prisma } from "@/shared/db/prisma";
@@ -70,14 +75,15 @@ describe("carpool locations", () => {
 
     const lookups: string[] = [];
     const geocoder = {
-      async geocode(query: string) {
+      async geocode(area: string) {
+        const query = area.toLowerCase();
         lookups.push(query);
         if (query.startsWith("moratuwa")) return { latitude: 6.773456, longitude: 79.882123, displayName: "Moratuwa" };
         if (query.startsWith("dehiwala")) return { latitude: 6.851, longitude: 79.865, displayName: "Dehiwala" };
         return null;
       },
     };
-    const summary = await geocodePendingLocations({ geocoder, intervalMs: 0 });
+    const summary = await geocodePendingLocations({ geocoder });
     expect(summary).toMatchObject({ located: 2, notFound: 1, remaining: 0 });
 
     const stored = await prisma.memberLocation.findUniqueOrThrow({ where: { memberId: driver.id } });
@@ -86,8 +92,29 @@ describe("carpool locations", () => {
     // A second member in the same area reuses the cache — no new lookup.
     const neighbour = await createMember({ status: "ACTIVE" });
     await saveLocationFromImport(neighbour.id, { areaLabel: "Dehiwala", canDrive: false, seats: 0 }, prisma);
-    await geocodePendingLocations({ geocoder, intervalMs: 0 });
+    await geocodePendingLocations({ geocoder });
     expect(lookups.filter((query) => query.startsWith("dehiwala"))).toHaveLength(1);
+
+    // Coordinates pasted instead of an area are used directly, without any lookup.
+    const pasted = await createMember({ firstName: "Pasted", status: "ACTIVE" });
+    await saveLocationFromImport(pasted.id, { areaLabel: "6.8901234, 79.8612345", canDrive: false, seats: 0 }, prisma);
+    const before = lookups.length;
+    await geocodePendingLocations({ geocoder });
+    expect(lookups.length).toBe(before);
+    const pastedLocation = await prisma.memberLocation.findUniqueOrThrow({ where: { memberId: pasted.id } });
+    expect([pastedLocation.latitude, pastedLocation.longitude, pastedLocation.geocodeStatus]).toEqual([
+      6.89,
+      79.861,
+      "OK",
+    ]);
+
+    // "Not found" isn't cached: a retry really searches again (and can now succeed).
+    const atlantisLookups = () => lookups.filter((query) => query.startsWith("atlantis")).length;
+    const firstTries = atlantisLookups();
+    await requeueFailedGeocodes();
+    await geocodePendingLocations({ geocoder });
+    expect(atlantisLookups()).toBe(firstTries * 2);
+    await prisma.memberLocation.update({ where: { memberId: pasted.id }, data: { consentGiven: false } });
 
     const overview = await getCarpoolOverview({ routeProvider: null });
     expect(overview.people).toHaveLength(3);
