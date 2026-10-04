@@ -2,6 +2,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { requirePermission, hasPermission } from "@/modules/auth";
 import { getInviteContext } from "@/modules/whatsapp-groups";
+import { isEmailDeliveryEnabled } from "@/modules/notifications";
 import { Alert, EmptyState, PageHeader } from "@/shared/ui/layout";
 import { InviteComposer } from "./invite-composer";
 
@@ -72,6 +73,7 @@ export default async function InvitePage(props: PageProps<"/whatsapp-groups/invi
             })),
           }}
           canOverride={hasPermission(user.role, "invites:override-eligibility")}
+          emailDelivery={isEmailDeliveryEnabled()}
         />
       )}
     </>

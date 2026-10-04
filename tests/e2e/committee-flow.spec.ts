@@ -94,8 +94,10 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await expect(page.getByLabel("Message preview")).toHaveValue(
     /Hi Nethmi![\s\S]*VI Main — https:\/\/chat\.whatsapp\.com\/E2eMainGroupLink123/,
   );
+  // Tests run in development email mode: the app must say so rather than claim it sent.
+  await expect(page.getByText("Email isn't set up yet")).toBeVisible();
   await page.getByRole("button", { name: "Send email" }).click();
-  await expect(page.getByText("1 invite email(s) sent.")).toBeVisible();
+  await expect(page.getByText(/Recorded 1 invite\(s\), but NO email was delivered/)).toBeVisible();
 
   // Mark as joined in the main group → Active.
   await page.getByRole("link", { name: "Open profile" }).click();

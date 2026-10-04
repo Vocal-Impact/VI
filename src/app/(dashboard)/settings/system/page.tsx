@@ -1,15 +1,18 @@
 import { requirePermission } from "@/modules/auth";
 import { listCronRuns } from "@/modules/birthdays";
+import { describeEmailSetup } from "@/modules/notifications";
 import { listAuditLog } from "@/shared/audit/audit-log";
 import { buttonClasses } from "@/shared/ui/button";
-import { Badge, Card, CardBody, CardHeader, Table, Td, Th } from "@/shared/ui/layout";
+import { Alert, Badge, Card, CardBody, CardHeader, Table, Td, Th } from "@/shared/ui/layout";
 import { RunRemindersButton } from "./run-reminders-button";
+import { TestEmailButton } from "./test-email-button";
 
 export const metadata = { title: "System" };
 
 export default async function SystemPage() {
   await requirePermission("settings:manage");
   const [runs, audit] = await Promise.all([listCronRuns(30), listAuditLog({ take: 50 })]);
+  const email = describeEmailSetup();
 
   return (
     <div className="space-y-6">
@@ -23,6 +26,26 @@ export default async function SystemPage() {
                 {dataset.slice(1)} CSV
               </a>
             ))}
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title="Email" description="Used for birthday reminders and WhatsApp invite emails." />
+          <CardBody className="space-y-3 text-sm">
+            {email.mode === "smtp" ? (
+              <p>
+                <Badge tone="green">Sending for real</Badge> via <span className="font-mono">{email.host}</span> as{" "}
+                <span className="font-mono">{email.user}</span>
+              </p>
+            ) : (
+              <Alert tone="warning" title="Development mode — nothing is delivered">
+                Emails are only printed in the server terminal. Set EMAIL_TRANSPORT=smtp with SMTP_USER and
+                SMTP_PASSWORD (README → Deploy, step 4) and restart the app.
+              </Alert>
+            )}
+            <p className="text-slate-500">
+              From: <span className="font-mono">{email.from}</span>
+            </p>
+            <TestEmailButton />
           </CardBody>
         </Card>
         <Card>

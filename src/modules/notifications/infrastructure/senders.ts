@@ -67,3 +67,16 @@ export function brandLogoUrl(): string | undefined {
   const base = getEnv().BETTER_AUTH_URL.replace(/\/$/, "");
   return base.startsWith("https://") ? `${base}/brand/logo-email.png` : undefined;
 }
+
+/** False in development mode (EMAIL_TRANSPORT=console): emails are only printed, never delivered. */
+export function isEmailDeliveryEnabled(): boolean {
+  return getEnv().EMAIL_TRANSPORT === "smtp";
+}
+
+/** Where emails go, for the Settings page (never includes the password). */
+export function describeEmailSetup(): { mode: "console" | "smtp"; host?: string; from: string; user?: string } {
+  const env = getEnv();
+  return env.EMAIL_TRANSPORT === "smtp"
+    ? { mode: "smtp", host: `${env.SMTP_HOST}:${env.SMTP_PORT}`, from: env.EMAIL_FROM, user: env.SMTP_USER }
+    : { mode: "console", from: env.EMAIL_FROM };
+}

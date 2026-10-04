@@ -40,9 +40,12 @@ type Channel = "EMAIL" | "WHATSAPP_LINK" | "MANUAL";
 export function InviteComposer({
   context,
   canOverride,
+  emailDelivery,
 }: {
   context: { threshold: number; template: string; groups: InviteGroup[]; members: InviteMember[] };
   canOverride: boolean;
+  /** False when the server is in development email mode (nothing is delivered). */
+  emailDelivery: boolean;
 }) {
   const { members, groups, threshold, template } = context;
   const single = members.length === 1;
@@ -96,7 +99,11 @@ export function InviteComposer({
         return;
       }
       const { sent, failed } = result.value;
-      if (channel === "EMAIL") {
+      if (channel === "EMAIL" && !emailDelivery) {
+        setDone(
+          `Recorded ${sent} invite(s), but NO email was delivered: the app is in development email mode (EMAIL_TRANSPORT=console), so the message was only printed in the server terminal.`,
+        );
+      } else if (channel === "EMAIL") {
         setDone(
           failed > 0
             ? `${sent} email(s) sent, ${failed} failed — see each member's profile.`
@@ -184,6 +191,12 @@ export function InviteComposer({
         <Card>
           <CardHeader title="2. How to send" />
           <CardBody className="space-y-2">
+            {!emailDelivery ? (
+              <Alert tone="warning" title="Email isn't set up yet">
+                Emails are only printed in the server terminal, not delivered. Use WhatsApp or Copy, or set up email
+                (see README → Deploy, step 4).
+              </Alert>
+            ) : null}
             <ChannelOption
               value="EMAIL"
               current={channel}
