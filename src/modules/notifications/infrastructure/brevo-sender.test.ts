@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { parseMailbox } from "../domain/email";
-import { BrevoEmailSender } from "./brevo-sender";
+import { BrevoEmailSender, brevoKeyProblem } from "./brevo-sender";
 
 const message = { to: "member@iit.ac.lk", subject: "Hello", text: "Hi there", html: "<p>Hi there</p>" };
 
@@ -42,8 +42,23 @@ describe("BrevoEmailSender", () => {
       .mockResolvedValue(
         new Response(JSON.stringify({ code: "unauthorized", message: "Key not found" }), { status: 401 }),
       );
-    await expect(new BrevoEmailSender("bad", "a@b.lk", fetchMock).send(message)).rejects.toThrow(
+    await expect(new BrevoEmailSender("xkeysib-revoked", "a@b.lk", fetchMock).send(message)).rejects.toThrow(
       "Brevo responded 401 (unauthorized: Key not found)",
     );
+  });
+});
+
+describe("brevoKeyProblem", () => {
+  it("explains common copy-paste mistakes without calling Brevo", async () => {
+    expect(brevoKeyProblem("https://api.brevo.com/v3")).toMatch(/web address/);
+    expect(brevoKeyProblem("xsmtpsib-abc")).toMatch(/SMTP key/);
+    expect(brevoKeyProblem("hello")).toMatch(/start with xkeysib-/);
+    expect(brevoKeyProblem("xkeysib-abc123")).toBeNull();
+
+    const fetchMock = vi.fn();
+    await expect(new BrevoEmailSender("https://example", "a@b.lk", fetchMock).send(message)).rejects.toThrow(
+      /web address/,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
