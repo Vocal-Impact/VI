@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { getEnv } from "@/shared/config/env";
 import { logger } from "@/shared/lib/logger";
 import type { EmailMessage, EmailSender } from "../domain/email";
+import { BrevoEmailSender } from "./brevo-sender";
 
 /** Development/test transport: logs instead of sending, keeps the last messages in memory. */
 export class ConsoleEmailSender implements EmailSender {
@@ -42,15 +43,21 @@ let sender: EmailSender | undefined;
 export function getEmailSender(): EmailSender {
   if (sender) return sender;
   const env = getEnv();
-  sender =
-    env.EMAIL_TRANSPORT === "smtp"
-      ? new SmtpEmailSender(env.EMAIL_FROM, {
-          host: env.SMTP_HOST,
-          port: env.SMTP_PORT,
-          user: env.SMTP_USER as string,
-          password: env.SMTP_PASSWORD as string,
-        })
-      : new ConsoleEmailSender();
+  switch (env.EMAIL_TRANSPORT) {
+    case "brevo":
+      sender = new BrevoEmailSender(env.BREVO_API_KEY as string, env.EMAIL_FROM);
+      break;
+    case "smtp":
+      sender = new SmtpEmailSender(env.EMAIL_FROM, {
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        user: env.SMTP_USER as string,
+        password: env.SMTP_PASSWORD as string,
+      });
+      break;
+    default:
+      sender = new ConsoleEmailSender();
+  }
   return sender;
 }
 
@@ -70,13 +77,15 @@ export function brandLogoUrl(): string | undefined {
 
 /** False in development mode (EMAIL_TRANSPORT=console): emails are only printed, never delivered. */
 export function isEmailDeliveryEnabled(): boolean {
-  return getEnv().EMAIL_TRANSPORT === "smtp";
+  return getEnv().EMAIL_TRANSPORT !== "console";
 }
 
 /** Where emails go, for the Settings page (never includes the password). */
-export function describeEmailSetup(): { mode: "console" | "smtp"; host?: string; from: string; user?: string } {
+export function describeEmailSetup(): { mode: "console" | "brevo" | "smtp"; via?: string; from: string } {
   const env = getEnv();
-  return env.EMAIL_TRANSPORT === "smtp"
-    ? { mode: "smtp", host: `${env.SMTP_HOST}:${env.SMTP_PORT}`, from: env.EMAIL_FROM, user: env.SMTP_USER }
-    : { mode: "console", from: env.EMAIL_FROM };
+  if (env.EMAIL_TRANSPORT === "brevo") return { mode: "brevo", via: "Brevo API", from: env.EMAIL_FROM };
+  if (env.EMAIL_TRANSPORT === "smtp") {
+    return { mode: "smtp", via: `SMTP ${env.SMTP_HOST}:${env.SMTP_PORT} as ${env.SMTP_USER}`, from: env.EMAIL_FROM };
+  }
+  return { mode: "console", from: env.EMAIL_FROM };
 }

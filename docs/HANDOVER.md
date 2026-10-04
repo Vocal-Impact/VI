@@ -6,15 +6,15 @@ IIT Google accounts are switched off when students graduate. The app keeps runni
 
 Fill this table in and keep it up to date (names, not passwords):
 
-| Service                                            | What it holds                        | Owners (≥ 2) |
-| -------------------------------------------------- | ------------------------------------ | ------------ |
-| GitHub organisation                                | Code, CI, backups                    |              |
-| Vercel team                                        | Hosting, environment variables, cron |              |
-| Neon organisation                                  | Database                             |              |
-| Google Cloud project                               | "Sign in with Google" OAuth client   |              |
-| Email sender account (Gmail App Password or Brevo) | Birthday and invite emails           |              |
-| OpenRouteService (optional)                        | Carpool route matching               |              |
-| App admins (Settings → Users)                      | Who can manage the app               |              |
+| Service                       | What it holds                        | Owners (≥ 2) |
+| ----------------------------- | ------------------------------------ | ------------ |
+| GitHub organisation           | Code, CI, backups                    |              |
+| Vercel team                   | Hosting, environment variables, cron |              |
+| Neon organisation             | Database                             |              |
+| Google Cloud project          | "Sign in with Google" OAuth client   |              |
+| Brevo account (email sending) | Birthday and invite emails           |              |
+| OpenRouteService (optional)   | Carpool route matching               |              |
+| App admins (Settings → Users) | Who can manage the app               |              |
 
 ## Checklist
 
@@ -23,7 +23,7 @@ Fill this table in and keep it up to date (names, not passwords):
 - [ ] **Rotate secrets** in Vercel → Settings → Environment Variables, then redeploy:
   - `BETTER_AUTH_SECRET` (signs everyone out, which is expected)
   - `CRON_SECRET`
-  - `SMTP_PASSWORD` (create a new App Password or Brevo key, and revoke the old one)
+  - `BREVO_API_KEY` (generate a new key in Brevo, then delete the old one)
   - `BACKUP_PASSPHRASE` (GitHub secret). Keep the old one until the old backups expire after 90 days.
 - [ ] **Review WhatsApp group links.** If any old committee member might still share them, reset the links in WhatsApp and update them under WhatsApp → groups.
 - [ ] **Re-check free-tier limits** (blueprint §8.3): Vercel Hobby, Neon Free, Gmail/Brevo and Nominatim usage policy.
@@ -35,5 +35,5 @@ Fill this table in and keep it up to date (names, not passwords):
 ## If something breaks
 
 - **Nobody can sign in:** an owner with database access runs `npm run db:seed-admin -- --email someone@iit.ac.lk` against the production `DATABASE_URL`.
-- **Emails stopped:** check Settings → System & data for failed runs. The App Password may have been revoked or IIT may have changed its policy, so switch to Brevo (README, deploy step 4).
+- **Emails stopped:** check Settings → System & data for failed runs. Use **Send me a test email**: it shows Brevo's exact error (e.g. an invalid key or an unverified sender).
 - **Restore a backup:** download the newest `db-backup-*` artifact from GitHub Actions, then run `gpg --decrypt backup.sql.gz.gpg | gunzip | psql "$DATABASE_URL"`.

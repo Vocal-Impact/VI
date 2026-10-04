@@ -193,8 +193,8 @@ export function InviteComposer({
           <CardBody className="space-y-2">
             {!emailDelivery ? (
               <Alert tone="warning" title="Email isn't set up yet">
-                Emails are only printed in the server terminal, not delivered. Use WhatsApp or Copy, or set up email
-                (see README → Deploy, step 4).
+                Emails are only printed in the server terminal, not delivered. Use WhatsApp or Copy, or set up Brevo
+                email (see README → Deploy, step 4).
               </Alert>
             ) : null}
             <ChannelOption

@@ -15,7 +15,8 @@ const envSchema = z
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     ENABLE_PASSWORD_LOGIN: booleanFromString,
 
-    EMAIL_TRANSPORT: z.enum(["console", "smtp"]).default("console"),
+    EMAIL_TRANSPORT: z.enum(["console", "brevo", "smtp"]).default("console"),
+    BREVO_API_KEY: z.string().optional(),
     SMTP_HOST: z.string().default("smtp.gmail.com"),
     SMTP_PORT: z.coerce.number().int().positive().default(465),
     SMTP_USER: z.string().optional(),
@@ -37,6 +38,13 @@ const envSchema = z
         code: "custom",
         path: ["ENABLE_PASSWORD_LOGIN"],
         message: "Password login is for local development and tests only — never enable it in production.",
+      });
+    }
+    if (env.EMAIL_TRANSPORT === "brevo" && !env.BREVO_API_KEY) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["BREVO_API_KEY"],
+        message: "BREVO_API_KEY is required when EMAIL_TRANSPORT=brevo (Brevo → SMTP & API → API keys).",
       });
     }
     if (env.EMAIL_TRANSPORT === "smtp" && (!env.SMTP_USER || !env.SMTP_PASSWORD)) {

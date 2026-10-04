@@ -84,12 +84,15 @@ Do this from a **committee IIT Google account**, and give **at least two committ
    - Go to Credentials → _OAuth client ID_ → Web application.
    - Authorised redirect URI: `https://<your-app>.vercel.app/api/auth/callback/google`.
    - Copy the client ID and secret.
-4. **Email:**
-   - On the committee Google account, turn on 2-Step Verification, then create an **App Password** → `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_TRANSPORT=smtp`.
-   - If IIT blocks App Passwords, use a free **Brevo** SMTP key instead (`SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`).
+4. **Email (Brevo, free: 300 emails/day):**
+   - In Brevo, go to **Senders, domains & dedicated IPs → Senders** and add and verify the committee email you'll send from.
+   - Go to **SMTP & API → API keys → Generate a new API key**.
+   - Set `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY=<the key>` and `EMAIL_FROM="Vocal Impact <that-verified-address>"`.
+   - Check it in the app: **Settings → System & data → Send me a test email**.
+   - (SMTP, e.g. a Gmail App Password, also works with `EMAIL_TRANSPORT=smtp`. See `.env.example`.)
 5. **Vercel** ([vercel.com](https://vercel.com), Hobby plan):
    - Import the GitHub repo.
-   - Add the environment variables from `.env.example`: `DATABASE_URL`, `DIRECT_URL`, `BETTER_AUTH_SECRET` (`openssl rand -base64 32`), `BETTER_AUTH_URL` (your app URL), Google keys, SMTP settings, `CRON_SECRET`, `NOMINATIM_USER_AGENT` and `ALLOWED_EMAIL_DOMAIN`.
+   - Add the environment variables from `.env.example`: `DATABASE_URL`, `DIRECT_URL`, `BETTER_AUTH_SECRET` (`openssl rand -base64 32`), `BETTER_AUTH_URL` (your app URL), Google keys, `EMAIL_TRANSPORT`/`BREVO_API_KEY`/`EMAIL_FROM`, `CRON_SECRET`, `NOMINATIM_USER_AGENT` and `ALLOWED_EMAIL_DOMAIN`.
    - Do **not** set `ENABLE_PASSWORD_LOGIN`.
    - Deploy. The `vercel-build` script applies database migrations automatically, and `vercel.json` schedules the daily job.
 6. **First admin:** run `npm run db:seed-admin -- --email your.name@iit.ac.lk --name "Your Name"` with `DATABASE_URL` pointing at Neon. Then sign in and add the rest of the committee in **Settings → Users**.

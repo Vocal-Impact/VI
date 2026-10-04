@@ -31,15 +31,14 @@ export default async function SystemPage() {
         <Card>
           <CardHeader title="Email" description="Used for birthday reminders and WhatsApp invite emails." />
           <CardBody className="space-y-3 text-sm">
-            {email.mode === "smtp" ? (
+            {email.mode !== "console" ? (
               <p>
-                <Badge tone="green">Sending for real</Badge> via <span className="font-mono">{email.host}</span> as{" "}
-                <span className="font-mono">{email.user}</span>
+                <Badge tone="green">Sending for real</Badge> via <span className="font-mono">{email.via}</span>
               </p>
             ) : (
               <Alert tone="warning" title="Development mode — nothing is delivered">
-                Emails are only printed in the server terminal. Set EMAIL_TRANSPORT=smtp with SMTP_USER and
-                SMTP_PASSWORD (README → Deploy, step 4) and restart the app.
+                Emails are only printed in the server terminal. Set EMAIL_TRANSPORT=brevo and BREVO_API_KEY (README →
+                Deploy, step 4) and restart the app.
               </Alert>
             )}
             <p className="text-slate-500">

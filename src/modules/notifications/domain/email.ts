@@ -31,3 +31,18 @@ export function textToHtml(text: string, logoUrl?: string): string {
     `${logo}${body}<p style="margin:24px 0 0;color:#a78bfa">♪ ♫ ♪</p></div>`
   );
 }
+
+export interface Mailbox {
+  name?: string;
+  email: string;
+}
+
+/** Parses an address like `Vocal Impact <committee@iit.ac.lk>` (or a bare email). */
+export function parseMailbox(value: string): Mailbox {
+  const match = /^\s*"?([^"<]*?)"?\s*<\s*([^>\s]+)\s*>\s*$/.exec(value);
+  if (match) {
+    const name = match[1]?.trim();
+    return name ? { name, email: match[2]! } : { email: match[2]! };
+  }
+  return { email: value.trim() };
+}
