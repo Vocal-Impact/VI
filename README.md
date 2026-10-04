@@ -68,6 +68,28 @@ In development, emails print to the terminal (`EMAIL_TRANSPORT=console`).
 | `npm run build && npm run test:e2e`                           | Browser tests (Playwright; first run `npx playwright install chromium`)                     |
 | `npm run db:studio`                                           | Browse the database in Prisma Studio                                                        |
 | `npm run db:seed-admin -- --email you@iit.ac.lk --name "You"` | Make someone an admin                                                                       |
+| `npm run db:encrypt`                                          | Encrypt data saved before field encryption existed (safe to repeat; runs on every deploy)   |
+
+### Encryption key
+
+WhatsApp numbers, locations (landmark + coordinates) and dietary preferences are **encrypted in the database** (AES-256-GCM, see `docs/adr/0008`). The key is `DATA_ENCRYPTION_KEY` in `.env` / Vercel; generate one with `openssl rand -base64 32`.
+**Keep a copy in the committee password manager.** If it's lost, that data can't be read; never change it on a database that already has data.
+
+### Finding coordinates for landmarks (Python script)
+
+Whenever a location is saved (Add member form, profile, CSV import) the app looks up its coordinates straight away in the background, and the daily job retries any left over. `scripts/geocode/geocode_locations.py` does the same lookups on its own, so you can run and check them yourself. It uses Google Maps first if `GOOGLE_MAPS_API_KEY` is set, then OpenStreetMap.
+
+```bash
+pip install -r scripts/geocode/requirements.txt      # only needed for the `db` command
+
+python scripts/geocode/geocode_locations.py lookup "Kohuwala junction"   # try one landmark
+python scripts/geocode/geocode_locations.py csv responses.csv            # -> responses-with-coordinates.csv
+python scripts/geocode/geocode_locations.py db --dry-run                 # what would be filled in
+python scripts/geocode/geocode_locations.py db [--retry-failed]          # fill in the database
+python -m unittest discover -s scripts/geocode -v                        # its tests
+```
+
+The `csv` command adds a **Location Coordinates** column next to the location column. Import that file (Members → Import → Registration form) and those members go straight onto the map. Fill any blanks by right-clicking the spot in Google Maps and copying the numbers. The `db` command reads `.env` (`DATABASE_URL`, `DATA_ENCRYPTION_KEY`) and writes encrypted coordinates, exactly like the app.
 
 ## Deploy (free) — one-time setup
 

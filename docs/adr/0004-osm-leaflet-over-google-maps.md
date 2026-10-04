@@ -13,6 +13,10 @@ Every Google Maps Platform API needs a billing account with a card. Our rule is 
 - **Routing (optional):** OpenRouteService.
 - **Navigation:** handed to Google Maps through keyless `https://www.google.com/maps/dir/?api=1…` links.
 
+## Update (2026-10-04)
+
+OpenStreetMap misses many Sri Lankan landmarks, so a **Google Maps Geocoding API** key can optionally be set with `GOOGLE_MAPS_API_KEY`. Lookups then try Google first, falling back to Nominatim and Photon. It needs a Google Cloud billing account, but its free monthly allowance covers a choir many times over; set a budget alert. Without a key nothing changes.
+
 ## Consequences
 
 - **Cost:** nothing, and no card on file.

@@ -25,9 +25,10 @@ Fill this table in and keep it up to date (names, not passwords):
   - `CRON_SECRET`
   - `BREVO_API_KEY` (generate a new key in Brevo, then delete the old one)
   - `BACKUP_PASSPHRASE` (GitHub secret). Keep the old one until the old backups expire after 90 days.
+- [ ] **Hand over `DATA_ENCRYPTION_KEY`** through the committee password manager. **Never rotate or change it.** It decrypts phone numbers, locations and dietary preferences, and a new key makes the old data unreadable (see ADR 0008).
 - [ ] **Review WhatsApp group links.** If any old committee member might still share them, reset the links in WhatsApp and update them under WhatsApp → groups.
 - [ ] **Re-check free-tier limits** (blueprint §8.3): Vercel Hobby, Neon Free, Gmail/Brevo and Nominatim usage policy.
-- [ ] **Tidy members:** set graduated members to _Alumni_ and leavers to _Inactive_.
+- [ ] **Tidy members:** years of study move up automatically every 1 September, and L6 finishers become _Alumni_. Afterwards, fix anyone who skipped the placement year or repeated a year, and set leavers to _Inactive_.
 - [ ] **Remove the outgoing committee** from Settings → Users (untick "Can sign in") and from every service.
 - [ ] Check **Settings → System & data → Daily job runs** shows recent successful runs.
 - [ ] Download a fresh **CSV export** (Settings → System & data) and store it in the committee's shared drive.
