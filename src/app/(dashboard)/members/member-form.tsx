@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import {
+  MAX_DIETARY_PREFERENCE_LENGTH,
   MEMBER_STATUSES,
   MEMBER_STATUS_LABELS,
+  STUDY_LEVELS,
+  STUDY_LEVEL_LABELS,
   VOICE_TYPES,
   VOICE_TYPE_LABELS,
-  formatYearOfStudy,
 } from "@/modules/members/domain";
 import { idleState, type ActionState } from "@/shared/lib/action-state";
-import { Field, Input, Select } from "@/shared/ui/form";
+import { Checkbox, Field, Input, Select } from "@/shared/ui/form";
 import { Alert } from "@/shared/ui/layout";
 import { SubmitButton } from "@/shared/ui/client";
 import { LinkButton } from "@/shared/ui/button";
@@ -24,19 +26,24 @@ export interface MemberFormValues {
   email: string;
   voiceType: string;
   dateOfBirth: string;
-  /** Only used when adding a member. */
+  dietaryPreference: string;
+  /** Only used when adding a member (location is edited on the profile afterwards). */
   status?: string;
+  areaLabel?: string;
+  coordinates?: string;
+  consentGiven?: string;
 }
 
 const EMPTY: MemberFormValues = {
   firstName: "",
   lastName: "",
   studentId: "",
-  yearOfStudy: "1",
+  yearOfStudy: "",
   whatsappNumber: "",
   email: "",
   voiceType: "UNASSIGNED",
   dateOfBirth: "",
+  dietaryPreference: "",
 };
 
 export function MemberForm({
@@ -105,10 +112,18 @@ export function MemberForm({
           />
         </Field>
         <Field label="Current year of study" htmlFor="yearOfStudy" errors={errors.yearOfStudy}>
-          <Select id="yearOfStudy" name="yearOfStudy" defaultValue={values.yearOfStudy}>
-            {[0, 1, 2, 3, 4, 5].map((year) => (
-              <option key={year} value={year}>
-                {formatYearOfStudy(year)}
+          <Select
+            id="yearOfStudy"
+            name="yearOfStudy"
+            defaultValue={values.yearOfStudy}
+            aria-invalid={!!errors.yearOfStudy}
+          >
+            <option value="" disabled>
+              Choose…
+            </option>
+            {STUDY_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {STUDY_LEVEL_LABELS[level]}
               </option>
             ))}
           </Select>
@@ -146,6 +161,19 @@ export function MemberForm({
         <Field label="Date of birth (optional)" htmlFor="dateOfBirth" errors={errors.dateOfBirth}>
           <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={values.dateOfBirth} />
         </Field>
+        <Field
+          label="Dietary preferences (optional)"
+          htmlFor="dietaryPreference"
+          hint="e.g. Vegetarian, no beef, nut allergy. Stored encrypted."
+          errors={errors.dietaryPreference}
+        >
+          <Input
+            id="dietaryPreference"
+            name="dietaryPreference"
+            maxLength={MAX_DIETARY_PREFERENCE_LENGTH}
+            defaultValue={values.dietaryPreference}
+          />
+        </Field>
         {mode === "create" ? (
           <Field
             label="Status"
@@ -163,6 +191,43 @@ export function MemberForm({
           </Field>
         ) : null}
       </div>
+
+      {mode === "create" ? (
+        <fieldset className="space-y-4 rounded-xl border border-slate-200 p-4">
+          <legend className="px-1 text-sm font-semibold text-slate-800">Location for carpooling (optional)</legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Location (nearest landmark)"
+              htmlFor="areaLabel"
+              hint="e.g. Kohuwala junction. Coordinates are looked up automatically."
+              errors={errors.areaLabel}
+            >
+              <Input id="areaLabel" name="areaLabel" maxLength={80} defaultValue={values.areaLabel ?? ""} />
+            </Field>
+            <Field
+              label="Coordinates (optional)"
+              htmlFor="coordinates"
+              hint="If you have them: right-click the spot in Google Maps and click the numbers to copy."
+              errors={errors.coordinates}
+            >
+              <Input
+                id="coordinates"
+                name="coordinates"
+                inputMode="decimal"
+                placeholder="6.8664, 79.8774"
+                defaultValue={values.coordinates ?? ""}
+              />
+            </Field>
+          </div>
+          <Checkbox
+            name="consentGiven"
+            defaultChecked={values.consentGiven === "on"}
+            label="Member agreed to share their approximate location"
+            hint="Only the committee can see it, for carpool planning. Stored encrypted."
+          />
+          {errors.consentGiven ? <p className="text-xs font-medium text-red-600">{errors.consentGiven[0]}</p> : null}
+        </fieldset>
+      ) : null}
 
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
         <SubmitButton>{mode === "create" ? "Save member" : "Save changes"}</SubmitButton>

@@ -45,6 +45,11 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await page.getByLabel("WhatsApp number").fill("077 555 0000");
   await page.getByLabel("IIT email address").fill("nethmi@gmail.com");
   await page.getByLabel("Voice type").selectOption("ALTO");
+  await page.getByLabel("Current year of study").selectOption("L4");
+  await page.getByLabel("Dietary preferences (optional)").fill("Vegetarian");
+  await page.getByLabel("Location (nearest landmark)").fill("Kohuwala junction");
+  await page.getByLabel("Coordinates (optional)").fill("6.8664, 79.8774");
+  await page.getByLabel("Member agreed to share their approximate location").check();
   await expect(page.getByLabel("Status")).toHaveValue("PROSPECTIVE");
   await expect(page.getByRole("button", { name: /send group invites/i })).toHaveCount(0);
   await page.getByRole("button", { name: "Save member" }).click();
@@ -53,6 +58,10 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await page.getByRole("button", { name: "Save member" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Nethmi Perera" })).toBeVisible();
   await expect(page.getByText("0/3 practices")).toBeVisible();
+  await expect(page.getByText("Vegetarian")).toBeVisible();
+  await expect(page.getByText("On map", { exact: true })).toBeVisible();
+  await expect(page.getByText("6.866, 79.877")).toBeVisible();
+  await expect(page.getByLabel("Location (nearest landmark)")).toHaveValue("Kohuwala junction");
 
   // Adding the same person again is blocked with a link to the profile.
   await page.goto("/members/new");
@@ -61,6 +70,7 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await page.getByLabel("IIT student ID").fill("W2026500");
   await page.getByLabel("WhatsApp number").fill("0775550000");
   await page.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");
+  await page.getByLabel("Current year of study").selectOption("L4");
   await page.getByRole("button", { name: "Save member" }).click();
   await expect(page.getByText("This person already exists")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open their profile" })).toBeVisible();

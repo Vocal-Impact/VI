@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/shared/db/prisma";
 import { fromIsoDate } from "@/shared/lib/dates";
+import { sealedPhone } from "./sealing";
 
 let sequence = 0;
 const next = () => (sequence += 1);
@@ -41,8 +42,8 @@ export async function createMember(
       firstName: overrides.firstName ?? `Member${n}`,
       lastName: "Test",
       studentId: overrides.studentId ?? `TST${100000 + n}`,
-      yearOfStudy: 1,
-      whatsappNumber: `+9477${String(1000000 + n).slice(0, 7)}`,
+      yearOfStudy: "L4",
+      ...sealedPhone(`+9477${String(1000000 + n).slice(0, 7)}`),
       email: overrides.email ?? `member${n}@iit.ac.lk`,
       voiceType: overrides.voiceType ?? "ALTO",
       status: overrides.status ?? "PROSPECTIVE",

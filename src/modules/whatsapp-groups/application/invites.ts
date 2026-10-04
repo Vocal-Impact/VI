@@ -1,4 +1,5 @@
 import "server-only";
+import { reveal } from "@/shared/crypto/sensitive";
 import { prisma } from "@/shared/db/prisma";
 import { writeAuditLog } from "@/shared/audit/audit-log";
 import { err, ok, type Result } from "@/shared/lib/result";
@@ -288,7 +289,7 @@ export async function getGroupRoster(groupId: string) {
         firstName: true,
         lastName: true,
         email: true,
-        whatsappNumber: true,
+        whatsappNumberEncrypted: true,
         voiceType: true,
         status: true,
         _count: { select: { attendances: true } },
@@ -313,7 +314,7 @@ export async function getGroupRoster(groupId: string) {
       firstName: member.firstName,
       lastName: member.lastName,
       email: member.email,
-      whatsappNumber: member.whatsappNumber,
+      whatsappNumber: reveal(member.whatsappNumberEncrypted),
       voiceType: member.voiceType,
       status: member.status,
       attendedCount: member._count.attendances,
@@ -397,7 +398,7 @@ export async function listWhatsAppQueue() {
         name: `${member.firstName} ${member.lastName}`,
         status: member.status,
         voiceType: member.voiceType,
-        whatsappNumber: member.whatsappNumber,
+        whatsappNumber: reveal(member.whatsappNumberEncrypted),
         attendedCount,
         kind,
         invitedAt: relevant[0]?.sentAt ?? null,

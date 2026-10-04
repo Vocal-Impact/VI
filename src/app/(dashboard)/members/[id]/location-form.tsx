@@ -54,11 +54,20 @@ export function LocationForm({
     <div className="space-y-4">
       <form action={formAction} className="space-y-4">
         <ActionFeedback state={state} />
-        {status ? <Badge tone={status.tone}>{status.label}</Badge> : null}
+        {status ? (
+          <p className="flex flex-wrap items-center gap-2">
+            <Badge tone={status.tone}>{status.label}</Badge>
+            {pin ? (
+              <span className="font-mono text-xs text-slate-500">
+                {pin.latitude}, {pin.longitude}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
         <Field
-          label="Area they live in"
+          label="Location (nearest landmark)"
           htmlFor="areaLabel"
-          hint="e.g. Dehiwala, Nugegoda, Kandana"
+          hint="e.g. Kohuwala junction, Arpico Dehiwala. Coordinates are looked up automatically."
           errors={state.fieldErrors?.areaLabel}
         >
           <Input id="areaLabel" name="areaLabel" defaultValue={initial?.areaLabel ?? ""} required />

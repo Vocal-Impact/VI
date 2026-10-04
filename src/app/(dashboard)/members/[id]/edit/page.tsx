@@ -37,11 +37,12 @@ export default async function EditMemberPage(props: PageProps<"/members/[id]/edi
               firstName: member.firstName,
               lastName: member.lastName,
               studentId: member.studentId,
-              yearOfStudy: String(member.yearOfStudy),
+              yearOfStudy: member.yearOfStudy,
               whatsappNumber: member.whatsappNumber,
               email: member.email,
               voiceType: member.voiceType,
               dateOfBirth: member.dateOfBirth ? toIsoDate(member.dateOfBirth) : "",
+              dietaryPreference: member.dietaryPreference ?? "",
             }}
           />
         </CardBody>

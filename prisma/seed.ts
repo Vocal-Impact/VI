@@ -10,7 +10,13 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
-import { PrismaClient, type VoiceType } from "../src/generated/prisma/client";
+import { PrismaClient, type StudyLevel, type VoiceType } from "../src/generated/prisma/client";
+import { FieldCipher, parseEncryptionKey } from "../src/shared/crypto/field-encryption";
+
+const encryptionKey = parseEncryptionKey(process.env.DATA_ENCRYPTION_KEY ?? "");
+if (!encryptionKey) throw new Error("Set DATA_ENCRYPTION_KEY in .env first (openssl rand -base64 32)");
+const cipher = new FieldCipher(encryptionKey);
+const LEVELS: StudyLevel[] = ["FOUNDATION", "L4", "L5", "PLACEMENT", "L6"];
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL as string }) });
 
@@ -130,8 +136,9 @@ async function main(): Promise<void> {
         firstName,
         lastName,
         studentId,
-        yearOfStudy: (i % 4) + 1,
-        whatsappNumber: `+9477${String(1000000 + i * 7919).slice(0, 7)}`,
+        yearOfStudy: LEVELS[i % LEVELS.length]!,
+        whatsappNumberEncrypted: cipher.encrypt(`+9477${String(1000000 + i * 7919).slice(0, 7)}`),
+        whatsappNumberHash: cipher.blindIndex(`+9477${String(1000000 + i * 7919).slice(0, 7)}`),
         email: `${firstName.toLowerCase()}.${studentId.toLowerCase()}@iit.ac.lk`,
         voiceType: VOICES[i % VOICES.length]!,
         dateOfBirth: i % 5 === 0 ? null : dob,
@@ -158,9 +165,10 @@ async function main(): Promise<void> {
         where: { memberId: member.id },
         create: {
           memberId: member.id,
-          areaLabel,
-          latitude: Math.round((latitude + (i % 3) * 0.004) * 1000) / 1000,
-          longitude: Math.round((longitude - (i % 2) * 0.004) * 1000) / 1000,
+          areaLabelEncrypted: cipher.encrypt(areaLabel),
+          coordinatesEncrypted: cipher.encrypt(
+            `${Math.round((latitude + (i % 3) * 0.004) * 1000) / 1000},${Math.round((longitude - (i % 2) * 0.004) * 1000) / 1000}`,
+          ),
           geocodeStatus: "OK",
           consentGiven: true,
           canDrive: i % 6 === 0,

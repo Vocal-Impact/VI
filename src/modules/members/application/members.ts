@@ -3,12 +3,20 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma, type DbClient } from "@/shared/db/prisma";
 import { writeAuditLog } from "@/shared/audit/audit-log";
 import { getEnv } from "@/shared/config/env";
+import { fingerprint, reveal, revealLocation, revealOptional, seal, sealOptional } from "@/shared/crypto/sensitive";
 import { fromIsoDate, toIsoDate } from "@/shared/lib/dates";
 import { err, ok, type Result } from "@/shared/lib/result";
 import { validationError } from "@/shared/lib/validation";
 import { toCsv } from "@/shared/lib/csv";
 import { findDuplicates, type DuplicateMatch } from "../domain/duplicates";
-import { formatYearOfStudy, VOICE_TYPE_LABELS, type MemberStatus, type VoiceType } from "../domain/member";
+import {
+  normalizeWhatsappNumber,
+  STUDY_LEVEL_LABELS,
+  VOICE_TYPE_LABELS,
+  type MemberStatus,
+  type StudyLevel,
+  type VoiceType,
+} from "../domain/member";
 import {
   memberFilterSchema,
   memberInputSchema,
@@ -22,8 +30,51 @@ const DUPLICATE_LABELS = { studentId: "student ID", email: "email", whatsappNumb
 /** "REMOVED" in the status filter means removed (soft-deleted) members. */
 export const REMOVED_FILTER = "REMOVED";
 
+// ─── Encrypted fields ──────────────────────────────────────────────────────
+
+type StoredSensitive = {
+  whatsappNumberEncrypted: string;
+  whatsappNumberHash?: string | null;
+  dietaryPreferenceEncrypted?: string | null;
+};
+
+export type Revealed<T extends StoredSensitive> = Omit<T, keyof StoredSensitive> & {
+  whatsappNumber: string;
+  dietaryPreference: string | null;
+};
+
+/** Decrypts a member's WhatsApp number and dietary preference for display. */
+export function revealMember<T extends StoredSensitive>(member: T): Revealed<T> {
+  const { whatsappNumberEncrypted, whatsappNumberHash: _hash, dietaryPreferenceEncrypted, ...rest } = member;
+  return {
+    ...rest,
+    whatsappNumber: reveal(whatsappNumberEncrypted),
+    dietaryPreference: revealOptional(dietaryPreferenceEncrypted),
+  };
+}
+
+/** Selects the encrypted columns, for other modules' queries. Pair with `revealMember`. */
+export const SENSITIVE_MEMBER_FIELDS = { whatsappNumberEncrypted: true, dietaryPreferenceEncrypted: true } as const;
+
+function sealPhone(whatsappNumber: string) {
+  return { whatsappNumberEncrypted: seal(whatsappNumber), whatsappNumberHash: fingerprint(whatsappNumber) };
+}
+
+/** Audit entries never hold the plaintext of encrypted fields. */
+function auditSafe<T extends { whatsappNumber?: string; dietaryPreference?: string | null }>(input: T) {
+  return {
+    ...input,
+    whatsappNumber: input.whatsappNumber ? "[encrypted]" : undefined,
+    dietaryPreference: input.dietaryPreference ? "[encrypted]" : null,
+  };
+}
+
+// ─── Queries ───────────────────────────────────────────────────────────────
+
 function whereForFilter(filter: MemberFilter, includeDeleted = false): Prisma.MemberWhereInput {
   const q = filter.q?.trim();
+  // Phone numbers are encrypted, so a phone search is an exact match on the fingerprint.
+  const phone = q ? normalizeWhatsappNumber(q) : null;
   return {
     deletedAt: includeDeleted ? undefined : filter.removed ? { not: null } : null,
     status: filter.status,
@@ -35,7 +86,9 @@ function whereForFilter(filter: MemberFilter, includeDeleted = false): Prisma.Me
           { lastName: { contains: q, mode: "insensitive" } },
           { studentId: { contains: q, mode: "insensitive" } },
           { email: { contains: q, mode: "insensitive" } },
-          { whatsappNumber: { contains: q.replace(/\s+/g, "") } },
+          ...(phone?.ok
+            ? [{ whatsappNumberHash: fingerprint(phone.value) }, { whatsappNumberEncrypted: phone.value }]
+            : []),
         ]
       : undefined,
   };
@@ -59,11 +112,12 @@ export function parseMemberFilter(searchParams: Record<string, string | string[]
 }
 
 export async function listMembers(filter: MemberFilter = {}) {
-  return prisma.member.findMany({
+  const members = await prisma.member.findMany({
     where: whereForFilter(filter),
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     include: { _count: { select: { attendances: true } } },
   });
+  return members.map(revealMember);
 }
 
 export async function countRemovedMembers(): Promise<number> {
@@ -86,7 +140,7 @@ export async function countMissingData() {
 }
 
 export async function getMember(id: string) {
-  return prisma.member.findUnique({
+  const member = await prisma.member.findUnique({
     where: { id },
     include: {
       location: true,
@@ -95,23 +149,26 @@ export async function getMember(id: string) {
       invites: { include: { group: true, sentBy: { select: { name: true } } }, orderBy: { sentAt: "desc" } },
     },
   });
+  if (!member) return null;
+  return { ...revealMember(member), location: member.location ? revealLocation(member.location) : null };
 }
 
 /** Minimal projection used by other modules (e.g. invites, carpool). */
 export async function getMembersByIds(ids: string[]) {
-  return prisma.member.findMany({
+  const members = await prisma.member.findMany({
     where: { id: { in: ids }, deletedAt: null },
     select: {
       id: true,
       firstName: true,
       lastName: true,
       email: true,
-      whatsappNumber: true,
+      whatsappNumberEncrypted: true,
       voiceType: true,
       status: true,
       addedToWhatsappAt: true,
     },
   });
+  return members.map(revealMember);
 }
 
 async function duplicatesFor(
@@ -123,12 +180,14 @@ async function duplicatesFor(
       OR: [
         { studentId: candidate.studentId },
         { email: candidate.email },
-        { whatsappNumber: candidate.whatsappNumber },
+        { whatsappNumberHash: fingerprint(candidate.whatsappNumber) },
+        // Rows saved before encryption (until `npm run db:encrypt` has run).
+        { whatsappNumberEncrypted: candidate.whatsappNumber },
       ],
     },
-    select: { id: true, studentId: true, email: true, whatsappNumber: true },
+    select: { id: true, studentId: true, email: true, whatsappNumberEncrypted: true },
   });
-  return findDuplicates(candidate, existing, excludeId);
+  return findDuplicates(candidate, existing.map(revealMember), excludeId);
 }
 
 function duplicateError(matches: DuplicateMatch[]): Result<never> {
@@ -141,7 +200,13 @@ function duplicateError(matches: DuplicateMatch[]): Result<never> {
 }
 
 function toMemberData(input: MemberInput) {
-  return { ...input, dateOfBirth: input.dateOfBirth ? fromIsoDate(input.dateOfBirth) : null };
+  const { whatsappNumber, dietaryPreference, dateOfBirth, ...rest } = input;
+  return {
+    ...rest,
+    ...sealPhone(whatsappNumber),
+    dietaryPreferenceEncrypted: sealOptional(dietaryPreference),
+    dateOfBirth: dateOfBirth ? fromIsoDate(dateOfBirth) : null,
+  };
 }
 
 export async function createMember(raw: unknown, actorId: string): Promise<Result<{ id: string }>> {
@@ -165,7 +230,7 @@ export async function createMember(raw: unknown, actorId: string): Promise<Resul
         action: "member.create",
         entity: "member",
         entityId: created.id,
-        diff: { ...parsed.data, status: status.data },
+        diff: { ...auditSafe(parsed.data), status: status.data },
       },
       tx,
     );
@@ -186,7 +251,10 @@ export async function updateMember(id: string, raw: unknown, actorId: string): P
 
   await prisma.$transaction(async (tx) => {
     await tx.member.update({ where: { id }, data: toMemberData(parsed.data) });
-    await writeAuditLog({ actorId, action: "member.update", entity: "member", entityId: id, diff: parsed.data }, tx);
+    await writeAuditLog(
+      { actorId, action: "member.update", entity: "member", entityId: id, diff: auditSafe(parsed.data) },
+      tx,
+    );
   });
   return ok(null);
 }
@@ -284,15 +352,20 @@ export interface RegistrationRow {
   firstName: string;
   lastName: string;
   studentId: string;
-  yearOfStudy: number;
+  yearOfStudy: StudyLevel;
   whatsappNumber: string;
   email: string;
   voiceType: VoiceType;
   dateOfBirth: string | null;
+  dietaryPreference: string | null;
+  /** Used only when the import creates the member; never overrides a status the committee set. */
+  status: MemberStatus | null;
 }
 
-export async function findMembersByStudentIds(studentIds: string[]) {
-  return prisma.member.findMany({ where: { studentId: { in: studentIds } } });
+/** Every member (removed ones too — their student IDs and emails are still taken), decrypted, for import previews. */
+export async function listMembersForImport() {
+  const members = await prisma.member.findMany();
+  return members.map(revealMember);
 }
 
 export async function findMembersByEmails(emails: string[]) {
@@ -302,15 +375,31 @@ export async function findMembersByEmails(emails: string[]) {
   });
 }
 
-export async function upsertMemberFromImport(row: RegistrationRow, db: DbClient): Promise<"created" | "updated"> {
-  const data = { ...row, dateOfBirth: row.dateOfBirth ? fromIsoDate(row.dateOfBirth) : undefined };
+export async function upsertMemberFromImport(
+  row: RegistrationRow,
+  db: DbClient,
+): Promise<{ id: string; outcome: "created" | "updated" }> {
+  const { status, whatsappNumber, dietaryPreference, dateOfBirth, ...rest } = row;
+  const data = {
+    ...rest,
+    ...sealPhone(whatsappNumber),
+    dietaryPreferenceEncrypted: sealOptional(dietaryPreference),
+    dateOfBirth: dateOfBirth ? fromIsoDate(dateOfBirth) : undefined,
+  };
   const existing = await db.member.findUnique({ where: { studentId: row.studentId }, select: { id: true } });
   if (existing) {
     await db.member.update({ where: { id: existing.id }, data });
-    return "updated";
+    return { id: existing.id, outcome: "updated" };
   }
-  await db.member.create({ data: { ...data, source: "CSV_IMPORT", status: "PROSPECTIVE" } });
-  return "created";
+  const created = await db.member.create({
+    data: {
+      ...data,
+      source: "CSV_IMPORT",
+      status: status ?? "PROSPECTIVE",
+      addedToWhatsappAt: status === "ACTIVE" ? new Date() : null,
+    },
+  });
+  return { id: created.id, outcome: "created" };
 }
 
 export async function setDateOfBirth(memberId: string, dateOfBirth: string, db: DbClient): Promise<void> {
@@ -326,19 +415,24 @@ export async function exportMembersCsv(filter: MemberFilter = {}): Promise<strin
     include: { location: true, _count: { select: { attendances: true } } },
   });
   return toCsv(
-    members.map((member) => ({
-      "First Name": member.firstName,
-      "Last Name": member.lastName,
-      "IIT Student ID": member.studentId,
-      "Year of Study": formatYearOfStudy(member.yearOfStudy),
-      "WhatsApp Number": member.whatsappNumber,
-      "IIT Email Address": member.email,
-      "Voice Type": VOICE_TYPE_LABELS[member.voiceType],
-      "Date of Birth": member.dateOfBirth ? toIsoDate(member.dateOfBirth) : "",
-      Status: member.status,
-      "Practices Attended": member._count.attendances,
-      Area: member.location?.areaLabel ?? "",
-      "Added to WhatsApp": member.addedToWhatsappAt?.toISOString() ?? "",
-    })),
+    members.map((member) => {
+      const location = member.location ? revealLocation(member.location) : null;
+      return {
+        "First Name": member.firstName,
+        "Last Name": member.lastName,
+        "IIT Student ID": member.studentId,
+        "Year of Study": STUDY_LEVEL_LABELS[member.yearOfStudy],
+        "WhatsApp Number": reveal(member.whatsappNumberEncrypted),
+        "IIT Email Address": member.email,
+        "Voice Type": VOICE_TYPE_LABELS[member.voiceType],
+        "Date of Birth": member.dateOfBirth ? toIsoDate(member.dateOfBirth) : "",
+        Status: member.status,
+        "Dietary Preferences": revealOptional(member.dietaryPreferenceEncrypted) ?? "",
+        "Practices Attended": member._count.attendances,
+        "Location (Nearest Landmark)": location?.areaLabel ?? "",
+        Coordinates: location?.latitude != null ? `${location.latitude}, ${location.longitude}` : "",
+        "Added to WhatsApp": member.addedToWhatsappAt?.toISOString() ?? "",
+      };
+    }),
   );
 }

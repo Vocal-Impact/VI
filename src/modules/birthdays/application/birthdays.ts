@@ -1,4 +1,5 @@
 import "server-only";
+import { reveal } from "@/shared/crypto/sensitive";
 import { prisma } from "@/shared/db/prisma";
 import { todayLocal, type Clock, systemClock } from "@/shared/lib/clock";
 import { toIsoDate, type IsoDate } from "@/shared/lib/dates";
@@ -16,13 +17,20 @@ export interface BirthdayMember {
 export async function listMembersWithBirthdays(): Promise<BirthdayMember[]> {
   const members = await prisma.member.findMany({
     where: { deletedAt: null, status: { in: ["PROSPECTIVE", "ACTIVE", "INACTIVE"] }, dateOfBirth: { not: null } },
-    select: { id: true, firstName: true, lastName: true, voiceType: true, whatsappNumber: true, dateOfBirth: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      voiceType: true,
+      whatsappNumberEncrypted: true,
+      dateOfBirth: true,
+    },
   });
   return members.map((member) => ({
     id: member.id,
     name: `${member.firstName} ${member.lastName}`,
     voiceType: member.voiceType,
-    whatsappNumber: member.whatsappNumber,
+    whatsappNumber: reveal(member.whatsappNumberEncrypted),
     dateOfBirth: toIsoDate(member.dateOfBirth as Date),
   }));
 }

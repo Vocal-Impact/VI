@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { sendBirthdayReminders } from "@/modules/birthdays";
-import { geocodePendingLocations } from "@/modules/carpool";
+import { geocodeLocations } from "@/modules/carpool";
+import { runStudyYearRollover } from "@/modules/members";
 import { getEnv } from "@/shared/config/env";
 import { errorMessage, logger } from "@/shared/lib/logger";
 
@@ -23,10 +24,12 @@ export async function GET(request: Request) {
   if (!isAuthorized(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    // First, so birthday emails and lists already see the new academic year's levels.
+    const studyYear = await runStudyYearRollover();
     const reminders = await sendBirthdayReminders();
-    const geocoding = await geocodePendingLocations({ limit: 20 });
-    logger.info("Daily job finished", { reminders, geocoding });
-    return Response.json({ ok: true, reminders, geocoding });
+    const geocoding = await geocodeLocations({ limit: 20 });
+    logger.info("Daily job finished", { studyYear, reminders, geocoding });
+    return Response.json({ ok: true, studyYear, reminders, geocoding });
   } catch (error) {
     logger.error("Daily job failed", { error: errorMessage(error) });
     return Response.json({ ok: false, error: "Daily job failed" }, { status: 500 });

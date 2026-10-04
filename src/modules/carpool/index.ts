@@ -3,7 +3,7 @@ export {
   saveLocationFromImport,
   saveMemberLocation,
   removeMemberLocation,
-  geocodePendingLocations,
+  geocodeLocations,
   requeueFailedGeocodes,
   type GeocodeRunSummary,
   type LocationDetails,

@@ -6,7 +6,8 @@ import {
   MEMBER_STATUS_LABELS,
   VOICE_TYPES,
   VOICE_TYPE_LABELS,
-  formatYearOfStudy,
+  STUDY_LEVELS,
+  STUDY_LEVEL_LABELS,
 } from "@/modules/members/domain";
 import { StatusBadge, VoiceBadge } from "@/modules/members/ui";
 import { Button, buttonClasses, LinkButton } from "@/shared/ui/button";
@@ -102,11 +103,11 @@ export default async function MembersPage(props: PageProps<"/members">) {
               </option>
             ))}
           </Select>
-          <Select name="year" defaultValue={filter.year?.toString() ?? ""} aria-label="Year of study">
+          <Select name="year" defaultValue={filter.year ?? ""} aria-label="Year of study">
             <option value="">All years</option>
-            {[0, 1, 2, 3, 4, 5].map((year) => (
-              <option key={year} value={year}>
-                {formatYearOfStudy(year)}
+            {STUDY_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {STUDY_LEVEL_LABELS[level]}
               </option>
             ))}
           </Select>
@@ -132,6 +133,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
                 <Th>Status</Th>
                 <Th className="text-right">Practices</Th>
                 <Th className="hidden lg:table-cell">WhatsApp</Th>
+                <Th className="hidden xl:table-cell">Dietary</Th>
               </tr>
             </thead>
             <tbody>
@@ -149,7 +151,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
                   <Td>
                     <VoiceBadge voiceType={member.voiceType} />
                   </Td>
-                  <Td className="hidden sm:table-cell">{formatYearOfStudy(member.yearOfStudy)}</Td>
+                  <Td className="hidden sm:table-cell">{STUDY_LEVEL_LABELS[member.yearOfStudy]}</Td>
                   <Td>
                     {member.deletedAt ? (
                       <span className="flex flex-wrap items-center gap-2">
@@ -168,6 +170,12 @@ export default async function MembersPage(props: PageProps<"/members">) {
                   </Td>
                   <Td className="text-right tabular-nums">{member._count.attendances}</Td>
                   <Td className="hidden tabular-nums lg:table-cell">{member.whatsappNumber}</Td>
+                  <Td
+                    className="hidden max-w-48 truncate text-slate-600 xl:table-cell"
+                    title={member.dietaryPreference ?? ""}
+                  >
+                    {member.dietaryPreference ?? <span className="text-slate-300">—</span>}
+                  </Td>
                 </tr>
               ))}
             </tbody>

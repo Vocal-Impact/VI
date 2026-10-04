@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { requirePermission } from "@/modules/auth";
 import {
   changeMemberStatus,
@@ -12,7 +13,7 @@ import {
   softDeleteMember,
   updateMember,
 } from "@/modules/members";
-import { removeMemberLocation, saveMemberLocation } from "@/modules/carpool";
+import { geocodeLocations, removeMemberLocation, saveMemberLocation } from "@/modules/carpool";
 import {
   commitImport,
   previewImport,
@@ -22,7 +23,8 @@ import {
   type ImportSummary,
 } from "@/modules/imports";
 import { formValues, toActionState, type ActionState } from "@/shared/lib/action-state";
-import { parseCoordinates } from "@/shared/lib/coordinates";
+import { parseCoordinates, type Coordinates } from "@/shared/lib/coordinates";
+import { errorMessage, logger } from "@/shared/lib/logger";
 
 function memberPayload(values: Record<string, string>) {
   return {
@@ -34,17 +36,75 @@ function memberPayload(values: Record<string, string>) {
     email: values.email ?? "",
     voiceType: values.voiceType ?? "UNASSIGNED",
     dateOfBirth: values.dateOfBirth ?? "",
+    dietaryPreference: values.dietaryPreference ?? "",
     status: values.status ?? "",
   };
+}
+
+/** Looks up coordinates for just-saved locations once the response has been sent. */
+function geocodeSoon(memberIds: string[]): void {
+  if (memberIds.length === 0) return;
+  after(async () => {
+    try {
+      await geocodeLocations({ memberIds, limit: memberIds.length });
+    } catch (error) {
+      logger.warn("Background geocoding failed", { error: errorMessage(error) });
+    }
+  });
+}
+
+type LocationFields =
+  | { ok: true; location: { areaLabel: string; coordinates: Coordinates | null } | null }
+  | { ok: false; fieldErrors: Record<string, string[]> };
+
+/** The optional location on the Add member form: a landmark and/or pasted coordinates. */
+function readLocationFields(values: Record<string, string>): LocationFields {
+  const area = values.areaLabel?.trim() ?? "";
+  const coordinatesText = values.coordinates?.trim() ?? "";
+  if (!area && !coordinatesText) return { ok: true, location: null };
+  const coordinates = coordinatesText ? parseCoordinates(coordinatesText) : null;
+  if (coordinatesText && !coordinates)
+    return {
+      ok: false,
+      fieldErrors: { coordinates: ["Paste two numbers separated by a comma, e.g. 6.8664, 79.8774"] },
+    };
+  if (values.consentGiven !== "on")
+    return {
+      ok: false,
+      fieldErrors: { consentGiven: ["Tick this only if the member agreed — or leave the location empty"] },
+    };
+  return { ok: true, location: { areaLabel: area || coordinatesText, coordinates } };
 }
 
 export async function createMemberAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requirePermission("members:write");
   const values = formValues(formData);
+  const location = readLocationFields(values);
+  if (!location.ok)
+    return { status: "error", message: "Check the location", fieldErrors: location.fieldErrors, values };
+
   const result = await createMember(memberPayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
+  const memberId = result.value.id;
+
+  if (location.location) {
+    const saved = await saveMemberLocation(
+      memberId,
+      {
+        areaLabel: location.location.areaLabel,
+        consentGiven: true,
+        canDrive: false,
+        seats: "0",
+        pin: location.location.coordinates,
+      },
+      user.id,
+    );
+    if (!saved.ok)
+      logger.warn("Member added but their location was not saved", { memberId, error: saved.error.message });
+    else if (!location.location.coordinates) geocodeSoon([memberId]);
+  }
   revalidatePath("/members");
-  redirect(`/members/${result.value.id}?created=1`);
+  redirect(`/members/${memberId}?created=1`);
 }
 
 export async function updateMemberAction(
@@ -126,7 +186,10 @@ export async function saveLocationAction(
     },
     user.id,
   );
-  if (result.ok) revalidatePath(`/members/${memberId}`);
+  if (result.ok) {
+    revalidatePath(`/members/${memberId}`);
+    if (!pasted && !(Number.isFinite(latitude) && Number.isFinite(longitude))) geocodeSoon([memberId]);
+  }
   return toActionState(result, "Carpool details saved", values);
 }
 
@@ -162,6 +225,7 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
     const fileName = String(formData.get("fileName") ?? "import.csv");
     const result = await commitImport(profile, csvText, fileName, user.id);
     if (!result.ok) return { status: "error", message: result.error.message, profile };
+    geocodeSoon(result.value.locationsToGeocode);
     revalidatePath("/members");
     revalidatePath("/");
     return { status: "done", profile, fileName, summary: result.value };

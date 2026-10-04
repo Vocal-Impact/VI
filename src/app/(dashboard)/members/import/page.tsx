@@ -5,6 +5,8 @@ import { Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layout";
 import { ImportWizard } from "./import-wizard";
 
 export const metadata = { title: "Import CSV" };
+// Leaves time for looking up coordinates in the background after saving.
+export const maxDuration = 60;
 
 export default async function ImportPage() {
   await requirePermission("imports:run");

@@ -3,23 +3,28 @@ import { z } from "zod";
 import { prisma, type DbClient } from "@/shared/db/prisma";
 import { getEnv } from "@/shared/config/env";
 import { writeAuditLog } from "@/shared/audit/audit-log";
+import { fingerprint, reveal, seal, sealCoordinates } from "@/shared/crypto/sensitive";
 import { errorMessage, logger } from "@/shared/lib/logger";
 import { err, ok, type Result } from "@/shared/lib/result";
 import { validationError } from "@/shared/lib/validation";
+import { parseCoordinates, type Coordinates } from "@/shared/lib/coordinates";
+import { getSettings } from "@/shared/settings/settings";
 import { memberLocationInputSchema } from "../schemas";
 import { roundLatLng } from "../domain/geo";
 import type { Geocoder } from "../domain/ports";
+import { geocodeCacheKey } from "../domain/geocoding";
 import { NominatimGeocoder } from "../infrastructure/nominatim-geocoder";
 import { PhotonGeocoder } from "../infrastructure/photon-geocoder";
+import { GoogleGeocoder } from "../infrastructure/google-geocoder";
 import { ChainGeocoder } from "../infrastructure/chain-geocoder";
-import { geocodeCacheKey } from "../domain/geocoding";
-import { parseCoordinates } from "@/shared/lib/coordinates";
-import { getSettings } from "@/shared/settings/settings";
 
 export interface LocationDetails {
+  /** Where they live as typed: nearest landmark, area, or pasted coordinates. */
   areaLabel: string;
   canDrive: boolean;
   seats: number;
+  /** Known coordinates (pin, pasted, or from the geocoding script's CSV column). Skips geocoding. */
+  coordinates?: Coordinates | null;
 }
 
 const pinSchema = z
@@ -28,8 +33,9 @@ const pinSchema = z
   .optional();
 
 /**
- * Saves (or, with `null`, removes) a member's carpool details from the
- * supplementary-details import. Changing the area re-queues geocoding.
+ * Saves (or, with `null`, removes) a member's location from a CSV import or
+ * a form. The area is stored encrypted next to its coordinates; a changed
+ * area without coordinates is queued for geocoding (see `geocodeLocations`).
  */
 export async function saveLocationFromImport(
   memberId: string,
@@ -40,16 +46,28 @@ export async function saveLocationFromImport(
     await db.memberLocation.deleteMany({ where: { memberId } });
     return;
   }
+  const { areaLabel, canDrive, seats } = details;
   const current = await db.memberLocation.findUnique({ where: { memberId } });
-  const areaChanged = !current || current.areaLabel.toLowerCase() !== details.areaLabel.toLowerCase();
+  const areaChanged = !current || reveal(current.areaLabelEncrypted).toLowerCase() !== areaLabel.toLowerCase();
+  const point = details.coordinates ? roundLatLng(details.coordinates) : null;
+  const position = point
+    ? { coordinatesEncrypted: sealCoordinates(point), geocodeStatus: "OK" as const }
+    : areaChanged
+      ? { coordinatesEncrypted: null, geocodeStatus: "PENDING" as const }
+      : {};
   await db.memberLocation.upsert({
     where: { memberId },
-    create: { memberId, ...details, consentGiven: true, geocodeStatus: "PENDING" },
-    update: {
-      ...details,
+    create: {
+      memberId,
+      areaLabelEncrypted: seal(areaLabel),
+      canDrive,
+      seats,
       consentGiven: true,
-      ...(areaChanged ? { latitude: null, longitude: null, geocodeStatus: "PENDING" as const } : {}),
+      coordinatesEncrypted: null,
+      geocodeStatus: "PENDING",
+      ...position,
     },
+    update: { areaLabelEncrypted: seal(areaLabel), canDrive, seats, consentGiven: true, ...position },
   });
 }
 
@@ -65,18 +83,19 @@ export async function saveMemberLocation(memberId: string, raw: unknown, actorId
 
   const { areaLabel, canDrive, seats } = parsed.data;
   await prisma.$transaction(async (tx) => {
-    await saveLocationFromImport(memberId, { areaLabel, canDrive, seats: canDrive ? seats : 0 }, tx);
-    if (pin.data) {
-      const rounded = roundLatLng(pin.data);
-      await tx.memberLocation.update({ where: { memberId }, data: { ...rounded, geocodeStatus: "OK" } });
-    }
+    await saveLocationFromImport(
+      memberId,
+      { areaLabel, canDrive, seats: canDrive ? seats : 0, coordinates: pin.data ?? null },
+      tx,
+    );
     await writeAuditLog(
       {
         actorId,
         action: "location.update",
         entity: "member",
         entityId: memberId,
-        diff: { areaLabel, canDrive, seats },
+        // The area itself is encrypted; never copy it into the audit log.
+        diff: { areaLabel: "[encrypted]", pinned: !!pin.data, canDrive, seats },
       },
       tx,
     );
@@ -96,8 +115,10 @@ async function createGeocoder(): Promise<Geocoder | null> {
   const env = getEnv();
   if (env.GEOCODER !== "nominatim") return null;
   const venue = (await getSettings()).practiceVenue;
-  // Nominatim first (precise for named areas), then Photon (forgiving, better with landmarks).
+  // Google first when configured (best with local landmarks), then Nominatim
+  // (precise for named areas), then Photon (forgiving with typos).
   return new ChainGeocoder([
+    ...(env.GOOGLE_MAPS_API_KEY ? [new GoogleGeocoder(env.GOOGLE_MAPS_API_KEY)] : []),
     new NominatimGeocoder(env.NOMINATIM_USER_AGENT),
     new PhotonGeocoder(env.NOMINATIM_USER_AGENT, venue),
   ]);
@@ -114,53 +135,70 @@ export interface GeocodeRunSummary {
   remaining: number;
 }
 
+/** The geocode cache is keyed by a fingerprint, so it never reveals the landmarks people typed. */
+function cacheKeyFor(area: string): string {
+  return fingerprint(geocodeCacheKey(area));
+}
+
 /**
- * Locates queued areas. Coordinates typed instead of an area are used as-is;
- * otherwise cached answers are reused and new ones looked up (only successful
- * lookups are cached, so a retry really searches again).
+ * Finds coordinates for queued locations — all of them, or just `memberIds`
+ * (run right after a form or import saves them). Coordinates typed instead of
+ * an area are used as-is; otherwise cached answers are reused and new ones
+ * looked up (only successful lookups are cached, so a retry really searches again).
  */
-export async function geocodePendingLocations(
-  options: { geocoder?: Geocoder | null; limit?: number; timeBudgetMs?: number } = {},
+export async function geocodeLocations(
+  options: { geocoder?: Geocoder | null; limit?: number; timeBudgetMs?: number; memberIds?: readonly string[] } = {},
 ): Promise<GeocodeRunSummary> {
   const geocoder = options.geocoder === undefined ? await createGeocoder() : options.geocoder;
   const limit = options.limit ?? 8;
   const deadline = Date.now() + (options.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS);
   const summary: GeocodeRunSummary = { processed: 0, located: 0, notFound: 0, failed: 0, remaining: 0 };
 
-  const pending = await prisma.memberLocation.findMany({ where: { geocodeStatus: "PENDING" }, take: limit });
+  const pending = await prisma.memberLocation.findMany({
+    where: { geocodeStatus: "PENDING", ...(options.memberIds ? { memberId: { in: [...options.memberIds] } } : {}) },
+    take: limit,
+  });
 
-  const markLocated = async (memberId: string, point: { latitude: number; longitude: number }) => {
-    await prisma.memberLocation.update({ where: { memberId }, data: { ...roundLatLng(point), geocodeStatus: "OK" } });
+  const markLocated = async (memberId: string, point: Coordinates) => {
+    await prisma.memberLocation.update({
+      where: { memberId },
+      data: { coordinatesEncrypted: sealCoordinates(roundLatLng(point)), geocodeStatus: "OK" },
+    });
     summary.located += 1;
   };
 
   for (const location of pending) {
     if (Date.now() > deadline) break;
-    const typedCoordinates = parseCoordinates(location.areaLabel);
+    const areaLabel = reveal(location.areaLabelEncrypted);
+    const typedCoordinates = parseCoordinates(areaLabel);
     if (typedCoordinates) {
       summary.processed += 1;
       await markLocated(location.memberId, typedCoordinates);
       continue;
     }
 
-    const query = geocodeCacheKey(location.areaLabel);
+    const query = cacheKeyFor(areaLabel);
     try {
       const cached = await prisma.geocodeCache.findUnique({ where: { query } });
-      let hit = cached?.latitude != null && cached.longitude != null ? cached : null;
+      let hit: Coordinates | null =
+        cached?.latitude != null && cached.longitude != null
+          ? { latitude: cached.latitude, longitude: cached.longitude }
+          : null;
       if (!hit) {
         if (!geocoder) break;
-        const result = await geocoder.geocode(location.areaLabel);
+        const result = await geocoder.geocode(areaLabel);
         if (result) {
-          hit = await prisma.geocodeCache.upsert({
+          hit = roundLatLng(result);
+          await prisma.geocodeCache.upsert({
             where: { query },
-            create: { query, latitude: result.latitude, longitude: result.longitude, displayName: result.displayName },
-            update: { latitude: result.latitude, longitude: result.longitude, displayName: result.displayName },
+            create: { query, ...hit },
+            update: hit,
           });
         }
       }
       summary.processed += 1;
-      if (hit?.latitude != null && hit.longitude != null) {
-        await markLocated(location.memberId, { latitude: hit.latitude, longitude: hit.longitude });
+      if (hit) {
+        await markLocated(location.memberId, hit);
       } else {
         await prisma.memberLocation.update({
           where: { memberId: location.memberId },
@@ -169,7 +207,7 @@ export async function geocodePendingLocations(
         summary.notFound += 1;
       }
     } catch (error) {
-      logger.warn("Geocoding failed", { area: location.areaLabel, error: errorMessage(error) });
+      logger.warn("Geocoding failed", { memberId: location.memberId, error: errorMessage(error) });
       await prisma.memberLocation.update({ where: { memberId: location.memberId }, data: { geocodeStatus: "FAILED" } });
       summary.failed += 1;
     }

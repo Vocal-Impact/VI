@@ -1,4 +1,5 @@
 import "server-only";
+import { reveal } from "@/shared/crypto/sensitive";
 import { prisma } from "@/shared/db/prisma";
 import { writeAuditLog } from "@/shared/audit/audit-log";
 import { todayLocal } from "@/shared/lib/clock";
@@ -180,7 +181,7 @@ export async function getAttendanceReport() {
       return {
         id: member.id,
         name: `${member.firstName} ${member.lastName}`,
-        whatsappNumber: member.whatsappNumber,
+        whatsappNumber: reveal(member.whatsappNumberEncrypted),
         lastAttended: last ? toIsoDate(last) : null,
         attendedCount: member._count.attendances,
         joined: toIsoDate(member.addedToWhatsappAt ?? member.createdAt),

@@ -6,7 +6,10 @@ import {
   normalizeWhatsappNumber,
   parseDateOfBirth,
   parseVoiceType,
-  parseYearOfStudy,
+  parseStudyLevel,
+  nextStudyLevel,
+  parseMemberStatus,
+  normalizeDietaryPreference,
 } from "./member";
 import { findDuplicates } from "./duplicates";
 
@@ -36,19 +39,61 @@ describe("normalizeStudentId", () => {
   });
 });
 
-describe("parseYearOfStudy", () => {
+describe("parseStudyLevel", () => {
   it.each([
-    ["2", 2],
-    ["2nd Year", 2],
-    ["Year 3", 3],
-    ["Foundation", 0],
-    [4, 4],
+    ["Foundation", "FOUNDATION"],
+    ["L4", "L4"],
+    ["Level 5", "L5"],
+    ["l6", "L6"],
+    ["Placement Year", "PLACEMENT"],
+    ["Industrial placement", "PLACEMENT"],
+    ["1st Year", "L4"],
+    ["2", "L5"],
+    ["Year 3", "PLACEMENT"],
+    ["Final year", "L6"],
+    ["PLACEMENT", "PLACEMENT"],
   ])("parses %s", (input, expected) => {
-    expect(value(parseYearOfStudy(input))).toBe(expected);
+    expect(value(parseStudyLevel(input))).toBe(expected);
   });
-  it("rejects out-of-range years", () => {
-    expect(parseYearOfStudy("7").ok).toBe(false);
-    expect(parseYearOfStudy("first").ok).toBe(false);
+  it("rejects unknown levels", () => {
+    expect(parseStudyLevel("7").ok).toBe(false);
+    expect(parseStudyLevel("L7").ok).toBe(false);
+    expect(parseStudyLevel("").ok).toBe(false);
+  });
+});
+
+describe("parseMemberStatus", () => {
+  it.each([
+    ["Active", "ACTIVE"],
+    ["Inactive", "INACTIVE"],
+    ["New member", "PROSPECTIVE"],
+    ["Prospective", "PROSPECTIVE"],
+    ["Alumni", "ALUMNI"],
+    ["", null],
+  ])("parses %s", (input, expected) => {
+    expect(value(parseMemberStatus(input))).toBe(expected);
+  });
+  it("rejects anything else", () => {
+    expect(parseMemberStatus("maybe").ok).toBe(false);
+  });
+});
+
+describe("nextStudyLevel", () => {
+  it("moves up one level and graduates after L6", () => {
+    expect(nextStudyLevel("FOUNDATION")).toBe("L4");
+    expect(nextStudyLevel("L5")).toBe("PLACEMENT");
+    expect(nextStudyLevel("PLACEMENT")).toBe("L6");
+    expect(nextStudyLevel("L6")).toBe("GRADUATED");
+  });
+});
+
+describe("normalizeDietaryPreference", () => {
+  it("keeps real answers and treats 'none' as empty", () => {
+    expect(value(normalizeDietaryPreference("  Vegetarian,   no nuts "))).toBe("Vegetarian, no nuts");
+    expect(value(normalizeDietaryPreference("None"))).toBeNull();
+    expect(value(normalizeDietaryPreference("N/A"))).toBeNull();
+    expect(value(normalizeDietaryPreference(""))).toBeNull();
+    expect(normalizeDietaryPreference("x".repeat(201)).ok).toBe(false);
   });
 });
 

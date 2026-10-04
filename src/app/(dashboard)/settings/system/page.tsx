@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requirePermission } from "@/modules/auth";
 import { listCronRuns } from "@/modules/birthdays";
+import { formatAcademicYear, getStudyYearStatus } from "@/modules/members";
+import { formatIsoDate } from "@/shared/lib/dates";
 import { brandLogoUrl, describeEmailLogo, describeEmailSetup } from "@/modules/notifications";
 import { listAuditLog } from "@/shared/audit/audit-log";
 import { buttonClasses } from "@/shared/ui/button";
@@ -12,7 +14,11 @@ export const metadata = { title: "System" };
 
 export default async function SystemPage() {
   await requirePermission("settings:manage");
-  const [runs, audit] = await Promise.all([listCronRuns(30), listAuditLog({ take: 50 })]);
+  const [runs, audit, studyYear] = await Promise.all([
+    listCronRuns(30),
+    listAuditLog({ take: 50 }),
+    getStudyYearStatus(),
+  ]);
   const email = describeEmailSetup();
   const logo = describeEmailLogo();
   const logoUrl = brandLogoUrl();
@@ -75,6 +81,35 @@ export default async function SystemPage() {
           />
           <CardBody>
             <RunRemindersButton />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader
+            title="Years of study"
+            description="Every 1 September everyone moves up: Foundation → L4 → L5 → Placement Year → L6 → alumni."
+          />
+          <CardBody className="space-y-2 text-sm text-slate-700">
+            <p>
+              Levels are for <strong>{formatAcademicYear(studyYear.academicYear)}</strong>. Next move up:{" "}
+              <strong>{formatIsoDate(studyYear.nextRollover)}</strong> (by the daily job).
+            </p>
+            <p className="text-slate-500">
+              Someone skipping the placement year or repeating a year? Edit their year on their profile after the move.
+            </p>
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title="Data protection" />
+          <CardBody className="space-y-2 text-sm text-slate-700">
+            <p>
+              WhatsApp numbers, locations (landmark and coordinates) and dietary preferences are{" "}
+              <strong>encrypted in the database</strong> with AES-256-GCM. Only this app, holding DATA_ENCRYPTION_KEY,
+              can read them.
+            </p>
+            <p className="text-amber-800">
+              Keep a copy of DATA_ENCRYPTION_KEY in the committee password manager — without it this data cannot be
+              recovered.
+            </p>
           </CardBody>
         </Card>
       </div>

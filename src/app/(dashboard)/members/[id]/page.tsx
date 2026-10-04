@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requirePermission, hasPermission } from "@/modules/auth";
 import { ACCESS_LEVEL_LABELS, accessLevelOf } from "@/modules/auth/domain";
 import { getMember } from "@/modules/members";
-import { MEMBER_STATUSES, MEMBER_STATUS_LABELS, formatYearOfStudy } from "@/modules/members/domain";
+import { MEMBER_STATUSES, MEMBER_STATUS_LABELS, STUDY_LEVEL_LABELS } from "@/modules/members/domain";
 import { StatusBadge, VoiceBadge } from "@/modules/members/ui";
 import { getAttendanceThreshold } from "@/modules/attendance";
 import { attendanceProgress, isEligibleForWhatsApp } from "@/modules/attendance/domain";
@@ -28,6 +28,8 @@ import {
 import { LocationForm } from "./location-form";
 
 export const metadata = { title: "Member" };
+// Leaves time for looking up coordinates in the background after saving.
+export const maxDuration = 60;
 
 const GROUP_STATUS = {
   NOT_INVITED: { label: "Not invited", tone: "neutral" },
@@ -130,7 +132,7 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
             <CardBody>
               <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                 <Detail label="Student ID" value={<span className="font-mono">{member.studentId}</span>} />
-                <Detail label="Year of study" value={formatYearOfStudy(member.yearOfStudy)} />
+                <Detail label="Year of study" value={STUDY_LEVEL_LABELS[member.yearOfStudy]} />
                 <Detail
                   label="WhatsApp"
                   value={
@@ -161,6 +163,10 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                       <span className="text-amber-700">Not provided</span>
                     )
                   }
+                />
+                <Detail
+                  label="Dietary preferences"
+                  value={member.dietaryPreference ?? <span className="text-slate-400">None given</span>}
                 />
                 <Detail
                   label="Added to WhatsApp"

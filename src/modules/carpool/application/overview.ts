@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/shared/db/prisma";
 import { getEnv } from "@/shared/config/env";
 import { getSettings } from "@/shared/settings/settings";
+import { reveal, revealLocation } from "@/shared/crypto/sensitive";
 import { errorMessage, logger } from "@/shared/lib/logger";
 import type { LatLng } from "../domain/geo";
 import type { RoadRoute, RouteProvider } from "../domain/ports";
@@ -90,13 +91,20 @@ export async function getCarpoolOverview(
   const settings = await getSettings();
   const venue = settings.practiceVenue;
   const attending = (memberId: string) => !options.attendeeIds || options.attendeeIds.has(memberId);
-  const locations = await prisma.memberLocation.findMany({
+  const stored = await prisma.memberLocation.findMany({
     where: { consentGiven: true, member: { deletedAt: null, status: { in: ["PROSPECTIVE", "ACTIVE"] } } },
     include: {
-      member: { select: { id: true, firstName: true, lastName: true, voiceType: true, whatsappNumber: true } },
+      member: { select: { id: true, firstName: true, lastName: true, voiceType: true, whatsappNumberEncrypted: true } },
     },
-    orderBy: { areaLabel: "asc" },
   });
+  // Areas are encrypted, so sort after decrypting.
+  const locations = stored
+    .map((location) => {
+      const { member, ...rest } = revealLocation(location);
+      const { whatsappNumberEncrypted, ...person } = member;
+      return { ...rest, member: { ...person, whatsappNumber: reveal(whatsappNumberEncrypted) } };
+    })
+    .sort((a, b) => a.areaLabel.localeCompare(b.areaLabel));
 
   const located: CarpoolPerson[] = locations
     .filter((location) => attending(location.member.id))

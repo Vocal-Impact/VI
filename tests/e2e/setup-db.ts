@@ -6,7 +6,10 @@ import { execSync } from "node:child_process";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import { PrismaClient } from "../../src/generated/prisma/client";
-import { E2E_ADMIN, E2E_DATABASE_URL, E2E_MEMBER } from "./constants";
+import { FieldCipher, parseEncryptionKey } from "../../src/shared/crypto/field-encryption";
+import { E2E_ADMIN, E2E_DATA_ENCRYPTION_KEY, E2E_DATABASE_URL, E2E_MEMBER } from "./constants";
+
+const cipher = new FieldCipher(parseEncryptionKey(E2E_DATA_ENCRYPTION_KEY)!);
 
 async function main(): Promise<void> {
   execSync("npx prisma migrate deploy", {
@@ -51,8 +54,9 @@ async function main(): Promise<void> {
         firstName: E2E_MEMBER.firstName,
         lastName: E2E_MEMBER.lastName,
         studentId: "E2EMEMBER1",
-        yearOfStudy: 2,
-        whatsappNumber: "+94770009999",
+        yearOfStudy: "L5",
+        whatsappNumberEncrypted: cipher.encrypt("+94770009999"),
+        whatsappNumberHash: cipher.blindIndex("+94770009999"),
         email: E2E_MEMBER.email,
         voiceType: "SOPRANO",
         status: "ACTIVE",

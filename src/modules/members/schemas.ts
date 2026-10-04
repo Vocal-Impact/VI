@@ -6,7 +6,9 @@ import {
   normalizeName,
   normalizeStudentId,
   normalizeWhatsappNumber,
-  parseYearOfStudy,
+  normalizeDietaryPreference,
+  parseStudyLevel,
+  STUDY_LEVELS,
   type Parsed,
 } from "./domain/member";
 import { isIsoDate } from "@/shared/lib/dates";
@@ -41,11 +43,14 @@ export function memberInputSchema(allowedDomain?: string) {
     firstName: parsedField(normalizeName),
     lastName: parsedField(normalizeName),
     studentId: parsedField(normalizeStudentId),
-    yearOfStudy: parsedField(parseYearOfStudy),
+    yearOfStudy: parsedField(parseStudyLevel),
     whatsappNumber: parsedField(normalizeWhatsappNumber),
     email: parsedField((raw) => normalizeEmail(raw, allowedDomain)),
     voiceType: z.enum(VOICE_TYPES),
     dateOfBirth: optionalDate.optional().transform((value) => value ?? null),
+    dietaryPreference: parsedField(normalizeDietaryPreference)
+      .optional()
+      .transform((value) => value ?? null),
   });
 }
 
@@ -57,7 +62,7 @@ export const memberFilterSchema = z.object({
   q: z.string().trim().max(100).optional(),
   status: z.enum(MEMBER_STATUSES).optional(),
   voiceType: z.enum(VOICE_TYPES).optional(),
-  year: z.coerce.number().int().min(0).max(5).optional(),
+  year: z.enum(STUDY_LEVELS).optional(),
   /** Show removed (soft-deleted) members instead of current ones. */
   removed: z.boolean().optional(),
 });

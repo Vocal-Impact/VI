@@ -28,9 +28,25 @@ export const MEMBER_STATUS_LABELS: Record<MemberStatus, string> = {
   ALUMNI: "Alumni",
 };
 
-/** 0 = Foundation year. */
-export const MIN_YEAR_OF_STUDY = 0;
-export const MAX_YEAR_OF_STUDY = 5;
+/** IIT levels in order. Members move up one every 1 September; after L6 they become alumni. */
+export const STUDY_LEVELS = ["FOUNDATION", "L4", "L5", "PLACEMENT", "L6"] as const;
+export type StudyLevel = (typeof STUDY_LEVELS)[number];
+
+export const STUDY_LEVEL_LABELS: Record<StudyLevel, string> = {
+  FOUNDATION: "Foundation",
+  L4: "L4",
+  L5: "L5",
+  PLACEMENT: "Placement Year",
+  L6: "L6",
+};
+
+/** The level after the September rollover, or "GRADUATED" after L6. */
+export function nextStudyLevel(level: StudyLevel): StudyLevel | "GRADUATED" {
+  const index = STUDY_LEVELS.indexOf(level);
+  return STUDY_LEVELS[index + 1] ?? "GRADUATED";
+}
+
+export const MAX_DIETARY_PREFERENCE_LENGTH = 200;
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; message: string };
 
@@ -56,21 +72,44 @@ export function normalizeStudentId(raw: string): Parsed<string> {
   return success(value);
 }
 
-/** Accepts "2", "2nd Year", "Year 2", "Foundation", "L5" … */
-export function parseYearOfStudy(raw: string | number): Parsed<number> {
-  const text = String(raw).trim().toLowerCase();
+/**
+ * Accepts the form's answers ("Foundation", "L4", "Level 5", "Placement Year",
+ * "L6") and the old year numbers ("1st year" = L4 … "4th year" = L6).
+ */
+export function parseStudyLevel(raw: string): Parsed<StudyLevel> {
+  const text = raw.trim().toLowerCase();
   if (text.length === 0) return failure("Required");
-  if (text.includes("foundation")) return success(0);
-  const match = text.match(/\d+/);
-  if (!match) return failure("Enter a year between 1 and 5 (or Foundation)");
-  const year = Number(match[0]);
-  if (year < MIN_YEAR_OF_STUDY || year > MAX_YEAR_OF_STUDY)
-    return failure("Enter a year between 1 and 5 (or Foundation)");
-  return success(year);
+  if (STUDY_LEVELS.includes(raw.trim() as StudyLevel)) return success(raw.trim() as StudyLevel);
+  if (text.includes("foundation")) return success("FOUNDATION");
+  if (text.includes("placement") || text.includes("industr") || text.includes("internship"))
+    return success("PLACEMENT");
+  if (text.includes("final")) return success("L6");
+  const level = text.match(/^(?:l|level)\s*([4-6])\b/);
+  if (level) return success(`L${level[1]}` as StudyLevel);
+  const year = text.match(/^(?:year\s*)?([1-4])(?:st|nd|rd|th)?(?:\s*year)?$/);
+  if (year) return success((["L4", "L5", "PLACEMENT", "L6"] as const)[Number(year[1]) - 1]!);
+  return failure("Choose Foundation, L4, L5, Placement Year or L6");
 }
 
-export function formatYearOfStudy(year: number): string {
-  return year === 0 ? "Foundation" : `Year ${year}`;
+/** Optional free text such as "Vegetarian, no nuts". Empty → null. */
+export function normalizeDietaryPreference(raw: string): Parsed<string | null> {
+  const value = raw.trim().replace(/\s+/g, " ");
+  if (value === "" || /^(none|no|n\/?a|nil|-)$/i.test(value)) return success(null);
+  if (value.length > MAX_DIETARY_PREFERENCE_LENGTH)
+    return failure(`Must be ${MAX_DIETARY_PREFERENCE_LENGTH} characters or fewer`);
+  return success(value);
+}
+
+/** Maps a form's status answer ("Active", "New member", "Alumni"). Blank → null (decided by the importer). */
+export function parseMemberStatus(raw: string): Parsed<MemberStatus | null> {
+  const value = raw.trim().toLowerCase();
+  if (value === "") return success(null);
+  if (value.startsWith("inactive") || value.startsWith("not active")) return success("INACTIVE");
+  if (value.startsWith("active") || value.startsWith("current") || value.startsWith("existing"))
+    return success("ACTIVE");
+  if (value.startsWith("alum") || value.startsWith("graduated") || value.startsWith("past")) return success("ALUMNI");
+  if (value.startsWith("prospective") || value.startsWith("new")) return success("PROSPECTIVE");
+  return failure("Use Prospective, Active, Inactive or Alumni");
 }
 
 /** Normalises to E.164 (e.g. +94771234567). Local numbers default to Sri Lanka. */

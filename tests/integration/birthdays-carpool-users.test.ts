@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { sendBirthdayReminders } from "@/modules/birthdays";
-import {
-  geocodePendingLocations,
-  getCarpoolOverview,
-  requeueFailedGeocodes,
-  saveLocationFromImport,
-} from "@/modules/carpool";
+import { geocodeLocations, getCarpoolOverview, requeueFailedGeocodes, saveLocationFromImport } from "@/modules/carpool";
 import { createAllowlistedUser, updateUser } from "@/modules/auth";
 import type { EmailMessage, EmailSender } from "@/modules/notifications";
 import { prisma } from "@/shared/db/prisma";
 import type { Clock } from "@/shared/lib/clock";
+import { testCipher } from "../support/sealing";
 import { createMember, createUser } from "../support/factories";
 
 class RecordingSender implements EmailSender {
@@ -83,28 +79,27 @@ describe("carpool locations", () => {
         return null;
       },
     };
-    const summary = await geocodePendingLocations({ geocoder });
+    const summary = await geocodeLocations({ geocoder });
     expect(summary).toMatchObject({ located: 2, notFound: 1, remaining: 0 });
 
     const stored = await prisma.memberLocation.findUniqueOrThrow({ where: { memberId: driver.id } });
-    expect([stored.latitude, stored.longitude]).toEqual([6.773, 79.882]); // rounded for privacy
+    expect(testCipher.decrypt(stored.coordinatesEncrypted!)).toBe("6.773,79.882"); // rounded for privacy, encrypted
 
     // A second member in the same area reuses the cache — no new lookup.
     const neighbour = await createMember({ status: "ACTIVE" });
     await saveLocationFromImport(neighbour.id, { areaLabel: "Dehiwala", canDrive: false, seats: 0 }, prisma);
-    await geocodePendingLocations({ geocoder });
+    await geocodeLocations({ geocoder });
     expect(lookups.filter((query) => query.startsWith("dehiwala"))).toHaveLength(1);
 
     // Coordinates pasted instead of an area are used directly, without any lookup.
     const pasted = await createMember({ firstName: "Pasted", status: "ACTIVE" });
     await saveLocationFromImport(pasted.id, { areaLabel: "6.8901234, 79.8612345", canDrive: false, seats: 0 }, prisma);
     const before = lookups.length;
-    await geocodePendingLocations({ geocoder });
+    await geocodeLocations({ geocoder });
     expect(lookups.length).toBe(before);
     const pastedLocation = await prisma.memberLocation.findUniqueOrThrow({ where: { memberId: pasted.id } });
-    expect([pastedLocation.latitude, pastedLocation.longitude, pastedLocation.geocodeStatus]).toEqual([
-      6.89,
-      79.861,
+    expect([testCipher.decrypt(pastedLocation.coordinatesEncrypted!), pastedLocation.geocodeStatus]).toEqual([
+      "6.89,79.861",
       "OK",
     ]);
 
@@ -112,7 +107,7 @@ describe("carpool locations", () => {
     const atlantisLookups = () => lookups.filter((query) => query.startsWith("atlantis")).length;
     const firstTries = atlantisLookups();
     await requeueFailedGeocodes();
-    await geocodePendingLocations({ geocoder });
+    await geocodeLocations({ geocoder });
     expect(atlantisLookups()).toBe(firstTries * 2);
     await prisma.memberLocation.update({ where: { memberId: pasted.id }, data: { consentGiven: false } });
 

@@ -7,8 +7,11 @@ import { addDays } from "@/shared/lib/dates";
 import { createMember, createPractice, createUser } from "../support/factories";
 
 async function locate(memberId: string, areaLabel: string, latitude: number, longitude: number, seats = 0) {
-  await saveLocationFromImport(memberId, { areaLabel, canDrive: seats > 0, seats }, prisma);
-  await prisma.memberLocation.update({ where: { memberId }, data: { latitude, longitude, geocodeStatus: "OK" } });
+  await saveLocationFromImport(
+    memberId,
+    { areaLabel, canDrive: seats > 0, seats, coordinates: { latitude, longitude } },
+    prisma,
+  );
 }
 
 describe("lifts home for a specific practice", () => {
