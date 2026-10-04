@@ -6,6 +6,7 @@ export {
   brandLogoUrl,
   isEmailDeliveryEnabled,
   describeEmailSetup,
+  describeEmailLogo,
 } from "./infrastructure/senders";
 export type { EmailMessage, EmailSender } from "./domain/email";
 export { escapeHtml, textToHtml } from "./domain/email";

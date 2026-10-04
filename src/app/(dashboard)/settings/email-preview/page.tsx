@@ -19,10 +19,24 @@ export default async function EmailPreviewPage() {
   // Real template and real groups when they exist; sample data otherwise.
   const sampleMember = { firstName: "Nethmi", lastName: "Perera" };
   const inviteGroups = groups.length
-    ? groups.slice(0, 3).map((group) => ({ name: group.name, inviteLink: group.inviteLink }))
+    ? groups.slice(0, 3).map((group) => ({
+        name: group.name,
+        inviteLink: group.inviteLink,
+        description: group.description,
+        isMainGroup: group.isMainGroup,
+      }))
     : [
-        { name: "VI Main", inviteLink: "https://chat.whatsapp.com/ExampleMainGroup" },
-        { name: "VI Newcomers", inviteLink: "https://chat.whatsapp.com/ExampleNewcomers" },
+        {
+          name: "VI Main",
+          inviteLink: "https://chat.whatsapp.com/ExampleMainGroup",
+          description: "Announcements for the whole choir",
+          isMainGroup: true,
+        },
+        {
+          name: "VI Newcomers",
+          inviteLink: "https://chat.whatsapp.com/ExampleNewcomers",
+          description: "Say hi and ask anything before your first practices",
+        },
       ];
 
   const emails: Array<{ label: string; description: string; email: EmailMessage }> = [

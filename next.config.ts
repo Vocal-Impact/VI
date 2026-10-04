@@ -13,7 +13,8 @@ const securityHeaders = [
       // Next.js needs inline scripts for hydration; 'unsafe-eval' only in dev for fast refresh.
       `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://lh3.googleusercontent.com",
+      // https: allows previewing the public email logo (EMAIL_LOGO_URL) and map tiles.
+      "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self'",
       "frame-ancestors 'none'",

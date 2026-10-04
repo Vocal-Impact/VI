@@ -18,7 +18,7 @@ describe("email layout", () => {
   it("uses the logo image when a public URL is given", () => {
     const html = renderEmailLayout({ ...base, logoUrl: "https://vi.example/brand/logo-primary-white.png" });
     expect(html).toContain('<img src="https://vi.example/brand/logo-primary-white.png"');
-    expect(html).not.toContain("VOCAL IMPACT");
+    expect(html).not.toContain(">VOCAL IMPACT</span>"); // no text wordmark in the header
   });
 
   it("escapes everything it's given as text", () => {
@@ -62,30 +62,57 @@ describe("birthday email", () => {
 });
 
 describe("WhatsApp invite email", () => {
-  it("shows the committee's message with a Join button per group where the list goes", () => {
-    const email = groupInviteEmail({
-      to: "nethmi@iit.ac.lk",
-      firstName: "Nethmi",
-      text: "Hi Nethmi!\n• VI Main — https://chat.whatsapp.com/Main123\nSee you!",
-      before: "Hi Nethmi! Here are your groups:\n",
-      after: "\nSee you at the next practice!",
-      groups: [
-        { name: "VI Main", inviteLink: "https://chat.whatsapp.com/Main123" },
-        { name: "Altos", inviteLink: "https://chat.whatsapp.com/Alto456" },
-      ],
-    });
-    expect(email.subject).toBe("Your Vocal Impact WhatsApp group links 🎶");
+  const input = {
+    to: "nethmi@iit.ac.lk",
+    firstName: "Nethmi",
+    text: "Hi Nethmi!\n• VI Main — https://chat.whatsapp.com/Main123\nSee you!",
+    before: "Hi Nethmi! Here are your groups:\n",
+    after: "\nSee you at the next practice!",
+    groups: [
+      {
+        name: "VI Main",
+        inviteLink: "https://chat.whatsapp.com/Main123",
+        description: "Announcements for the whole choir",
+        isMainGroup: true,
+      },
+      { name: "Altos", inviteLink: "https://chat.whatsapp.com/Alto456" },
+    ],
+  };
+
+  it("has a card per group with a Join button, in the place of the group list", () => {
+    const email = groupInviteEmail(input);
+    expect(email.subject).toBe("🎶 Nethmi, your Vocal Impact WhatsApp groups");
     expect(email.text).toContain("https://chat.whatsapp.com/Main123");
+    expect(email.html).toContain("WhatsApp invite"); // kicker
     expect(email.html).toContain("You&#39;re invited, Nethmi! 🎶");
-    expect(email.html).toContain("Join VI Main");
-    expect(email.html).toContain("Join Altos");
+    expect(email.html).toContain("MAIN GROUP");
+    expect(email.html).toContain("Announcements for the whole choir");
+    expect(email.html.match(/Join on WhatsApp/g)).toHaveLength(2);
+    expect(email.html).toContain('href="https://chat.whatsapp.com/Main123"');
+    expect(email.html).toContain("What happens next");
+
     // Order within the body (the hidden preheader at the top also mentions the groups).
     const body = email.html.slice(email.html.indexOf("invited, Nethmi"));
-    const order = ["Here are your groups", "Join VI Main", "Join Altos", "See you at the next practice"].map((part) =>
-      body.indexOf(part),
+    const order = ["Here are your groups", "VI Main", "Altos", "What happens next", "See you at the next practice"].map(
+      (part) => body.indexOf(part),
     );
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(order.every((index) => index > 0)).toBe(true);
+  });
+
+  it("names the group in the subject when there's only one", () => {
+    expect(groupInviteEmail({ ...input, groups: [input.groups[0]!] }).subject).toBe(
+      "🎶 Nethmi, join VI Main on WhatsApp",
+    );
+  });
+
+  it("escapes group names and links it's given", () => {
+    const email = groupInviteEmail({
+      ...input,
+      groups: [{ name: "<b>Evil</b>", inviteLink: 'https://chat.whatsapp.com/x"onclick="y' }],
+    });
+    expect(email.html).not.toContain("<b>Evil</b>");
+    expect(email.html).not.toContain('"onclick="');
   });
 });
 

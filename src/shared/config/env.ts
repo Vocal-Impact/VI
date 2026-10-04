@@ -17,6 +17,11 @@ const envSchema = z
 
     EMAIL_TRANSPORT: z.enum(["console", "brevo", "smtp"]).default("console"),
     BREVO_API_KEY: z.string().optional(),
+    /** Public https URL of the white logo for emails (e.g. uploaded to Brevo's image library). */
+    EMAIL_LOGO_URL: z
+      .url()
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
     SMTP_HOST: z.string().default("smtp.gmail.com"),
     SMTP_PORT: z.coerce.number().int().positive().default(465),
     SMTP_USER: z.string().optional(),

@@ -67,13 +67,22 @@ export function setEmailSenderForTesting(next: EmailSender | undefined): void {
 }
 
 /**
- * Public URL of the email logo, or undefined locally (mail clients cannot load
- * images from localhost).
+ * Public URL of the logo used in emails. EMAIL_LOGO_URL wins (works even when
+ * running locally); otherwise the deployed site's own copy. Undefined → the
+ * emails show a text wordmark (mail apps can't load images from localhost).
  */
 export function brandLogoUrl(): string | undefined {
-  const base = getEnv().BETTER_AUTH_URL.replace(/\/$/, "");
-  // White wordmark for the email's dark header band.
+  const env = getEnv();
+  if (env.EMAIL_LOGO_URL) return env.EMAIL_LOGO_URL;
+  const base = env.BETTER_AUTH_URL.replace(/\/$/, "");
   return base.startsWith("https://") ? `${base}/brand/logo-primary-white.png` : undefined;
+}
+
+/** Where the email logo comes from, for the Settings page. */
+export function describeEmailLogo(): "custom" | "site" | "none" {
+  const env = getEnv();
+  if (env.EMAIL_LOGO_URL) return "custom";
+  return env.BETTER_AUTH_URL.startsWith("https://") ? "site" : "none";
 }
 
 /** False in development mode (EMAIL_TRANSPORT=console): emails are only printed, never delivered. */

@@ -115,7 +115,12 @@ export async function sendInvites(raw: unknown, actor: InviteActor): Promise<Res
             firstName: member.firstName,
             text: message,
             ...renderInviteParts(context.template, member),
-            groups: groups.map((group) => ({ name: group.name, inviteLink: group.inviteLink })),
+            groups: groups.map((group) => ({
+              name: group.name,
+              inviteLink: group.inviteLink,
+              description: group.description,
+              isMainGroup: group.isMainGroup,
+            })),
             logoUrl: brandLogoUrl(),
           }),
         );

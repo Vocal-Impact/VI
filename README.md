@@ -88,7 +88,8 @@ Do this from a **committee IIT Google account**, and give **at least two committ
    - In Brevo, go to **Senders, domains & dedicated IPs → Senders** and add and verify the committee email you'll send from.
    - Go to **SMTP & API → API keys → Generate a new API key**.
    - Set `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY=<the key>` and `EMAIL_FROM="Vocal Impact <that-verified-address>"`.
-   - Check it in the app: **Settings → System & data → Send me a test email**.
+   - **Email logo:** upload `public/brand/logo-primary-white.png` to Brevo's image library (or any public image host). Copy its link into `EMAIL_LOGO_URL`. Once deployed this is optional, because the app serves the logo itself.
+   - Check it in the app: **Settings → System & data → Send me a test email**. Use **Settings → Email designs** to preview the emails.
    - (SMTP, e.g. a Gmail App Password, also works with `EMAIL_TRANSPORT=smtp`. See `.env.example`.)
 5. **Vercel** ([vercel.com](https://vercel.com), Hobby plan):
    - Import the GitHub repo.

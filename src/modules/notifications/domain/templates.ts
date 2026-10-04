@@ -1,5 +1,6 @@
 import type { EmailMessage } from "./email";
-import { button, card, EMAIL_COLOURS, paragraph, renderEmailLayout, richText } from "./layout";
+import { button, card, EMAIL_COLOURS, featureCard, paragraph, renderEmailLayout, richText } from "./layout";
+import { escapeHtml } from "./email";
 
 /** Plain-text footer shared by the text versions. */
 const TEXT_SIGNATURE = "— Vocal Impact 🎶";
@@ -71,6 +72,8 @@ ${paragraph("Don&#39;t forget to wish them in the group! 🎶")}`,
 export interface InviteEmailGroup {
   name: string;
   inviteLink: string;
+  description?: string | null;
+  isMainGroup?: boolean;
 }
 
 export interface GroupInviteEmailInput {
@@ -85,25 +88,66 @@ export interface GroupInviteEmailInput {
   logoUrl?: string;
 }
 
+const SMALL_CAPS = `font-family:Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${EMAIL_COLOURS.muted}`;
+
+function inviteGroupCard(group: InviteEmailGroup): string {
+  const badge = group.isMainGroup
+    ? ` <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:${EMAIL_COLOURS.violetLight};font-family:Arial,sans-serif;font-size:11px;font-weight:700;color:${EMAIL_COLOURS.violet};vertical-align:middle">MAIN GROUP</span>`
+    : "";
+  const description = group.description
+    ? `<p style="margin:0 0 14px;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:${EMAIL_COLOURS.muted}">${richText(group.description)}</p>`
+    : `<p style="margin:0 0 14px;font-size:0;line-height:0">&nbsp;</p>`;
+  return featureCard(`<p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:18px;font-weight:800;color:${EMAIL_COLOURS.ink}">💬 ${richText(group.name)}${badge}</p>
+${description}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px"><tr>
+<td align="center" bgcolor="${EMAIL_COLOURS.green}" style="border-radius:12px;background:${EMAIL_COLOURS.green}">
+<a href="${escapeHtml(group.inviteLink)}" target="_blank" style="display:block;padding:14px 18px;font-family:Arial,sans-serif;font-size:16px;font-weight:800;color:#ffffff;text-decoration:none;border-radius:12px">Join on WhatsApp &rarr;</a>
+</td></tr></table>`);
+}
+
+const NEXT_STEPS = [
+  ["1", "Tap a green button", "on your phone"],
+  ["2", "WhatsApp opens", "— tap “Join group”"],
+  ["3", "Say hi!", "We can't wait to sing with you"],
+];
+
+function nextSteps(): string {
+  const cells = NEXT_STEPS.map(
+    ([n, title, detail]) => `<td valign="top" width="33%" style="padding:0 6px;text-align:center">
+<p style="margin:0 auto 8px;width:30px;height:30px;line-height:30px;border-radius:999px;background:${EMAIL_COLOURS.ink};font-family:Arial,sans-serif;font-size:14px;font-weight:800;color:#ffffff;text-align:center">${n}</p>
+<p style="margin:0;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:${EMAIL_COLOURS.ink}">${title}</p>
+<p style="margin:2px 0 0;font-family:Arial,sans-serif;font-size:12px;color:${EMAIL_COLOURS.muted}">${detail}</p></td>`,
+  ).join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 22px;background:${EMAIL_COLOURS.page};border-radius:14px"><tr><td style="padding:16px 8px">
+<p style="margin:0 0 12px;text-align:center;${SMALL_CAPS}">What happens next</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${cells}</tr></table>
+</td></tr></table>`;
+}
+
 export function groupInviteEmail(input: GroupInviteEmailInput): EmailMessage {
-  const subject = "Your Vocal Impact WhatsApp group links 🎶";
-  const groupButtons = input.groups.map((group) => button(group.inviteLink, `Join ${group.name}`)).join("");
+  const subject =
+    input.groups.length === 1
+      ? `🎶 ${input.firstName}, join ${input.groups[0]?.name} on WhatsApp`
+      : `🎶 ${input.firstName}, your Vocal Impact WhatsApp groups`;
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: `Join ${input.groups.map((group) => group.name).join(", ")} on WhatsApp`,
+    preheader: `Tap to join ${input.groups.map((group) => group.name).join(", ")} on WhatsApp.`,
+    kicker: "WhatsApp invite",
     heading: `You're invited, ${input.firstName}! 🎶`,
     bodyHtml: [
       input.before.trim() ? paragraph(richText(input.before.trim())) : "",
-      `<p style="margin:8px 0 12px;font-family:Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${EMAIL_COLOURS.muted}">Your WhatsApp groups</p>`,
-      groupButtons,
+      `<p style="margin:22px 0 12px;${SMALL_CAPS}">${input.groups.length === 1 ? "Your group" : `Your groups (${input.groups.length})`}</p>`,
+      input.groups.map(inviteGroupCard).join(""),
+      nextSteps(),
       input.after.trim() ? paragraph(richText(input.after.trim())) : "",
-      `<p style="margin:16px 0 0;font-family:Arial,sans-serif;font-size:12px;color:${EMAIL_COLOURS.muted}">Buttons not working? Open these links on your phone:<br>${input.groups
-        .map((group) => `${richText(group.name)}: ${richText(group.inviteLink)}`)
+      `<p style="margin:18px 0 0;padding-top:14px;border-top:1px solid ${EMAIL_COLOURS.border};font-family:Arial,sans-serif;font-size:12px;line-height:1.6;color:${EMAIL_COLOURS.muted}">Buttons not working? Open these links on your phone:<br>${input.groups
+        .map((group) => `<b>${richText(group.name)}</b>: ${richText(group.inviteLink)}`)
         .join("<br>")}</p>`,
     ].join("\n"),
     logoUrl: input.logoUrl,
-    footerNote: "You're getting this because the Vocal Impact committee invited you to the choir's WhatsApp groups.",
+    footerNote:
+      "You're getting this because the Vocal Impact committee invited you to the choir's WhatsApp groups. Please don't share these links.",
   });
 
   return { to: input.to, subject, text: `${input.text}\n\n${TEXT_SIGNATURE}`, html };

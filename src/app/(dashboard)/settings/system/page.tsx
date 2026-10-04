@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requirePermission } from "@/modules/auth";
 import { listCronRuns } from "@/modules/birthdays";
-import { describeEmailSetup } from "@/modules/notifications";
+import { brandLogoUrl, describeEmailLogo, describeEmailSetup } from "@/modules/notifications";
 import { listAuditLog } from "@/shared/audit/audit-log";
 import { buttonClasses } from "@/shared/ui/button";
 import { Alert, Badge, Card, CardBody, CardHeader, Table, Td, Th } from "@/shared/ui/layout";
@@ -14,6 +14,8 @@ export default async function SystemPage() {
   await requirePermission("settings:manage");
   const [runs, audit] = await Promise.all([listCronRuns(30), listAuditLog({ take: 50 })]);
   const email = describeEmailSetup();
+  const logo = describeEmailLogo();
+  const logoUrl = brandLogoUrl();
 
   return (
     <div className="space-y-6">
@@ -45,6 +47,21 @@ export default async function SystemPage() {
             <p className="text-slate-500">
               From: <span className="font-mono">{email.from}</span>
             </p>
+            <div className="flex items-center gap-3 rounded-lg bg-ink p-3">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- previewing the exact public image emails use
+                <img src={logoUrl} alt="Email logo" className="h-8 w-auto" />
+              ) : (
+                <span className="font-display text-lg font-black text-white italic">VOCAL IMPACT</span>
+              )}
+              <span className="text-xs text-slate-300">
+                {logo === "custom"
+                  ? "Logo from EMAIL_LOGO_URL"
+                  : logo === "site"
+                    ? "Logo from this site"
+                    : "No public logo yet — emails show this text instead. Set EMAIL_LOGO_URL (see README)."}
+              </span>
+            </div>
             <TestEmailButton />
             <Link href="/settings/email-preview" className="inline-block text-sm text-brand-700 hover:underline">
               Preview the email designs →
