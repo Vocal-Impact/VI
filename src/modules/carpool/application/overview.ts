@@ -25,10 +25,17 @@ async function cachedRoute(provider: RouteProvider, from: LatLng, to: LatLng): P
   }
 }
 
-/** Map data and suggestions for the carpool page. */
-export async function getCarpoolOverview(options: { routeProvider?: RouteProvider | null } = {}) {
+/**
+ * Map data and lift-home suggestions. With `attendeeIds` (people going to /
+ * present at a practice) only they are considered; otherwise every member
+ * with a location.
+ */
+export async function getCarpoolOverview(
+  options: { routeProvider?: RouteProvider | null; attendeeIds?: ReadonlySet<string> } = {},
+) {
   const settings = await getSettings();
   const venue = settings.practiceVenue;
+  const attending = (memberId: string) => !options.attendeeIds || options.attendeeIds.has(memberId);
   const locations = await prisma.memberLocation.findMany({
     where: { consentGiven: true, member: { deletedAt: null, status: { in: ["PROSPECTIVE", "ACTIVE"] } } },
     include: {
@@ -38,6 +45,7 @@ export async function getCarpoolOverview(options: { routeProvider?: RouteProvide
   });
 
   const located: CarpoolPerson[] = locations
+    .filter((location) => attending(location.member.id))
     .filter((location) => location.latitude !== null && location.longitude !== null)
     .map((location) => ({
       id: location.member.id,
@@ -56,7 +64,8 @@ export async function getCarpoolOverview(options: { routeProvider?: RouteProvide
   if (routeProvider) {
     const drivers = located.filter((person) => person.canDrive && person.seats > 0);
     for (const driver of drivers) {
-      const route = await cachedRoute(routeProvider, driver, venue);
+      // Lifts home: the driver's road route from the venue to their home.
+      const route = await cachedRoute(routeProvider, venue, driver);
       if (route) routes.set(driver.id, route);
     }
   }
@@ -74,7 +83,12 @@ export async function getCarpoolOverview(options: { routeProvider?: RouteProvide
     routesEnabled: routeProvider !== null,
     whatsappById: Object.fromEntries(locations.map((location) => [location.member.id, location.member.whatsappNumber])),
     pending: locations.filter((location) => location.geocodeStatus === "PENDING").length,
+    /** Attendees we can't place: no location shared at all. */
+    attendeesWithoutLocation: options.attendeeIds
+      ? [...options.attendeeIds].filter((id) => !locations.some((location) => location.member.id === id)).length
+      : 0,
     unlocated: locations
+      .filter((location) => attending(location.member.id))
       .filter((location) => location.geocodeStatus === "NOT_FOUND" || location.geocodeStatus === "FAILED")
       .map((location) => ({
         memberId: location.member.id,

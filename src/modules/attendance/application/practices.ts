@@ -251,3 +251,12 @@ export async function setRsvp(raw: unknown): Promise<Result<{ response: RsvpResp
   });
   return ok({ response });
 }
+
+/** Who will be (or was) at a practice: said "Going" or marked present. */
+export async function getPracticeAttendeeIds(practiceId: string): Promise<Set<string>> {
+  const [going, present] = await Promise.all([
+    prisma.practiceRsvp.findMany({ where: { practiceId, response: "GOING" }, select: { memberId: true } }),
+    prisma.attendance.findMany({ where: { practiceId }, select: { memberId: true } }),
+  ]);
+  return new Set([...going, ...present].map((row) => row.memberId));
+}

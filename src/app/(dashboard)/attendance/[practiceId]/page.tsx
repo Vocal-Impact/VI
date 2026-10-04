@@ -45,6 +45,11 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
               <LinkButton href={`/attendance/${practice.id}/edit`} variant="outline" size="sm">
                 Edit details
               </LinkButton>
+              {hasPermission(user.role, "carpool:read") && practice.status === "SCHEDULED" ? (
+                <LinkButton href={`/carpool?practice=${practice.id}`} variant="secondary" size="sm">
+                  Plan lifts home
+                </LinkButton>
+              ) : null}
               <form action={setPracticeCancelledAction.bind(null, practice.id, practice.status !== "CANCELLED")}>
                 {practice.status === "CANCELLED" ? (
                   <Button type="submit" variant="secondary" size="sm">

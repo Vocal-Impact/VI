@@ -2,15 +2,16 @@ import { distanceToPolylineKm, haversineKm, type LatLng } from "./geo";
 import { googleMapsDirectionsUrl } from "./google-maps";
 
 /**
- * Carpool suggestions (blueprint §5.5).
+ * Lifts home after practice (blueprint §5.5). Everyone starts at the venue;
+ * each driver drops people off on the way to their own home.
  *
- * v1 (always): straight-line detour — a passenger fits a driver when going via
- * their home adds at most `maxDetourKm` to the driver's trip to the venue.
- * v2 (when a route is known for a driver): the passenger must live within
- * `corridorKm` of the driver's actual road route instead.
+ * v1 (always): straight-line detour — a passenger fits a driver when dropping
+ * them off adds at most `maxDetourKm` to the driver's trip home.
+ * v2 (when a road route venue → driver's home is known): the passenger must
+ * live within `corridorKm` of that route instead.
  *
  * People left without a driver are grouped with neighbours living within
- * `clusterRadiusKm` so they can share a ride or taxi.
+ * `clusterRadiusKm` so they can share a ride or taxi home together.
  */
 
 export interface CarpoolPerson extends LatLng {
@@ -30,7 +31,7 @@ export interface CarpoolOptions {
 export interface DriverGroup {
   driver: CarpoolPerson;
   passengers: CarpoolPerson[];
-  /** Extra km versus driving straight to the venue (straight-line estimate). */
+  /** Extra km versus the driver going straight home (straight-line estimate). */
   detourKm: number;
   matchedBy: "route" | "distance";
   googleMapsUrl: string;
@@ -49,18 +50,18 @@ export interface CarpoolSuggestions {
 
 export const DEFAULT_CORRIDOR_KM = 1.5;
 
-/** Length of driver → stops (in order) → venue, straight-line. */
-export function tripKm(start: LatLng, stops: readonly LatLng[], venue: LatLng): number {
+/** Length of start → stops (in order) → end, straight-line. */
+export function tripKm(start: LatLng, stops: readonly LatLng[], end: LatLng): number {
   let total = 0;
   let current = start;
   for (const stop of stops) {
     total += haversineKm(current, stop);
     current = stop;
   }
-  return total + haversineKm(current, venue);
+  return total + haversineKm(current, end);
 }
 
-/** Visits passengers nearest-first from the driver (good enough for ≤ 6 stops). */
+/** Visits stops nearest-first from `start` (good enough for ≤ 6 stops). */
 export function orderStops<T extends LatLng>(start: LatLng, stops: readonly T[]): T[] {
   const remaining = [...stops];
   const ordered: T[] = [];
@@ -86,7 +87,7 @@ export function suggestCarpools(
   const corridorKm = options.corridorKm ?? DEFAULT_CORRIDOR_KM;
   const drivers = people
     .filter((person) => person.canDrive && person.seats > 0)
-    // Drivers living furthest away pass the most people, so they choose first.
+    // Drivers living furthest away pass the most homes, so they choose first.
     .sort((a, b) => haversineKm(b, venue) - haversineKm(a, venue));
   const unassigned = new Map(people.filter((person) => !(person.canDrive && person.seats > 0)).map((p) => [p.id, p]));
 
@@ -97,32 +98,33 @@ export function suggestCarpools(
     const fits = (candidate: CarpoolPerson) =>
       route
         ? distanceToPolylineKm(candidate, route) <= corridorKm
-        : haversineKm(driver, candidate) + haversineKm(candidate, venue) - direct <= options.maxDetourKm;
+        : haversineKm(venue, candidate) + haversineKm(candidate, driver) - direct <= options.maxDetourKm;
 
     const candidates = [...unassigned.values()]
       .filter(fits)
       .sort(
-        (a, b) => haversineKm(driver, a) + haversineKm(a, venue) - (haversineKm(driver, b) + haversineKm(b, venue)),
+        (a, b) => haversineKm(venue, a) + haversineKm(a, driver) - (haversineKm(venue, b) + haversineKm(b, driver)),
       );
 
     const passengers: CarpoolPerson[] = [];
     for (const candidate of candidates) {
       if (passengers.length >= driver.seats) break;
-      const ordered = orderStops(driver, [...passengers, candidate]);
-      // Keep the whole trip reasonable, not just each stop on its own.
-      if (!route && tripKm(driver, ordered, venue) - direct > options.maxDetourKm * 2) continue;
+      const ordered = orderStops(venue, [...passengers, candidate]);
+      // Keep the whole trip home reasonable, not just each stop on its own.
+      if (!route && tripKm(venue, ordered, driver) - direct > options.maxDetourKm * 2) continue;
       passengers.push(candidate);
     }
     if (passengers.length === 0) continue;
 
-    const ordered = orderStops(driver, passengers);
+    // Drop-off order: first stop nearest the venue, driver's home last.
+    const ordered = orderStops(venue, passengers);
     for (const passenger of ordered) unassigned.delete(passenger.id);
     driverGroups.push({
       driver,
       passengers: ordered,
-      detourKm: Math.max(0, tripKm(driver, ordered, venue) - direct),
+      detourKm: Math.max(0, tripKm(venue, ordered, driver) - direct),
       matchedBy: route ? "route" : "distance",
-      googleMapsUrl: googleMapsDirectionsUrl(driver, venue, ordered),
+      googleMapsUrl: googleMapsDirectionsUrl(venue, driver, ordered),
     });
   }
 

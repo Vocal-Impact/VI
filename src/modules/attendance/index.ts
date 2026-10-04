@@ -11,6 +11,7 @@ export {
   setPracticeCancelled,
   deletePractice,
   setRsvp,
+  getPracticeAttendeeIds,
   type PracticeView,
   type RsvpSummary,
   type RsvpPerson,

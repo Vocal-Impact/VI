@@ -53,12 +53,16 @@ describe("suggestCarpools", () => {
   const offRoute = person("wattala", 6.989, 79.892);
   const options = { clusterRadiusKm: 3, maxDetourKm: 2 };
 
-  it("fills a driver's seats with people on the way, ordered by pickup", () => {
+  it("drops people off on the driver's way home, nearest the venue first", () => {
     const result = suggestCarpools([driver, onTheWay2, offRoute, onTheWay1], venue, options);
     expect(result.driverGroups).toHaveLength(1);
-    expect(result.driverGroups[0]?.passengers.map((p) => p.id)).toEqual(["mount-lavinia", "dehiwala"]);
+    // Venue (Colombo 06) → Dehiwala → Mount Lavinia → driver's home in Moratuwa.
+    expect(result.driverGroups[0]?.passengers.map((p) => p.id)).toEqual(["dehiwala", "mount-lavinia"]);
     expect(result.driverGroups[0]?.matchedBy).toBe("distance");
-    expect(result.driverGroups[0]?.googleMapsUrl).toContain("waypoints=");
+    const url = new URL(result.driverGroups[0]!.googleMapsUrl);
+    expect(url.searchParams.get("origin")).toBe("6.868,79.859"); // starts at the venue
+    expect(url.searchParams.get("destination")).toBe("6.773,79.882"); // ends at the driver's home
+    expect(url.searchParams.get("waypoints")).toBe("6.851,79.865|6.838,79.866");
     expect(result.alone.map((p) => p.id)).toEqual(["wattala"]);
   });
 

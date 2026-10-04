@@ -146,7 +146,7 @@ test("every section renders", async ({ page }) => {
   await openDashboard(page);
   for (const [path, heading] of [
     ["/birthdays", "Birthdays 🎂"],
-    ["/carpool", "Carpool"],
+    ["/carpool", "Lifts home"],
     ["/attendance/reports", "Attendance reports"],
     ["/settings", "Settings"],
     ["/settings/users", "Access & roles"], // old URL redirects to the new page
