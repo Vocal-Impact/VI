@@ -86,7 +86,10 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
 
       {searchParams.created ? (
         <Alert tone="success" className="mb-4">
-          Member added. They&apos;ll show as ready for WhatsApp after {threshold} practices.
+          Member added
+          {member.status === "PROSPECTIVE"
+            ? `. They'll show as ready for WhatsApp after ${threshold} practices.`
+            : ` as ${member.status.toLowerCase()}.`}
         </Alert>
       ) : null}
       {member.deletedAt ? (

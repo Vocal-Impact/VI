@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { VOICE_TYPES, VOICE_TYPE_LABELS, formatYearOfStudy } from "@/modules/members/domain";
+import {
+  MEMBER_STATUSES,
+  MEMBER_STATUS_LABELS,
+  VOICE_TYPES,
+  VOICE_TYPE_LABELS,
+  formatYearOfStudy,
+} from "@/modules/members/domain";
 import { idleState, type ActionState } from "@/shared/lib/action-state";
 import { Field, Input, Select } from "@/shared/ui/form";
 import { Alert } from "@/shared/ui/layout";
@@ -18,6 +24,8 @@ export interface MemberFormValues {
   email: string;
   voiceType: string;
   dateOfBirth: string;
+  /** Only used when adding a member. */
+  status?: string;
 }
 
 const EMPTY: MemberFormValues = {
@@ -138,17 +146,26 @@ export function MemberForm({
         <Field label="Date of birth (optional)" htmlFor="dateOfBirth" errors={errors.dateOfBirth}>
           <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={values.dateOfBirth} />
         </Field>
+        {mode === "create" ? (
+          <Field
+            label="Status"
+            htmlFor="status"
+            hint="New joiners are Prospective. Choose Active for an existing member already in the groups."
+            errors={errors.status}
+          >
+            <Select id="status" name="status" defaultValue={values.status || "PROSPECTIVE"}>
+              {MEMBER_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {MEMBER_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-        <SubmitButton name="intent" value="save">
-          {mode === "create" ? "Save member" : "Save changes"}
-        </SubmitButton>
-        {mode === "create" ? (
-          <SubmitButton name="intent" value="invite" variant="secondary">
-            Save &amp; send group invites
-          </SubmitButton>
-        ) : null}
+        <SubmitButton>{mode === "create" ? "Save member" : "Save changes"}</SubmitButton>
         <LinkButton href={cancelHref} variant="ghost">
           Cancel
         </LinkButton>

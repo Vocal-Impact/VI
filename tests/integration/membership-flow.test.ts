@@ -143,3 +143,28 @@ describe("new member journey: add → 3 practices → invites → joined → act
     expect(await prisma.attendance.count()).toBe(0);
   });
 });
+
+describe("adding a member with a starting status", () => {
+  it("defaults to prospective and accepts another status (e.g. an existing active member)", async () => {
+    const user = await createUser();
+    const base = { firstName: "A", lastName: "B", yearOfStudy: "2", voiceType: "ALTO" };
+    const plain = await createMemberService(
+      { ...base, studentId: "W3000001", whatsappNumber: "0771000001", email: "a1@iit.ac.lk" },
+      user.id,
+    );
+    const active = await createMemberService(
+      { ...base, studentId: "W3000002", whatsappNumber: "0771000002", email: "a2@iit.ac.lk", status: "ACTIVE" },
+      user.id,
+    );
+    expect(plain.ok && active.ok).toBe(true);
+    if (!plain.ok || !active.ok) return;
+    expect((await prisma.member.findUniqueOrThrow({ where: { id: plain.value.id } })).status).toBe("PROSPECTIVE");
+    expect((await prisma.member.findUniqueOrThrow({ where: { id: active.value.id } })).status).toBe("ACTIVE");
+
+    const bad = await createMemberService(
+      { ...base, studentId: "W3000003", whatsappNumber: "0771000003", email: "a3@iit.ac.lk", status: "BOSS" },
+      user.id,
+    );
+    expect(bad.ok).toBe(false);
+  });
+});

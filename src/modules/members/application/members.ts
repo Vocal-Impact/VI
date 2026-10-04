@@ -147,14 +147,26 @@ function toMemberData(input: MemberInput) {
 export async function createMember(raw: unknown, actorId: string): Promise<Result<{ id: string }>> {
   const parsed = memberInputSchema(getEnv().ALLOWED_EMAIL_DOMAIN).safeParse(raw);
   if (!parsed.success) return validationError(parsed.error);
+  // Starting status (e.g. an existing member being added as Active). Prospective by default.
+  const rawStatus = (raw as { status?: unknown } | null)?.status;
+  const status = memberStatusSchema.safeParse(rawStatus || "PROSPECTIVE");
+  if (!status.success) return err("VALIDATION", "Unknown status", { status: ["Choose a status"] });
 
   const duplicates = await duplicatesFor(parsed.data);
   if (duplicates.length > 0) return duplicateError(duplicates);
 
   const member = await prisma.$transaction(async (tx) => {
-    const created = await tx.member.create({ data: { ...toMemberData(parsed.data), source: "MANUAL" } });
+    const created = await tx.member.create({
+      data: { ...toMemberData(parsed.data), status: status.data, source: "MANUAL" },
+    });
     await writeAuditLog(
-      { actorId, action: "member.create", entity: "member", entityId: created.id, diff: parsed.data },
+      {
+        actorId,
+        action: "member.create",
+        entity: "member",
+        entityId: created.id,
+        diff: { ...parsed.data, status: status.data },
+      },
       tx,
     );
     return created;

@@ -45,6 +45,8 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await page.getByLabel("WhatsApp number").fill("077 555 0000");
   await page.getByLabel("IIT email address").fill("nethmi@gmail.com");
   await page.getByLabel("Voice type").selectOption("ALTO");
+  await expect(page.getByLabel("Status")).toHaveValue("PROSPECTIVE");
+  await expect(page.getByRole("button", { name: /send group invites/i })).toHaveCount(0);
   await page.getByRole("button", { name: "Save member" }).click();
   await expect(page.getByText("Must be an @iit.ac.lk address")).toBeVisible();
   await page.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");

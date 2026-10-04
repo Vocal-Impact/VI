@@ -34,6 +34,7 @@ function memberPayload(values: Record<string, string>) {
     email: values.email ?? "",
     voiceType: values.voiceType ?? "UNASSIGNED",
     dateOfBirth: values.dateOfBirth ?? "",
+    status: values.status ?? "",
   };
 }
 
@@ -43,11 +44,7 @@ export async function createMemberAction(_prev: ActionState, formData: FormData)
   const result = await createMember(memberPayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
   revalidatePath("/members");
-  redirect(
-    values.intent === "invite"
-      ? `/whatsapp-groups/invite?members=${result.value.id}`
-      : `/members/${result.value.id}?created=1`,
-  );
+  redirect(`/members/${result.value.id}?created=1`);
 }
 
 export async function updateMemberAction(
