@@ -32,6 +32,7 @@ jobs:
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vocal_impact_test
       E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vocal_impact_test
       BETTER_AUTH_SECRET: ci-secret-0123456789abcdef0123456789
+      DATA_ENCRYPTION_KEY: dGVzdC1vbmx5LWtleS1kby1ub3QtdXNlLWFueXdoZXI=
       BETTER_AUTH_URL: http://localhost:3100
 
     steps:

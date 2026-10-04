@@ -1,5 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_BASE_URL, E2E_DATABASE_URL, E2E_PORT, STORAGE_STATE } from "./tests/e2e/constants";
+import {
+  E2E_BASE_URL,
+  E2E_DATA_ENCRYPTION_KEY,
+  E2E_DATABASE_URL,
+  E2E_PORT,
+  STORAGE_STATE,
+} from "./tests/e2e/constants";
 
 /**
  * End-to-end tests against a production build (`npm run build` first).
@@ -45,6 +51,7 @@ export default defineConfig({
       EMAIL_TRANSPORT: "console",
       GEOCODER: "disabled",
       CRON_SECRET: "e2e-cron-secret",
+      DATA_ENCRYPTION_KEY: E2E_DATA_ENCRYPTION_KEY,
       ALLOWED_EMAIL_DOMAIN: "iit.ac.lk",
       GOOGLE_CLIENT_ID: "",
       GOOGLE_CLIENT_SECRET: "",

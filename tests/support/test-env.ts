@@ -9,5 +9,7 @@ export const TEST_ENV: Record<string, string> = {
   EMAIL_TRANSPORT: "console",
   GEOCODER: "disabled",
   CRON_SECRET: "test-cron-secret",
+  // A fixed, public test key — never use it for real data.
+  DATA_ENCRYPTION_KEY: "dGVzdC1vbmx5LWtleS1kby1ub3QtdXNlLWFueXdoZXI=",
   ALLOWED_EMAIL_DOMAIN: "iit.ac.lk",
 };

@@ -17,3 +17,6 @@ export const E2E_MEMBER = {
   password: "e2e-member-password",
 };
 export const MEMBER_STORAGE_STATE = "playwright/.auth/member.json";
+
+/** Public test-only key for encrypted fields (same as the integration tests). */
+export const E2E_DATA_ENCRYPTION_KEY = "dGVzdC1vbmx5LWtleS1kby1ub3QtdXNlLWFueXdoZXI=";

@@ -68,3 +68,8 @@ desktop.ini
 AGENTS.md
 CLAUDE.md
 .claude/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

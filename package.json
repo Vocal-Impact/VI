@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && tsx scripts/encrypt-existing-data.ts && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
@@ -24,7 +24,9 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "prepare": "husky || true",
-    "db:wipe": "tsx scripts/wipe-data.ts"
+    "db:wipe": "tsx scripts/wipe-data.ts",
+    "db:encrypt": "tsx scripts/encrypt-existing-data.ts",
+    "geocode": "python scripts/geocode/geocode_locations.py"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

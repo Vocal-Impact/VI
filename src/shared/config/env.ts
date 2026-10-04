@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { parseEncryptionKey } from "@/shared/crypto/field-encryption";
 
 const booleanFromString = z
   .enum(["true", "false", "1", "0", ""])
@@ -14,6 +15,16 @@ const envSchema = z
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     ENABLE_PASSWORD_LOGIN: booleanFromString,
+    /**
+     * Encrypts phone numbers, locations and dietary preferences in the database.
+     * 32 random bytes as base64: `openssl rand -base64 32`. Losing it makes that data unreadable.
+     */
+    DATA_ENCRYPTION_KEY: z
+      .string({ error: "DATA_ENCRYPTION_KEY is required — generate one with: openssl rand -base64 32" })
+      .refine(
+        (value) => parseEncryptionKey(value) !== null,
+        "DATA_ENCRYPTION_KEY must be 32 bytes as base64 (openssl rand -base64 32)",
+      ),
 
     EMAIL_TRANSPORT: z.enum(["console", "brevo", "smtp"]).default("console"),
     BREVO_API_KEY: z.string().optional(),
@@ -33,6 +44,8 @@ const envSchema = z
     GEOCODER: z.enum(["nominatim", "disabled"]).default("nominatim"),
     NOMINATIM_USER_AGENT: z.string().default("VocalImpactApp/1.0"),
     ORS_API_KEY: z.string().optional(),
+    /** Optional Google Maps Geocoding API key — tried first for landmarks when set (needs a billing account). */
+    GOOGLE_MAPS_API_KEY: z.string().optional(),
 
     ALLOWED_EMAIL_DOMAIN: z.string().default("iit.ac.lk"),
     VERCEL_ENV: z.string().optional(),
