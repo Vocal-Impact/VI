@@ -13,7 +13,7 @@ import { importAction, type ImportActionState } from "../actions";
 const PROFILES = {
   REGISTRATION: {
     label: "Registration form (new members)",
-    hint: "Columns: First Name, Last Name, IIT Student ID, Current Year of Study, WhatsApp Number, IIT Email Address, What is your voice type?",
+    hint: "Columns: Email Address, First Name, Last Name, IIT Student ID, WhatsApp Number, Voice Type (Section in choir), Current Year of Study — optional: Date of Birth, Status, Location (Nearest Landmark), Dietary Preferences, Location Coordinates. Landmarks are located automatically after the import.",
   },
   SUPPLEMENTARY_DETAILS: {
     label: "Details form (birthday & carpool)",
@@ -32,6 +32,9 @@ export function ImportWizard() {
       <Alert tone="success" title="Import complete">
         {state.summary.created} new, {state.summary.updated} updated, {state.summary.unchanged} unchanged,{" "}
         {state.summary.skipped} skipped.
+        {state.summary.locationsToGeocode.length > 0
+          ? ` Finding coordinates for ${state.summary.locationsToGeocode.length} location${state.summary.locationsToGeocode.length === 1 ? "" : "s"} in the background — check the Carpool page in a minute.`
+          : ""}
         <div className="mt-3 flex gap-2">
           <LinkButton href="/members" size="sm">
             View members

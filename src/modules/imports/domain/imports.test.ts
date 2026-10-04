@@ -63,11 +63,19 @@ describe("buildRegistrationPreview", () => {
       firstName: "Amaya",
       lastName: "Perera",
       studentId: "W2024001",
-      yearOfStudy: 1,
+      yearOfStudy: "L4",
       whatsappNumber: "+94771111111",
       email: "amaya@iit.ac.lk",
       voiceType: "ALTO",
       dateOfBirth: "2005-01-01",
+      dietaryPreference: "Vegetarian",
+      status: "ACTIVE",
+      location: {
+        areaLabel: "Dehiwala",
+        coordinates: { latitude: 6.851, longitude: 79.865 },
+        canDrive: true,
+        seats: 3,
+      },
     },
   ];
 
@@ -87,7 +95,7 @@ describe("buildRegistrationPreview", () => {
     expect(preview.missingColumns).toEqual([]);
     expect(preview.created.map((item) => [item.studentId, item.data.voiceType])).toEqual([["W2024002", "BASS"]]);
     expect(preview.updated).toHaveLength(1);
-    expect(preview.updated[0]?.changes).toEqual([{ field: "Year", from: "1", to: "2" }]);
+    expect(preview.updated[0]?.changes).toEqual([{ field: "Year", from: "L4", to: "L5" }]);
     expect(preview.updated[0]?.data.voiceType).toBe("ALTO");
     expect(preview.duplicates.map((issue) => issue.row)).toEqual([3]);
     expect(preview.invalid.map((issue) => issue.row)).toEqual([5, 6]);
@@ -109,6 +117,101 @@ describe("buildRegistrationPreview", () => {
     const preview = buildRegistrationPreview(parseCsv("First Name,Last Name\nA,B"), existing, options);
     expect(preview.missingColumns).toContain("IIT Student ID");
     expect(preview.created).toHaveLength(0);
+  });
+});
+
+describe("buildRegistrationPreview with the 2026 Google Form", () => {
+  const NEW_HEADER =
+    "Timestamp,Email Address,First Name,Last Name,IIT Student ID,WhatsApp Number,Voice Type (Section in choir),Current Year of Study,Date of Birth,Status,Location(Nearerst Landmark),Dietary Preferences";
+  const newCsv = (...rows: string[]) => parseCsv([NEW_HEADER, ...rows].join("\n"));
+  const amaya: ExistingMemberSnapshot = {
+    id: "m1",
+    firstName: "Amaya",
+    lastName: "Perera",
+    studentId: "W2024001",
+    yearOfStudy: "L4",
+    whatsappNumber: "+94771111111",
+    email: "amaya@iit.ac.lk",
+    voiceType: "ALTO",
+    dateOfBirth: null,
+    dietaryPreference: "Vegetarian",
+    status: "ACTIVE",
+    location: { areaLabel: "Dehiwala", coordinates: { latitude: 6.851, longitude: 79.865 }, canDrive: true, seats: 3 },
+  };
+
+  it("reads status, landmark and dietary preference for new members", () => {
+    const preview = buildRegistrationPreview(
+      newCsv(
+        'x,nimal@iit.ac.lk,Nimal,Dias,W2026010,0775555555,Tenor,Placement Year,12/05/2003,Active,Kohuwala junction,"No beef, no pork"',
+        "x,sara@iit.ac.lk,Sara,Lee,W2026011,0776666666,Soprano 1,L4,,,,",
+      ),
+      [],
+      options,
+    );
+    expect(preview.missingColumns).toEqual([]);
+    expect(preview.invalid).toEqual([]);
+    expect(preview.created[0]?.data).toMatchObject({
+      yearOfStudy: "PLACEMENT",
+      status: "ACTIVE",
+      dietaryPreference: "No beef, no pork",
+      location: { areaLabel: "Kohuwala junction", coordinates: null, canDrive: false, seats: 0 },
+    });
+    expect(preview.created[1]?.data).toMatchObject({ status: null, dietaryPreference: null, location: null });
+  });
+
+  it("uses a coordinates column (added by the geocoding script) or coordinates typed as the landmark", () => {
+    const withColumn = parseCsv(
+      [
+        `${NEW_HEADER},Location Coordinates`,
+        "x,nimal@iit.ac.lk,Nimal,Dias,W2026010,0775555555,Tenor,L5,,,Kohuwala junction,,6.8664 79.8774",
+        'x,sara@iit.ac.lk,Sara,Lee,W2026011,0776666666,Alto,L5,,,"6.9, 79.86",,',
+        'x,bad@iit.ac.lk,Bad,Spot,W2026012,0777777777,Alto,L5,,,London,,"51.5, -0.12"',
+      ].join("\n"),
+    );
+    const preview = buildRegistrationPreview(withColumn, [], options);
+    expect(preview.created.map((item) => item.data.location)).toEqual([
+      {
+        areaLabel: "Kohuwala junction",
+        coordinates: { latitude: 6.8664, longitude: 79.8774 },
+        canDrive: false,
+        seats: 0,
+      },
+      { areaLabel: "6.9, 79.86", coordinates: { latitude: 6.9, longitude: 79.86 }, canDrive: false, seats: 0 },
+    ]);
+    expect(preview.invalid[0]?.messages.join(" ")).toMatch(/outside Sri Lanka/);
+  });
+
+  it("never changes an existing member's status and keeps curated details when cells are blank", () => {
+    const preview = buildRegistrationPreview(
+      newCsv("x,amaya@iit.ac.lk,Amaya,Perera,W2024001,0771111111,Alto,L4,,Prospective,,"),
+      [amaya],
+      options,
+    );
+    expect(preview.unchanged).toHaveLength(1);
+    expect(preview.unchanged[0]?.data).toMatchObject({
+      status: "ACTIVE",
+      dietaryPreference: "Vegetarian",
+      location: amaya.location,
+    });
+  });
+
+  it("reports a new landmark and keeps the driver's carpool details", () => {
+    const preview = buildRegistrationPreview(
+      newCsv("x,amaya@iit.ac.lk,Amaya,Perera,W2024001,0771111111,Alto,L4,,,Wellawatte,Vegan"),
+      [amaya],
+      options,
+    );
+    expect(preview.updated[0]?.changes).toEqual([
+      { field: "Dietary", from: "Vegetarian", to: "Vegan" },
+      { field: "Location", from: "Dehiwala", to: "Wellawatte" },
+      { field: "Coordinates", from: "6.851, 79.865", to: "" },
+    ]);
+    expect(preview.updated[0]?.data.location).toEqual({
+      areaLabel: "Wellawatte",
+      coordinates: null,
+      canDrive: true,
+      seats: 3,
+    });
   });
 });
 
