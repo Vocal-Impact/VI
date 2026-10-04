@@ -5,12 +5,15 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/shared/db/prisma";
 import { getAuth } from "../infrastructure/better-auth";
 import { hasPermission, type Permission, type Role } from "../domain/permissions";
+import { canMemberSignIn } from "../domain/access";
 
 export interface SessionUser {
   id: string;
   name: string;
   email: string;
   role: Role;
+  /** The choir member this login belongs to, if any (needed to RSVP). */
+  memberId: string | null;
 }
 
 /**
@@ -23,10 +26,20 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, name: true, email: true, role: true, active: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      active: true,
+      memberId: true,
+      member: { select: { status: true, deletedAt: true } },
+    },
   });
   if (!user || !user.active) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  // Member logins stop working as soon as the member becomes alumni or is removed.
+  if (user.role === "MEMBER" && !canMemberSignIn(user.member)) return null;
+  return { id: user.id, name: user.name, email: user.email, role: user.role, memberId: user.memberId };
 });
 
 export async function requireUser(): Promise<SessionUser> {

@@ -98,9 +98,10 @@ const setAccessSchema = z.object({
 });
 
 /**
- * Grants, changes or removes a member's app access. Granting creates a login
- * from the member's IIT email (or links an existing login with that email);
- * "NONE" disables the login but keeps it for the audit trail.
+ * Grants, changes or removes a member's committee/admin access. Granting
+ * creates a login from the member's IIT email (or links an existing login with
+ * that email). "NONE" turns it back into a plain member login, which can still
+ * see practices and RSVP.
  */
 export async function setMemberAccess(raw: unknown, actorId: string): Promise<Result<{ level: AccessLevel }>> {
   const parsed = setAccessSchema.safeParse(raw);
@@ -118,12 +119,21 @@ export async function setMemberAccess(raw: unknown, actorId: string): Promise<Re
   if (existing?.id === actorId) return err("FORBIDDEN", "You can't change your own access. Ask another admin.");
 
   if (level === "NONE") {
-    if (!existing || !existing.active) return ok({ level });
+    // Back to a plain member login: they can still sign in to see practices and RSVP.
+    if (!existing || accessLevelOf(existing) === "NONE") return ok({ level });
     const result = await updateUser(
-      { userId: existing.id, role: existing.role, active: false, receivesBirthdayReminders: false },
+      { userId: existing.id, role: "MEMBER", active: true, receivesBirthdayReminders: false },
       actorId,
     );
-    return result.ok ? ok({ level }) : result;
+    if (!result.ok) return result;
+    await writeAuditLog({
+      actorId,
+      action: "access.change",
+      entity: "member",
+      entityId: memberId,
+      diff: { from: accessLevelOf(existing), to: "NONE" },
+    });
+    return ok({ level });
   }
 
   if (!existing) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessLevelOf } from "./access";
+import { accessLevelOf, canMemberSignIn } from "./access";
 
 describe("accessLevelOf", () => {
   it("maps active logins to their access level", () => {
@@ -12,5 +12,16 @@ describe("accessLevelOf", () => {
     expect(accessLevelOf(undefined)).toBe("NONE");
     expect(accessLevelOf({ role: "ADMIN", active: false })).toBe("NONE");
     expect(accessLevelOf({ role: "MEMBER", active: true })).toBe("NONE");
+  });
+});
+
+describe("canMemberSignIn", () => {
+  it("lets current members sign in but not alumni or removed members", () => {
+    expect(canMemberSignIn({ status: "PROSPECTIVE", deletedAt: null })).toBe(true);
+    expect(canMemberSignIn({ status: "ACTIVE", deletedAt: null })).toBe(true);
+    expect(canMemberSignIn({ status: "INACTIVE", deletedAt: null })).toBe(true);
+    expect(canMemberSignIn({ status: "ALUMNI", deletedAt: null })).toBe(false);
+    expect(canMemberSignIn({ status: "ACTIVE", deletedAt: new Date() })).toBe(false);
+    expect(canMemberSignIn(null)).toBe(false);
   });
 });

@@ -31,18 +31,18 @@ describe("access & roles (member-linked logins)", () => {
       data: { id: "s1", token: "t1", userId: login.id, expiresAt: new Date(Date.now() + 86_400_000) },
     });
     await setMemberAccess({ memberId: member.id, level: "NONE", receivesBirthdayReminders: false }, admin.id);
+    // "Member" level: committee powers gone, but they can still sign in to reply to practices.
     const removed = await prisma.user.findUniqueOrThrow({ where: { id: login.id } });
-    expect(removed.active).toBe(false);
-    expect(await prisma.session.count({ where: { userId: login.id } })).toBe(0);
+    expect(removed).toMatchObject({ role: "MEMBER", active: true });
 
     // Re-granting reuses the same login (no duplicates).
     await setMemberAccess({ memberId: member.id, level: "COMMITTEE", receivesBirthdayReminders: false }, admin.id);
     expect(await prisma.user.count({ where: { email: "nethmi.w1@iit.ac.lk" } })).toBe(1);
-    expect((await prisma.user.findUniqueOrThrow({ where: { id: login.id } })).active).toBe(true);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: login.id } })).role).toBe("COMMITTEE");
 
     const rows = await listMemberAccess({ level: "WITH_ACCESS" });
     expect(rows.map((row) => [row.firstName, row.level])).toEqual([["Nethmi", "COMMITTEE"]]);
-    expect(await prisma.auditLog.count({ where: { entityId: member.id, action: { startsWith: "access." } } })).toBe(3);
+    expect(await prisma.auditLog.count({ where: { entityId: member.id, action: { startsWith: "access." } } })).toBe(4); // grant, promote, demote, re-grant
   });
 
   it("links an existing login with the same email instead of duplicating it", async () => {

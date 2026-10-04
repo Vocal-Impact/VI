@@ -12,6 +12,10 @@ export const PERMISSIONS = [
   "imports:run",
   "attendance:read",
   "attendance:write",
+  "practices:read",
+  "practices:manage",
+  "practices:rsvp",
+  "rsvps:read",
   "groups:read",
   "groups:manage",
   "invites:send",
@@ -31,6 +35,10 @@ const COMMITTEE_PERMISSIONS: readonly Permission[] = [
   "imports:run",
   "attendance:read",
   "attendance:write",
+  "practices:read",
+  "practices:manage",
+  "practices:rsvp",
+  "rsvps:read",
   "groups:read",
   "invites:send",
   "birthdays:read",
@@ -41,8 +49,8 @@ const COMMITTEE_PERMISSIONS: readonly Permission[] = [
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   ADMIN: PERMISSIONS,
   COMMITTEE: COMMITTEE_PERMISSIONS,
-  // Phase 4 (member self-service) will add own-profile permissions here.
-  MEMBER: ["birthdays:read"],
+  // Choir members: see practices and say whether they're coming. Nothing else.
+  MEMBER: ["birthdays:read", "practices:read", "practices:rsvp"],
 };
 
 export function hasPermission(role: Role, permission: Permission): boolean {

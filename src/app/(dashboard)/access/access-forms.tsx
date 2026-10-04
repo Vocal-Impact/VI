@@ -31,7 +31,7 @@ export interface MemberAccessRow {
   isSelf: boolean;
 }
 
-/** One member: choose No access / Committee / Admin and birthday emails. */
+/** One member: choose Member / Committee / Admin and birthday emails. */
 export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action: Action }) {
   const [state, formAction] = useActionState(action, idleState);
   const [level, setLevel] = useState<AccessLevel>(row.level);

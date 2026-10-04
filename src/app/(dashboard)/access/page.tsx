@@ -33,7 +33,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
     <>
       <PageHeader
         title="Access & roles"
-        description="Promote choir members to Committee or Admin. They sign in with their IIT Google account; nobody else can."
+        description="Every current member can sign in with their IIT Google account to see practices and reply. Promote members to Committee or Admin here."
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -46,7 +46,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
         <Card className="lg:col-span-2">
           <CardHeader
             title="Members"
-            description="Choose an access level and press Save. “No access” disables their login but keeps the history."
+            description="Choose a level and press Save. “Member” removes committee/admin powers but they can still sign in to reply to practices."
           />
           <form className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_auto_auto]" role="search">
             <Input
@@ -60,7 +60,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
               <option value="WITH_ACCESS">With access</option>
               <option value="ADMIN">Admins</option>
               <option value="COMMITTEE">Committee</option>
-              <option value="NONE">No access</option>
+              <option value="NONE">Members only</option>
             </Select>
             <button type="submit" className={buttonClasses("secondary")}>
               Filter

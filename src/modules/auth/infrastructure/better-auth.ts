@@ -4,7 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/shared/db/prisma";
 import { getEnv } from "@/shared/config/env";
-import { logger } from "@/shared/lib/logger";
+import { linkNewLoginToMember, mayCreateLogin, maySignIn } from "../application/provisioning";
 
 const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7;
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
@@ -38,20 +38,15 @@ function createAuth() {
     databaseHooks: {
       user: {
         create: {
-          // Allowlist: nobody can self-register. Admins pre-create users
-          // (Settings → Users), and Google sign-in links to that row.
-          before: async (user) => {
-            logger.warn("Blocked sign-in from non-allowlisted email", { email: user.email });
-            return false;
-          },
+          // Nobody self-registers: only current choir members (by IIT email)
+          // get a login created on first sign-in. Approved accounts already exist.
+          before: async (user) => mayCreateLogin(user.email),
+          after: async (user) => linkNewLoginToMember(user.id, user.email),
         },
       },
       session: {
         create: {
-          before: async (session) => {
-            const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { active: true } });
-            return user?.active === true;
-          },
+          before: async (session) => maySignIn(session.userId),
         },
       },
     },

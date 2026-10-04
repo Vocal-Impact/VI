@@ -8,7 +8,7 @@ export const ACCESS_LEVELS = ["NONE", "COMMITTEE", "ADMIN"] as const;
 export type AccessLevel = (typeof ACCESS_LEVELS)[number];
 
 export const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
-  NONE: "No access",
+  NONE: "Member",
   COMMITTEE: "Committee",
   ADMIN: "Admin",
 };
@@ -17,6 +17,15 @@ export function accessLevelOf(user: { role: Role | string; active: boolean } | n
   if (!user || !user.active) return "NONE";
   if (user.role === "ADMIN") return "ADMIN";
   if (user.role === "COMMITTEE") return "COMMITTEE";
-  // MEMBER logins are reserved for Phase 4 self-service and grant no committee access.
+  // MEMBER logins can see practices and RSVP but have no committee access.
   return "NONE";
+}
+
+/** Member statuses that may sign in to see practices and RSVP (alumni and removed members may not). */
+export const MEMBER_SIGN_IN_STATUSES = ["PROSPECTIVE", "ACTIVE", "INACTIVE"] as const;
+
+export function canMemberSignIn(member: { status: string; deletedAt: Date | null } | null | undefined): boolean {
+  return (
+    !!member && member.deletedAt === null && (MEMBER_SIGN_IN_STATUSES as readonly string[]).includes(member.status)
+  );
 }

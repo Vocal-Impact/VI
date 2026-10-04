@@ -63,9 +63,11 @@ export default async function BirthdaysPage(props: PageProps<"/birthdays">) {
             {dashboard.todays.map((entry) => (
               <div key={entry.person.id} className="rounded-lg bg-brand-50 px-3 py-2">
                 <p className="font-semibold">🎉 {entry.person.name}</p>
-                <p className="text-sm text-slate-600">
-                  Turns {entry.turningAge} · {VOICE_TYPE_LABELS[entry.person.voiceType as VoiceType]}
-                </p>
+                {showDetails ? (
+                  <p className="text-sm text-slate-600">
+                    Turns {entry.turningAge} · {VOICE_TYPE_LABELS[entry.person.voiceType as VoiceType]}
+                  </p>
+                ) : null}
               </div>
             ))}
           </CardBody>
