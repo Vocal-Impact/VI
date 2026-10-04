@@ -7,6 +7,7 @@ import { err, ok, type Result } from "@/shared/lib/result";
 import { getSettings } from "@/shared/settings/settings";
 import { toCsv } from "@/shared/lib/csv";
 import { canUnmarkAttendance, hasStoppedComing, isEligibleForWhatsApp } from "../domain/eligibility";
+import { canTakeAttendance, type RsvpResponse } from "../domain/practice";
 import { attendanceToggleSchema } from "../schemas";
 
 export interface ChecklistEntry {
@@ -17,6 +18,8 @@ export interface ChecklistEntry {
   status: string;
   attendedCount: number;
   present: boolean;
+  /** What they said in advance, if anything. */
+  rsvp: RsvpResponse | null;
 }
 
 /**
@@ -37,6 +40,7 @@ export async function getAttendanceChecklist(practiceId: string): Promise<Checkl
       status: true,
       _count: { select: { attendances: true } },
       attendances: { where: { practiceId }, select: { practiceId: true } },
+      rsvps: { where: { practiceId }, select: { response: true } },
     },
   });
   const statusOrder: Record<string, number> = { PROSPECTIVE: 0, ACTIVE: 1, INACTIVE: 2 };
@@ -49,6 +53,7 @@ export async function getAttendanceChecklist(practiceId: string): Promise<Checkl
       status: member.status,
       attendedCount: member._count.attendances,
       present: member.attendances.length > 0,
+      rsvp: member.rsvps[0]?.response ?? null,
     }))
     .sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
 }
@@ -63,6 +68,15 @@ export async function setAttendance(
 
   const practice = await prisma.practice.findUnique({ where: { id: practiceId } });
   if (!practice) return err("NOT_FOUND", "Practice not found");
+  const practiceDate = toIsoDate(practice.date);
+  if (!canTakeAttendance(actor.role, { date: practiceDate, status: practice.status }, todayLocal())) {
+    return err(
+      "FORBIDDEN",
+      practice.status === "CANCELLED"
+        ? "This practice was cancelled"
+        : "Attendance can only be taken on the scheduled practice day",
+    );
+  }
 
   if (present) {
     await prisma.attendance.upsert({
@@ -71,7 +85,7 @@ export async function setAttendance(
       update: {},
     });
   } else {
-    if (!canUnmarkAttendance(actor.role, toIsoDate(practice.date), todayLocal())) {
+    if (!canUnmarkAttendance(actor.role, practiceDate, todayLocal())) {
       return err("FORBIDDEN", "Only admins can change attendance after the practice day");
     }
     const removed = await prisma.attendance.deleteMany({ where: { practiceId, memberId } });

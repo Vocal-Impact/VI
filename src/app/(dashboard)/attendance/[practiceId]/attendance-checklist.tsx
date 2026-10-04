@@ -128,6 +128,11 @@ export function AttendanceChecklist({
                     {VOICE_TYPE_LABELS[entry.voiceType as VoiceType]} · {entry.studentId}
                   </span>
                 </span>
+                {entry.rsvp ? (
+                  <Badge tone={entry.rsvp === "GOING" ? "blue" : "neutral"}>
+                    {entry.rsvp === "GOING" ? "Said going" : "Said no"}
+                  </Badge>
+                ) : null}
                 {entry.status === "PROSPECTIVE" ? (
                   <Badge tone={entry.attendedCount >= threshold ? "green" : "amber"}>
                     New · {attendanceProgress(entry.attendedCount, threshold)}

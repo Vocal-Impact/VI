@@ -1,11 +1,19 @@
 // Public API of the attendance module.
 export {
-  listPractices,
+  listUpcomingPractices,
+  listPastPractices,
   getPractice,
   getTodaysPractice,
-  createPractice,
-  startTodaysPractice,
+  getRsvpSummary,
+  getMemberRsvps,
+  schedulePractice,
+  updatePractice,
+  setPracticeCancelled,
   deletePractice,
+  setRsvp,
+  type PracticeView,
+  type RsvpSummary,
+  type RsvpPerson,
 } from "./application/practices";
 export {
   getAttendanceChecklist,
@@ -19,3 +27,4 @@ export {
   type ChecklistEntry,
 } from "./application/attendance";
 export * from "./domain/eligibility";
+export * from "./domain/practice";

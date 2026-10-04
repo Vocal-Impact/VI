@@ -1,27 +1,24 @@
 import Link from "next/link";
 import { requireUser, hasPermission } from "@/modules/auth";
 import { countMembersByStatus, countMissingData } from "@/modules/members";
-import { getTodaysPractice, listEligibleMembers } from "@/modules/attendance";
+import { listEligibleMembers } from "@/modules/attendance";
 import { getBirthdayDashboard } from "@/modules/birthdays";
 import { countPendingInvites } from "@/modules/whatsapp-groups";
 import { listImportBatches } from "@/modules/imports";
 import { VoiceBadge } from "@/modules/members/ui";
 import { formatIsoDate } from "@/shared/lib/dates";
-import { buttonClasses, LinkButton } from "@/shared/ui/button";
+import { LinkButton } from "@/shared/ui/button";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Stat } from "@/shared/ui/layout";
-import { startTodaysPracticeAction } from "./attendance/actions";
+import { MemberDashboard } from "./member-dashboard";
+import { UpcomingPractices } from "./upcoming-practices";
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const canManage = hasPermission(user.role, "members:read");
-  if (!canManage) {
-    return <PageHeader title={`Hi ${user.name.split(" ")[0]}!`} description="Your member features are coming soon." />;
-  }
+  if (!hasPermission(user.role, "members:read")) return <MemberDashboard user={user} />;
 
-  const [counts, missing, todaysPractice, eligible, birthdays, pendingInvites, imports] = await Promise.all([
+  const [counts, missing, eligible, birthdays, pendingInvites, imports] = await Promise.all([
     countMembersByStatus(),
     countMissingData(),
-    getTodaysPractice(),
     listEligibleMembers(),
     getBirthdayDashboard(),
     countPendingInvites(),
@@ -47,35 +44,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Today's practice"
-            action={
-              todaysPractice ? (
-                <LinkButton href={`/attendance/${todaysPractice.id}`} size="sm">
-                  Take attendance
-                </LinkButton>
-              ) : null
-            }
-          />
-          <CardBody>
-            {todaysPractice ? (
-              <p className="text-sm text-slate-700">
-                <span className="font-medium">{todaysPractice.title}</span> — {todaysPractice._count.attendances} marked
-                present
-              </p>
-            ) : hasPermission(user.role, "attendance:write") ? (
-              <form action={startTodaysPracticeAction} className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-slate-600">No practice recorded for today yet.</p>
-                <button type="submit" className={buttonClasses("primary", "sm")}>
-                  Start today&apos;s practice
-                </button>
-              </form>
-            ) : (
-              <p className="text-sm text-slate-600">No practice recorded for today.</p>
-            )}
-          </CardBody>
-        </Card>
+        <UpcomingPractices memberId={user.memberId} manage={hasPermission(user.role, "practices:manage")} />
 
         <Card>
           <CardHeader

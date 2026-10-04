@@ -1,31 +1,40 @@
 import Link from "next/link";
 import { requirePermission, hasPermission } from "@/modules/auth";
-import { listPractices, listProspectiveProgress, getTodaysPractice } from "@/modules/attendance";
+import {
+  getTodaysPractice,
+  listPastPractices,
+  listProspectiveProgress,
+  listUpcomingPractices,
+} from "@/modules/attendance";
 import { attendanceProgress } from "@/modules/attendance/domain";
+import { PracticeDetails, RsvpCountBadges } from "@/modules/attendance/ui";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
+import { getSettings } from "@/shared/settings/settings";
 import { LinkButton } from "@/shared/ui/button";
-import { SubmitButton } from "@/shared/ui/client";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
-import { startTodaysPracticeAction } from "./actions";
-import { NewPracticeForm } from "./new-practice-form";
+import { schedulePracticeAction } from "./actions";
+import { PracticeForm } from "./practice-form";
 
-export const metadata = { title: "Attendance" };
+export const metadata = { title: "Practices" };
 
-export default async function AttendancePage() {
+export default async function PracticesPage() {
   const user = await requirePermission("attendance:read");
-  const canWrite = hasPermission(user.role, "attendance:write");
-  const [practices, progress, today] = await Promise.all([
-    listPractices(),
-    listProspectiveProgress(),
+  const canManage = hasPermission(user.role, "practices:manage");
+  const today = todayLocal();
+  const [todays, upcoming, past, progress, settings] = await Promise.all([
     getTodaysPractice(),
+    listUpcomingPractices({ includeCancelled: true }),
+    listPastPractices(),
+    listProspectiveProgress(),
+    getSettings(),
   ]);
 
   return (
     <>
       <PageHeader
-        title="Attendance"
-        description={`New members join the main WhatsApp groups after ${progress.threshold} practices.`}
+        title="Practices"
+        description={`Schedule practices, see who's coming and take attendance. New members join the main WhatsApp groups after ${progress.threshold} practices.`}
         actions={
           <>
             <LinkButton href="/attendance/eligible" variant="secondary">
@@ -40,42 +49,69 @@ export default async function AttendancePage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {canWrite ? (
-            <Card className="border-brand-200 bg-brand-50">
-              <CardBody className="flex flex-wrap items-center justify-between gap-3">
+          <Card className={todays ? "border-brand-200 bg-brand-50" : undefined}>
+            <CardBody className="flex flex-wrap items-center justify-between gap-3">
+              {todays ? (
+                <>
+                  <div>
+                    <PracticeDetails practice={todays} today={today} />
+                    <p className="mt-1 text-sm text-brand-700">{todays.attended} marked present so far</p>
+                  </div>
+                  {hasPermission(user.role, "attendance:write") ? (
+                    <LinkButton href={`/attendance/${todays.id}`} size="lg">
+                      Take attendance
+                    </LinkButton>
+                  ) : null}
+                </>
+              ) : (
                 <div>
-                  <p className="font-semibold text-brand-800">
-                    {formatIsoDate(todayLocal(), { weekday: "long", month: "long" })}
-                  </p>
-                  <p className="text-sm text-brand-700">
-                    {today ? `${today._count.attendances} marked present so far` : "No practice recorded for today yet"}
+                  <p className="font-semibold text-ink">{formatIsoDate(today, { weekday: "long", month: "long" })}</p>
+                  <p className="text-sm text-slate-600">
+                    No practice is scheduled for today, so there&apos;s no attendance to take.
                   </p>
                 </div>
-                {today ? (
-                  <LinkButton href={`/attendance/${today.id}`} size="lg">
-                    Continue taking attendance
-                  </LinkButton>
-                ) : (
-                  <form action={startTodaysPracticeAction}>
-                    <SubmitButton size="lg" pendingText="Starting…">
-                      Start today&apos;s practice
-                    </SubmitButton>
-                  </form>
-                )}
-              </CardBody>
-            </Card>
-          ) : null}
+              )}
+            </CardBody>
+          </Card>
 
           <Card>
-            <CardHeader title="Practices" />
+            <CardHeader title="Upcoming" description="Members see these on their dashboard and reply." />
+            <CardBody className="space-y-3">
+              {upcoming.length === 0 ? (
+                <EmptyState title="Nothing scheduled">Schedule the next practice so members can reply.</EmptyState>
+              ) : null}
+              {upcoming.map((practice) => (
+                <div
+                  key={practice.id}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-3"
+                >
+                  <div className="space-y-2">
+                    <PracticeDetails practice={practice} today={today} />
+                    {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : null}
+                  </div>
+                  <div className="flex gap-2">
+                    <LinkButton href={`/attendance/${practice.id}`} size="sm" variant="secondary">
+                      Who&apos;s coming
+                    </LinkButton>
+                    {canManage ? (
+                      <LinkButton href={`/attendance/${practice.id}/edit`} size="sm" variant="outline">
+                        Edit
+                      </LinkButton>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Past practices" />
             <CardBody>
-              {practices.length === 0 ? (
-                <EmptyState title="No practices yet">
-                  Start today&apos;s practice to begin taking attendance.
-                </EmptyState>
+              {past.length === 0 ? (
+                <p className="text-sm text-slate-600">No past practices yet.</p>
               ) : (
                 <ul className="divide-y divide-slate-100">
-                  {practices.map((practice) => (
+                  {past.map((practice) => (
                     <li key={practice.id}>
                       <Link
                         href={`/attendance/${practice.id}`}
@@ -85,7 +121,11 @@ export default async function AttendancePage() {
                           <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
                           <span className="text-slate-500">— {practice.title}</span>
                         </span>
-                        <Badge tone="brand">{practice._count.attendances} present</Badge>
+                        {practice.status === "CANCELLED" ? (
+                          <Badge tone="red">Cancelled</Badge>
+                        ) : (
+                          <Badge tone="brand">{practice.attended} present</Badge>
+                        )}
                       </Link>
                     </li>
                   ))}
@@ -96,6 +136,21 @@ export default async function AttendancePage() {
         </div>
 
         <div className="space-y-6">
+          {canManage ? (
+            <Card>
+              <CardHeader title="Schedule a practice" />
+              <CardBody>
+                <PracticeForm
+                  action={schedulePracticeAction}
+                  mode="schedule"
+                  minDate={user.role === "ADMIN" ? undefined : today}
+                  initial={{ date: today, startTime: "", endTime: "", title: "Practice", venue: "", notes: "" }}
+                />
+                <p className="mt-2 text-xs text-slate-500">Usual venue: {settings.practiceVenue.name}</p>
+              </CardBody>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader
               title="New members' progress"
@@ -118,14 +173,6 @@ export default async function AttendancePage() {
               )}
             </CardBody>
           </Card>
-          {canWrite ? (
-            <Card>
-              <CardHeader title="Record another practice" description="For a different date or an extra session." />
-              <CardBody>
-                <NewPracticeForm today={todayLocal()} />
-              </CardBody>
-            </Card>
-          ) : null}
         </div>
       </div>
     </>

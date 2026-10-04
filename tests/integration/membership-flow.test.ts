@@ -49,11 +49,12 @@ describe("new member journey: add → 3 practices → invites → joined → act
     // Three practices.
     const practices = await Promise.all(["2026-09-10", "2026-09-17", "2026-09-24"].map(createPractice));
     for (const practice of practices) {
-      const marked = await setAttendance({ practiceId: practice.id, memberId, present: true }, committee);
+      // These practices are in the past, so only an admin can record them now.
+      const marked = await setAttendance({ practiceId: practice.id, memberId, present: true }, admin);
       expect(marked.ok).toBe(true);
     }
     // Marking twice is harmless.
-    await setAttendance({ practiceId: practices[0]!.id, memberId, present: true }, committee);
+    await setAttendance({ practiceId: practices[0]!.id, memberId, present: true }, admin);
     expect(await prisma.attendance.count({ where: { memberId } })).toBe(3);
 
     expect((await listEligibleMembers()).map((member) => member.id)).toEqual([memberId]);
