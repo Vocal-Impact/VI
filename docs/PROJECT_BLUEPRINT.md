@@ -758,8 +758,8 @@ Each significant decision gets a short ADR in `docs/adr/NNNN-title.md` (Context 
 
 **Progress (v1.0):**
 - ✅ Phases 0, 1, 1b, 2 and 3 are built and tested, including the optional OpenRouteService route matching (it turns on when `ORS_API_KEY` is set).
-- ✅ From Phase 4, attendance reports are done.
-- ⏳ Still to do: member self-service sign-in and QR self check-in.
+- ✅ From Phase 4: attendance reports, member sign-in, practice scheduling and RSVPs are done.
+- ⏳ Still to do: members editing their own profile (birthday, area, carpool) and QR self check-in.
 - ⏳ Deploying to Vercel/Neon needs the committee's IIT accounts; follow the README's deployment guide.
 
 ---
@@ -835,6 +835,9 @@ The build follows this blueprint. These are the places where it differs, and why
 | Boundaries | `eslint-plugin-boundaries` | ESLint `no-restricted-imports` patterns | Built-in, so there is one less plugin to keep updated |
 | Tooling | pnpm, Docker Postgres | npm, `embedded-postgres` | Nothing to install beyond Node on Windows laptops |
 | Public entry points | `index.ts` only | `index.ts` (server), `domain/` (pure, client-safe), `ui/` (components), `client.ts` (auth client) | Client components need the pure rules without pulling in server code |
+| Practices | "Start today's practice" with one tap | Practices are **scheduled** by admins/committee (date, start/end time, venue, notes) and can be edited or cancelled. **Attendance can only be taken for a practice scheduled today.** Committee can mark only on the day; admins can also correct past practices | Members need to know when and where practice is, in advance |
+| RSVPs | — | Members answer **Going / Can't make it** on their dashboard until the practice day ends. Admins and committee see counts and names (going, can't, no reply) with reply times, and the attendance checklist shows each person's answer | Lets the committee plan, and shows who said they'd come |
+| Member sign-in (part of Phase 4) | Phase 4 | Any **current member** (Prospective, Active or Inactive) can sign in with their IIT Google email. A `MEMBER` login is created on first sign-in and linked to their record. Alumni and removed members can't sign in. "Member" level on the Access page means no committee powers, but they can still sign in | RSVPs need members to sign in |
 | User management | Settings → Users (email allowlist) | Its own **Access & roles** page (`/access`). Logins hang off **member records** (`User.memberId`), so members are promoted to Committee or Admin, or set back to No access, over the years. Accounts for non-members (e.g. an advisor) are in a separate section. Admins can't change their own access, and the last admin can't be removed | Committee members are choir members first, and this keeps one history per person |
 | Settings | `Setting` table | Typed definitions in `src/shared/settings/definitions.ts`, editable in Settings → General | — |
 
