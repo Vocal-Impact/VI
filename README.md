@@ -93,6 +93,8 @@ The `csv` command adds a **Location Coordinates** column next to the location co
 
 ## Deploy (free) — one-time setup
 
+> The full step-by-step guide, with troubleshooting, is in **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+
 Do this from a **committee IIT Google account**, and give **at least two committee members** owner access to every service (see [docs/HANDOVER.md](docs/HANDOVER.md)).
 
 1. **GitHub:** create an organisation (e.g. `vocal-impact-iit`) and push this repository to it as a **private** repo.
