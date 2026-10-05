@@ -115,7 +115,7 @@ Do this from a **committee IIT Google account**, and give **at least two committ
    - (SMTP, e.g. a Gmail App Password, also works with `EMAIL_TRANSPORT=smtp`. See `.env.example`.)
 5. **Vercel** ([vercel.com](https://vercel.com), Hobby plan):
    - Import the GitHub repo.
-   - Add the environment variables from `.env.example`: `DATABASE_URL`, `DIRECT_URL`, `BETTER_AUTH_SECRET` (`openssl rand -base64 32`), `BETTER_AUTH_URL` (your app URL), Google keys, `EMAIL_TRANSPORT`/`BREVO_API_KEY`/`EMAIL_FROM`, `CRON_SECRET`, `NOMINATIM_USER_AGENT` and `ALLOWED_EMAIL_DOMAIN`.
+   - Add the environment variables from `.env.example`: `DATABASE_URL`, `DIRECT_URL`, `BETTER_AUTH_SECRET` (`openssl rand -base64 32`), `BETTER_AUTH_URL` (your app URL), Google keys, `EMAIL_TRANSPORT`/`BREVO_API_KEY`/`EMAIL_FROM`, `CRON_SECRET`, `DATA_ENCRYPTION_KEY` (the **same** key as in your local `.env` if you move local data across), `NOMINATIM_USER_AGENT` and `ALLOWED_EMAIL_DOMAIN`. Optional: `ORS_API_KEY`, `GOOGLE_MAPS_API_KEY`, `EMAIL_LOGO_URL`.
    - Do **not** set `ENABLE_PASSWORD_LOGIN`.
    - Deploy. The `vercel-build` script applies database migrations automatically, and `vercel.json` schedules the daily job.
 6. **First admin:** run `npm run db:seed-admin -- --email your.name@iit.ac.lk --name "Your Name"` with `DATABASE_URL` pointing at Neon. Then sign in and add the rest of the committee in **Settings → Users**.
