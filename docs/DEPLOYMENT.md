@@ -1,4 +1,4 @@
-# Hosting the Vocal Impact app
+# Hosting the Vocal Impact App
 
 A step-by-step guide to putting the app online for free. Allow about an hour the first time.
 
