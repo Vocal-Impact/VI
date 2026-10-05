@@ -42,7 +42,7 @@ tests/                 # integration + e2e (unit tests sit next to the code)
 
 ## Run it locally
 
-Prerequisites: **Node.js 22** (see `.nvmrc`) and Git. Docker is not needed.
+Prerequisites: **Node.js 24** (see `.nvmrc`) and Git. Docker is not needed.
 
 ```bash
 npm install                 # also generates the Prisma client
