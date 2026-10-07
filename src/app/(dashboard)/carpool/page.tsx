@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { isFeatureEnabled } from "@/shared/config/features";
 import { requirePermission, hasPermission } from "@/modules/auth";
 import { getCarpoolOverview } from "@/modules/carpool";
 import { getPractice, getPracticeAttendeeIds, getTodaysPractice, listUpcomingPractices } from "@/modules/attendance";
@@ -17,6 +19,7 @@ export const metadata = { title: "Lifts home" };
 const ALL = "all";
 
 export default async function CarpoolPage(props: PageProps<"/carpool">) {
+  if (!isFeatureEnabled("liftsHome")) notFound();
   const user = await requirePermission("carpool:read");
   const canWrite = hasPermission(user.role, "carpool:write");
   const { practice: practiceParam } = await props.searchParams;

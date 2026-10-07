@@ -12,6 +12,7 @@ import {
 import { PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { todayLocal } from "@/shared/lib/clock";
+import { isFeatureEnabled } from "@/shared/config/features";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { buttonClasses, LinkButton } from "@/shared/ui/button";
 import { ConfirmSubmit, SubmitButton } from "@/shared/ui/client";
@@ -58,7 +59,9 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
               <LinkButton href={`/attendance/${practice.id}/edit`} variant="outline" size="sm">
                 Edit details
               </LinkButton>
-              {hasPermission(user.role, "carpool:read") && practice.status === "SCHEDULED" ? (
+              {hasPermission(user.role, "carpool:read") &&
+              isFeatureEnabled("liftsHome") &&
+              practice.status === "SCHEDULED" ? (
                 <LinkButton href={`/carpool?practice=${practice.id}`} variant="secondary" size="sm">
                   Plan lifts home
                 </LinkButton>

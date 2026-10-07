@@ -44,6 +44,8 @@ const envSchema = z
     GEOCODER: z.enum(["nominatim", "disabled"]).default("nominatim"),
     NOMINATIM_USER_AGENT: z.string().default("VocalImpactApp/1.0"),
     ORS_API_KEY: z.string().optional(),
+    /** Feature flag: "false" hides Lifts home (carpool planning). On when unset. See features.ts. */
+    FEATURE_LIFTS_HOME: z.string().optional(),
     /** Optional Google Maps Geocoding API key — tried first for landmarks when set (needs a billing account). */
     GOOGLE_MAPS_API_KEY: z.string().optional(),
 

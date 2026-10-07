@@ -100,9 +100,11 @@ For **`DATA_ENCRYPTION_KEY`**, use the **exact value from your local `.env`** if
    | `NOMINATIM_USER_AGENT` | `VocalImpactApp/1.0 (contact: <committee email>)`                                                 |
    | `ALLOWED_EMAIL_DOMAIN` | `iit.ac.lk`                                                                                       |
    | `ORS_API_KEY`          | _optional:_ OpenRouteService key, for real road distances in "Lifts home"                         |
-   | `GOOGLE_MAPS_API_KEY`  | _optional:_ Google Geocoding key (needs billing; see Step 9)                                      |
 
-   **Do not add `ENABLE_PASSWORD_LOGIN`.** The app refuses to start with it in production.
+| `FEATURE_LIFTS_HOME` | `false` while Lifts home is still experimental (hides it; set to `true` to switch it on) |
+| `GOOGLE_MAPS_API_KEY` | _optional:_ Google Geocoding key (needs billing; see Step 9) |
+
+**Do not add `ENABLE_PASSWORD_LOGIN`.** The app refuses to start with it in production.
 
 4. Click **Deploy**. The build:
    - creates and updates the database tables (`prisma migrate deploy`)
