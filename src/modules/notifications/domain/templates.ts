@@ -173,58 +173,27 @@ export interface VenueRequestReminderInput {
 
 export function venueRequestReminderEmail(input: VenueRequestReminderInput): EmailMessage {
   const subject = `📍 Book a venue for practice on ${input.dateLabel}`;
-  const recipients = input.draft.to.length ? input.draft.to.join(", ") : null;
 
   const text = [
     `Hi ${input.adminName},`,
     "",
-    `A practice was scheduled for ${input.dateLabel}, ${input.timeLabel}. Remember to ask the IIT administration for a venue.`,
+    `A practice was scheduled for ${input.dateLabel}, ${input.timeLabel}. Don't forget to ask the IIT administration for a venue.`,
     "",
-    `Open the ready-made email in Gmail: ${input.gmailUrl}`,
-    "",
-    `To: ${recipients ?? "(no recipients set — add them in Settings → General)"}`,
-    input.draft.cc.length ? `Cc: ${input.draft.cc.join(", ")}` : null,
-    `Subject: ${input.draft.subject}`,
-    "",
-    input.draft.body,
-    "",
-    `After sending it, mark "Request sent" (and later "Venue confirmed") on the practice page: ${input.practiceUrl}`,
+    `Send Email: ${input.gmailUrl}`,
     "",
     TEXT_SIGNATURE,
-  ]
-    .filter((line) => line !== null)
-    .join("\n");
-
-  const meta = (label: string, value: string) =>
-    `<p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:13px;color:${EMAIL_COLOURS.muted}"><b style="color:${EMAIL_COLOURS.ink}">${label}:</b> ${richText(value)}</p>`;
+  ].join("\n");
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: `Practice on ${input.dateLabel}, ${input.timeLabel}. The venue request email is ready to send.`,
+    preheader: `Practice on ${input.dateLabel}, ${input.timeLabel}. Book the venue with the IIT administration.`,
     kicker: "Venue booking",
     heading: "Time to book a venue 📍",
     bodyHtml: [
       paragraph(
         `Hi ${richText(input.adminName)}, a practice was scheduled for <b>${richText(input.dateLabel)}</b> (${richText(input.timeLabel)}). Don&#39;t forget to ask the IIT administration for a venue.`,
       ),
-      paragraph("The request email is already written. Tap the button, check it, and press Send:"),
-      button(input.gmailUrl, "Open the email in Gmail"),
-      card(
-        [
-          meta("To", recipients ?? "No recipients set yet"),
-          input.draft.cc.length ? meta("Cc", input.draft.cc.join(", ")) : "",
-          meta("Subject", input.draft.subject),
-          `<p style="margin:10px 0 0;padding-top:10px;border-top:1px solid ${EMAIL_COLOURS.border};font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:${EMAIL_COLOURS.text}">${richText(input.draft.body)}</p>`,
-        ].join(""),
-      ),
-      recipients
-        ? ""
-        : paragraph(
-            `⚠️ No recipients are set. Add the administration&#39;s email address in <a href="${escapeHtml(input.settingsUrl)}" style="color:${EMAIL_COLOURS.violet}">Settings → General → Venue request email</a>.`,
-          ),
-      paragraph(
-        `After sending it, tick <b>Request sent</b> on <a href="${escapeHtml(input.practiceUrl)}" style="color:${EMAIL_COLOURS.violet}">the practice page</a>, and <b>Venue confirmed</b> once the administration replies, so the other admins know where it stands.`,
-      ),
+      button(input.gmailUrl, "Send Email", EMAIL_COLOURS.violet, { center: true }),
     ].join("\n"),
     logoUrl: input.logoUrl,
     footerNote:

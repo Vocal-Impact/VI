@@ -33,8 +33,15 @@ export function paragraph(html: string): string {
 }
 
 /** A "bulletproof" button: a table cell with a background colour works in every client. */
-export function button(href: string, label: string, colour: string = EMAIL_COLOURS.violet): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px"><tr>
+export function button(
+  href: string,
+  label: string,
+  colour: string = EMAIL_COLOURS.violet,
+  options: { center?: boolean } = {},
+): string {
+  const align = options.center ? ' align="center"' : "";
+  const margin = options.center ? "margin:8px auto 16px" : "margin:0 0 12px";
+  return `<table role="presentation"${align} cellpadding="0" cellspacing="0" border="0" style="${margin}"><tr>
 <td align="center" bgcolor="${colour}" style="border-radius:10px;background:${colour}">
 <a href="${escapeHtml(href)}" target="_blank" style="display:inline-block;padding:12px 22px;${FONT}font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px">${escapeHtml(label)}</a>
 </td></tr></table>`;

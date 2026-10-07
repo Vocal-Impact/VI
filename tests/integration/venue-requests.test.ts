@@ -65,12 +65,17 @@ describe("venue booking reminder", () => {
     const [email] = outbox.messages;
     expect(email?.to).toBe("soshan.admin@iit.ac.lk");
     expect(email?.subject).toMatch(/^📍 Book a venue for practice on /);
-    expect(email?.text).toContain("We need a hall at 5:30 PM – 7:30 PM for about 2 people.\nSoshan W");
+    // The email itself is short: a greeting and one centred "Send Email" button.
+    expect(email?.html).toContain(">Send Email</a>");
+    expect(email?.html).toContain('align="center"');
+    expect(email?.html).not.toContain("already written");
 
     const gmail = new URL(email!.html.match(/href="(https:\/\/mail\.google\.com[^"]+)"/)![1]!.replaceAll("&amp;", "&"));
     expect(gmail.searchParams.get("authuser")).toBe("soshan.admin@iit.ac.lk");
     expect(gmail.searchParams.get("to")).toBe("facilities@iit.ac.lk");
-    expect(gmail.searchParams.get("body")).toContain("Soshan W");
+    expect(gmail.searchParams.get("body")).toBe(
+      "Hello,\nWe need a hall at 5:30 PM – 7:30 PM for about 2 people.\nSoshan W",
+    );
 
     expect(await prisma.emailLog.findMany({ select: { type: true, recipient: true, status: true } })).toEqual([
       { type: "VENUE_REQUEST", recipient: "soshan.admin@iit.ac.lk", status: "SENT" },
