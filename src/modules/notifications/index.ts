@@ -14,6 +14,8 @@ export {
   birthdayDigestEmail,
   groupInviteEmail,
   testEmail,
+  venueRequestReminderEmail,
+  type VenueRequestReminderInput,
   type BirthdayPerson,
   type GroupInviteEmailInput,
   type InviteEmailGroup,

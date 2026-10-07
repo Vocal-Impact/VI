@@ -2,16 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { requirePermission } from "@/modules/auth";
 import {
   deletePractice,
   schedulePractice,
   setAttendance,
   setPracticeCancelled,
+  sendVenueRequestReminders,
   setRsvp,
   updatePractice,
   type RsvpResponse,
 } from "@/modules/attendance";
+import { errorMessage, logger } from "@/shared/lib/logger";
 import { formValues, toActionState, type ActionState } from "@/shared/lib/action-state";
 
 function practicePayload(values: Record<string, string>) {
@@ -36,8 +39,21 @@ export async function schedulePracticeAction(_prev: ActionState, formData: FormD
   const values = formValues(formData);
   const result = await schedulePractice(practicePayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
+  const practiceId = result.value.id;
+  // Remind the admins to book a venue with the IIT administration.
+  after(async () => {
+    try {
+      await sendVenueRequestReminders(practiceId);
+    } catch (error) {
+      logger.warn("Venue request reminders failed", { practiceId, error: errorMessage(error) });
+    }
+  });
   refreshPractices();
-  return { status: "success", message: "Practice scheduled — members can now see it and reply" };
+  return {
+    status: "success",
+    message:
+      "Practice scheduled. Members can now see it and reply, and admins were emailed a reminder to book the venue.",
+  };
 }
 
 export async function updatePracticeAction(

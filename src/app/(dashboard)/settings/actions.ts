@@ -11,6 +11,14 @@ import { formValues, toActionState, type ActionState } from "@/shared/lib/action
 import { err, type Result } from "@/shared/lib/result";
 import { parseCoordinates } from "@/shared/lib/coordinates";
 
+/** "a@x.lk, b@x.lk; c@x.lk" (or one per line) → ["a@x.lk", "b@x.lk", "c@x.lk"]. */
+function splitEmails(value: string): string[] {
+  return value
+    .split(/[,;\s]+/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 function parseSettingValue(key: SettingKey, values: Record<string, string>): unknown {
   switch (key) {
     case "attendanceThreshold":
@@ -21,6 +29,13 @@ function parseSettingValue(key: SettingKey, values: Record<string, string>): unk
       return Number.parseFloat(values.value ?? "");
     case "inviteMessageTemplate":
       return (values.value ?? "").replace(/\r\n/g, "\n");
+    case "venueRequestTemplate":
+      return {
+        to: splitEmails(values.to ?? ""),
+        cc: splitEmails(values.cc ?? ""),
+        subject: values.subject ?? "",
+        body: (values.body ?? "").replace(/\r\n/g, "\n"),
+      };
     case "practiceVenue": {
       // One field, pasted straight from Google Maps: "6.8953861, 79.8556737".
       const coordinates = parseCoordinates(values.coordinates ?? "");
@@ -34,6 +49,7 @@ const KEYS: SettingKey[] = [
   "inactiveAfterWeeks",
   "inviteMessageTemplate",
   "practiceVenue",
+  "venueRequestTemplate",
   "carpoolClusterRadiusKm",
   "carpoolMaxDetourKm",
 ];

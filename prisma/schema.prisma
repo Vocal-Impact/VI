@@ -63,6 +63,8 @@ enum InviteStatus {
 enum EmailType {
   BIRTHDAY_REMINDER
   GROUP_INVITE
+  /// Reminder to admins to book a practice venue with the IIT administration.
+  VENUE_REQUEST
 }
 
 enum EmailStatus {

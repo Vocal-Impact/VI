@@ -153,6 +153,89 @@ export function groupInviteEmail(input: GroupInviteEmailInput): EmailMessage {
   return { to: input.to, subject, text: `${input.text}\n\n${TEXT_SIGNATURE}`, html };
 }
 
+// ─── Venue booking reminder (to admins) ────────────────────────────────
+
+export interface VenueRequestReminderInput {
+  to: string;
+  adminName: string;
+  /** e.g. "Thu, 15 Oct 2026" */
+  dateLabel: string;
+  /** e.g. "5:30 PM – 7:30 PM" */
+  timeLabel: string;
+  title: string;
+  /** The draft the buttons open: who it goes to and what it says. */
+  draft: { to: string[]; cc: string[]; subject: string; body: string };
+  gmailUrl: string;
+  mailtoUrl: string;
+  practiceUrl: string;
+  settingsUrl: string;
+  logoUrl?: string;
+}
+
+export function venueRequestReminderEmail(input: VenueRequestReminderInput): EmailMessage {
+  const subject = `📍 Book a venue for practice on ${input.dateLabel}`;
+  const recipients = input.draft.to.length ? input.draft.to.join(", ") : null;
+
+  const text = [
+    `Hi ${input.adminName},`,
+    "",
+    `A practice was scheduled for ${input.dateLabel}, ${input.timeLabel}. Remember to ask the IIT administration for a venue.`,
+    "",
+    `Open the ready-made email in Gmail: ${input.gmailUrl}`,
+    "",
+    `To: ${recipients ?? "(no recipients set — add them in Settings → General)"}`,
+    input.draft.cc.length ? `Cc: ${input.draft.cc.join(", ")}` : null,
+    `Subject: ${input.draft.subject}`,
+    "",
+    input.draft.body,
+    "",
+    `Practice: ${input.practiceUrl}`,
+    "",
+    TEXT_SIGNATURE,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+
+  const meta = (label: string, value: string) =>
+    `<p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:13px;color:${EMAIL_COLOURS.muted}"><b style="color:${EMAIL_COLOURS.ink}">${label}:</b> ${richText(value)}</p>`;
+
+  const html = renderEmailLayout({
+    title: subject,
+    preheader: `Practice on ${input.dateLabel}, ${input.timeLabel}. The venue request email is ready to send.`,
+    kicker: "Venue booking",
+    heading: "Time to book a venue 📍",
+    bodyHtml: [
+      paragraph(
+        `Hi ${richText(input.adminName)}, a practice was scheduled for <b>${richText(input.dateLabel)}</b> (${richText(input.timeLabel)}). Don&#39;t forget to ask the IIT administration for a venue.`,
+      ),
+      paragraph("The request email is already written. Tap the button, check it, and press Send:"),
+      button(input.gmailUrl, "Open the email in Gmail"),
+      `<p style="margin:0 0 18px;font-family:Arial,sans-serif;font-size:13px;color:${EMAIL_COLOURS.muted}">Using a phone mail app instead? <a href="${escapeHtml(input.mailtoUrl)}" style="color:${EMAIL_COLOURS.violet}">Open it in your mail app</a>.</p>`,
+      card(
+        [
+          meta("To", recipients ?? "No recipients set yet"),
+          input.draft.cc.length ? meta("Cc", input.draft.cc.join(", ")) : "",
+          meta("Subject", input.draft.subject),
+          `<p style="margin:10px 0 0;padding-top:10px;border-top:1px solid ${EMAIL_COLOURS.border};font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:${EMAIL_COLOURS.text}">${richText(input.draft.body)}</p>`,
+        ].join(""),
+      ),
+      recipients
+        ? ""
+        : paragraph(
+            `⚠️ No recipients are set. Add the administration&#39;s email address in <a href="${escapeHtml(input.settingsUrl)}" style="color:${EMAIL_COLOURS.violet}">Settings → General → Venue request email</a>.`,
+          ),
+      paragraph(
+        `Once it&#39;s booked, add the venue to <a href="${escapeHtml(input.practiceUrl)}" style="color:${EMAIL_COLOURS.violet}">the practice</a> so members can see it.`,
+      ),
+    ].join("\n"),
+    logoUrl: input.logoUrl,
+    footerNote:
+      "You're getting this because you're an admin of the Vocal Impact app. Change the wording in Settings → General.",
+  });
+
+  return { to: input.to, subject, text, html };
+}
+
 // ─── Test email ────────────────────────────────────────────────────────
 
 export function testEmail(to: string, name: string, logoUrl?: string): EmailMessage {

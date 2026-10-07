@@ -117,3 +117,34 @@ export function VenueSetting({ value }: { value: { name: string; latitude: numbe
     </SettingCard>
   );
 }
+
+export function VenueRequestSetting({
+  value,
+}: {
+  value: { to: string[]; cc: string[]; subject: string; body: string };
+}) {
+  return (
+    <SettingCard
+      settingKey="venueRequestTemplate"
+      title="Venue request email"
+      description="When a practice is scheduled, admins get an email with a button that opens this request as a draft in their own Gmail, ready to send to the IIT administration. Placeholders: {date}, {time}, {venue}, {title}, {expected}, {senderName}."
+    >
+      <Field label="To" htmlFor="venueRequestTo" hint="One or more addresses, separated by commas.">
+        <Input id="venueRequestTo" name="to" defaultValue={value.to.join(", ")} placeholder="facilities@iit.ac.lk" />
+      </Field>
+      <Field label="Cc (optional)" htmlFor="venueRequestCc">
+        <Input id="venueRequestCc" name="cc" defaultValue={value.cc.join(", ")} />
+      </Field>
+      <Field label="Subject" htmlFor="venueRequestSubject">
+        <Input id="venueRequestSubject" name="subject" defaultValue={value.subject} required />
+      </Field>
+      <Field
+        label="Message"
+        htmlFor="venueRequestBody"
+        hint="Plain text: Gmail drafts opened from a link can't carry bold or colours, but line breaks and links are kept."
+      >
+        <Textarea id="venueRequestBody" name="body" rows={12} defaultValue={value.body} required />
+      </Field>
+    </SettingCard>
+  );
+}

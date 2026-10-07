@@ -1,6 +1,6 @@
 import { requirePermission } from "@/modules/auth";
 import { getSettings } from "@/shared/settings/settings";
-import { NumberSetting, TemplateSetting, VenueSetting } from "./setting-forms";
+import { NumberSetting, TemplateSetting, VenueRequestSetting, VenueSetting } from "./setting-forms";
 
 export const metadata = { title: "Settings" };
 
@@ -26,6 +26,7 @@ export default async function GeneralSettingsPage() {
       />
       <TemplateSetting value={settings.inviteMessageTemplate} />
       <VenueSetting value={settings.practiceVenue} />
+      <VenueRequestSetting value={settings.venueRequestTemplate} />
       <NumberSetting
         settingKey="carpoolClusterRadiusKm"
         title="Carpool: neighbours within (km)"

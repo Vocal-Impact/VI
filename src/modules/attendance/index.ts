@@ -27,5 +27,12 @@ export {
   exportAttendanceCsv,
   type ChecklistEntry,
 } from "./application/attendance";
+export {
+  sendVenueRequestReminders,
+  getVenueRequestLinks,
+  type VenueRequestLinks,
+  type VenueReminderSummary,
+} from "./application/venue-requests";
 export * from "./domain/eligibility";
+export * from "./domain/venue-request";
 export * from "./domain/practice";

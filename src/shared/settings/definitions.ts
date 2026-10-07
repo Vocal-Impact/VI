@@ -19,6 +19,35 @@ export const venueSchema = z.object({
 
 export type Venue = z.infer<typeof venueSchema>;
 
+export const DEFAULT_VENUE_REQUEST_BODY = [
+  "Dear Sir/Madam,",
+  "",
+  "I am writing on behalf of Vocal Impact, the IIT choir, to request a venue for our practice session.",
+  "",
+  "Date: {date}",
+  "Time: {time}",
+  "Preferred venue: {venue}",
+  "Expected attendance: about {expected} members",
+  "",
+  "We would be grateful if you could let us know which venue is available.",
+  "",
+  "Thank you,",
+  "{senderName}",
+  "Vocal Impact Committee",
+].join("\n");
+
+const emailList = z.array(z.email("Not a valid email address")).max(10, "At most 10 addresses");
+
+/** Email the admins send to the IIT administration to book a venue (opened as a Gmail draft). */
+export const venueRequestTemplateSchema = z.object({
+  to: emailList,
+  cc: emailList,
+  subject: z.string().trim().min(3).max(200),
+  body: z.string().trim().min(10).max(3000),
+});
+
+export type VenueRequestTemplate = z.infer<typeof venueRequestTemplateSchema>;
+
 export const settingDefinitions = {
   attendanceThreshold: {
     label: "Practices needed before WhatsApp groups",
@@ -46,6 +75,16 @@ export const settingDefinitions = {
     schema: venueSchema,
     // Placeholder: IIT, Ramakrishna Road, Colombo 06. Confirm in Settings.
     defaultValue: { name: "IIT — Ramakrishna Road, Colombo 06", latitude: 6.868, longitude: 79.859 } as Venue,
+  },
+  venueRequestTemplate: {
+    label: "Venue request email",
+    schema: venueRequestTemplateSchema,
+    defaultValue: {
+      to: [],
+      cc: [],
+      subject: "Venue request: Vocal Impact practice on {date}",
+      body: DEFAULT_VENUE_REQUEST_BODY,
+    } as VenueRequestTemplate,
   },
   carpoolClusterRadiusKm: {
     label: "Carpool: group members living within (km)",

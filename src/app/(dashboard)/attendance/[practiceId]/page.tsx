@@ -2,11 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission, hasPermission } from "@/modules/auth";
 import { canTakeAttendance, canUnmarkAttendance, type RsvpPerson } from "@/modules/attendance";
-import { getAttendanceChecklist, getAttendanceThreshold, getPractice, getRsvpSummary } from "@/modules/attendance";
+import {
+  getAttendanceChecklist,
+  getAttendanceThreshold,
+  getPractice,
+  getRsvpSummary,
+  getVenueRequestLinks,
+} from "@/modules/attendance";
 import { PracticeDetails, RsvpCountBadges } from "@/modules/attendance/ui";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { todayLocal } from "@/shared/lib/clock";
-import { Button, LinkButton } from "@/shared/ui/button";
+import { Button, buttonClasses, LinkButton } from "@/shared/ui/button";
 import { ConfirmSubmit } from "@/shared/ui/client";
 import { Alert, Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layout";
 import { deletePracticeAction, setPracticeCancelledAction } from "../actions";
@@ -24,10 +30,13 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   const canManage = hasPermission(user.role, "practices:manage");
   const attendanceOpen = canTakeAttendance(user.role, practice, today);
   const isFuture = practice.date > today;
-  const [summary, entries, threshold] = await Promise.all([
+  const canBookVenue =
+    hasPermission(user.role, "settings:manage") && practice.status === "SCHEDULED" && practice.date >= today;
+  const [summary, entries, threshold, venueRequest] = await Promise.all([
     getRsvpSummary(practiceId),
     practice.date <= today ? getAttendanceChecklist(practiceId) : Promise.resolve([]),
     getAttendanceThreshold(),
+    canBookVenue ? getVenueRequestLinks(practiceId, user) : Promise.resolve(null),
   ]);
 
   return (
@@ -87,6 +96,37 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
           {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={summary.counts} /> : null}
         </CardBody>
       </Card>
+
+      {venueRequest ? (
+        <Card className="mb-6">
+          <CardHeader
+            title="Book the venue"
+            description="The request to the IIT administration is already written. Open it, check it, and press Send."
+          />
+          <CardBody className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={venueRequest.gmailUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonClasses("primary", "sm")}
+              >
+                Open the email in Gmail
+              </a>
+              <a href={venueRequest.mailtoUrl} className={buttonClasses("outline", "sm")}>
+                Open in mail app
+              </a>
+            </div>
+            <p className="text-xs text-slate-500">
+              To: {venueRequest.draft.to.length ? venueRequest.draft.to.join(", ") : "no recipients set yet"}
+              {venueRequest.draft.cc.length ? ` · Cc: ${venueRequest.draft.cc.join(", ")}` : ""} ·{" "}
+              <Link href="/settings" className="text-brand-700 hover:underline">
+                Change the wording
+              </Link>
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
 
       {hasPermission(user.role, "rsvps:read") && practice.status === "SCHEDULED" ? (
         <div className="mb-6 grid gap-4 md:grid-cols-3">
