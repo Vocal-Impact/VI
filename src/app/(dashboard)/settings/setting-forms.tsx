@@ -13,15 +13,17 @@ function SettingCard({
   description,
   settingKey,
   children,
+  className,
 }: {
   title: string;
   description?: string;
   settingKey: string;
   children: ReactNode;
+  className?: string;
 }) {
   const [state, formAction] = useActionState(updateSettingAction, idleState);
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader title={title} description={description} />
       <CardBody>
         <form action={formAction} className="space-y-3">
@@ -126,6 +128,7 @@ export function VenueRequestSetting({
   return (
     <SettingCard
       settingKey="venueRequestTemplate"
+      className="lg:col-span-2"
       title="Venue request email"
       description="When a practice is scheduled, admins get an email with a button that opens this request as a draft in their own Gmail, ready to send to the IIT administration. Placeholders: {date}, {time}, {venue}, {title}, {expected}, {senderName}."
     >
@@ -143,7 +146,7 @@ export function VenueRequestSetting({
         htmlFor="venueRequestBody"
         hint="Plain text: Gmail drafts opened from a link can't carry bold or colours, but line breaks and links are kept."
       >
-        <Textarea id="venueRequestBody" name="body" rows={12} defaultValue={value.body} required />
+        <Textarea id="venueRequestBody" name="body" rows={16} defaultValue={value.body} required />
       </Field>
     </SettingCard>
   );

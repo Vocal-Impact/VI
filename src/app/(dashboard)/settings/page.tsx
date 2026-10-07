@@ -8,7 +8,7 @@ export default async function GeneralSettingsPage() {
   await requirePermission("settings:manage");
   const settings = await getSettings();
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid items-start gap-6 lg:grid-cols-2">
       <NumberSetting
         settingKey="attendanceThreshold"
         title="Practices before WhatsApp groups"
@@ -26,7 +26,6 @@ export default async function GeneralSettingsPage() {
       />
       <TemplateSetting value={settings.inviteMessageTemplate} />
       <VenueSetting value={settings.practiceVenue} />
-      <VenueRequestSetting value={settings.venueRequestTemplate} />
       <NumberSetting
         settingKey="carpoolClusterRadiusKm"
         title="Carpool: neighbours within (km)"
@@ -43,6 +42,7 @@ export default async function GeneralSettingsPage() {
         min={0.5}
         max={20}
       />
+      <VenueRequestSetting value={settings.venueRequestTemplate} />
     </div>
   );
 }
