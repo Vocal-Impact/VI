@@ -1,4 +1,4 @@
-import { formatIsoDate, type IsoDate } from "@/shared/lib/dates";
+import { addDays, formatIsoDate, type IsoDate } from "@/shared/lib/dates";
 import { formatTimeRange } from "./practice";
 
 /**
@@ -67,4 +67,35 @@ export function gmailComposeUrl(draft: VenueRequestDraft, senderEmail?: string):
   params.set("su", draft.subject);
   params.set("body", draft.body);
   return `https://mail.google.com/mail/?${params.toString()}`;
+}
+
+/** The reminder to book a venue goes out this many days before the practice. */
+export const VENUE_REMINDER_DAYS_BEFORE = 2;
+
+/** The day the reminder is due: two days before the practice. */
+export function venueReminderDueDate(practiceDate: IsoDate): IsoDate {
+  return addDays(practiceDate, -VENUE_REMINDER_DAYS_BEFORE);
+}
+
+export interface VenueReminderState {
+  date: IsoDate;
+  status: "SCHEDULED" | "CANCELLED";
+  venueRequestedAt: unknown;
+  venueReminderSentAt: unknown;
+}
+
+/**
+ * Whether the admins should be reminded today. Due from two days before the
+ * practice, so a practice scheduled for tomorrow (or the day after) is
+ * reminded straight away. Never once an admin marked the request as sent,
+ * never twice, and never for cancelled or past practices.
+ */
+export function isVenueReminderDue(practice: VenueReminderState, today: IsoDate): boolean {
+  return (
+    practice.status === "SCHEDULED" &&
+    !practice.venueRequestedAt &&
+    !practice.venueReminderSentAt &&
+    practice.date >= today &&
+    venueReminderDueDate(practice.date) <= today
+  );
 }

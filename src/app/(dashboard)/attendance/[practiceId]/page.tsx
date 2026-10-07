@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission, hasPermission } from "@/modules/auth";
-import { canTakeAttendance, canUnmarkAttendance, type RsvpPerson } from "@/modules/attendance";
+import { canTakeAttendance, canUnmarkAttendance, venueReminderDueDate, type RsvpPerson } from "@/modules/attendance";
 import {
   getAttendanceChecklist,
   getAttendanceThreshold,
@@ -12,6 +12,7 @@ import {
 import { PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { todayLocal } from "@/shared/lib/clock";
+import { formatIsoDate } from "@/shared/lib/dates";
 import { Button, buttonClasses, LinkButton } from "@/shared/ui/button";
 import { ConfirmSubmit } from "@/shared/ui/client";
 import { Input } from "@/shared/ui/form";
@@ -109,6 +110,16 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
             <ol className="space-y-5">
               <li className="space-y-2">
                 <p className="text-sm font-semibold text-ink">1. Send the request</p>
+                {!practice.venueRequestedAt ? (
+                  <p className="text-xs text-slate-500">
+                    {practice.venueReminderSentAt
+                      ? `📧 Admins were emailed a reminder on ${formatTimestamp(practice.venueReminderSentAt)}.`
+                      : `📧 If it isn't marked as sent, admins get a reminder email on ${formatIsoDate(
+                          venueReminderDueDate(practice.date) > today ? venueReminderDueDate(practice.date) : today,
+                          { year: undefined },
+                        )}.`}
+                  </p>
+                ) : null}
                 {practice.venueRequestedAt ? (
                   <div className="flex flex-wrap items-center gap-3 text-sm text-emerald-700">
                     <span>✓ Marked as sent on {formatTimestamp(practice.venueRequestedAt)}</span>

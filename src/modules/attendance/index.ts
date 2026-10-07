@@ -31,6 +31,7 @@ export {
 } from "./application/attendance";
 export {
   sendVenueRequestReminders,
+  sendDueVenueRequestReminders,
   getVenueRequestLinks,
   type VenueRequestLinks,
   type VenueReminderSummary,

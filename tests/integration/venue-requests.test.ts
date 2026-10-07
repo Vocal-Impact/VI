@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   getPractice,
   schedulePractice,
+  sendDueVenueRequestReminders,
   sendVenueRequestReminders,
   setPracticeCancelled,
   setVenueBooking,
+  updatePractice,
 } from "@/modules/attendance";
 import type { EmailMessage, EmailSender } from "@/modules/notifications";
 import { prisma } from "@/shared/db/prisma";
@@ -46,8 +48,19 @@ describe("venue booking reminder", () => {
     );
     if (!scheduled.ok) throw new Error(scheduled.error.message);
 
+    // A week away: nothing yet, it's sent two days before.
     const outbox = new Outbox();
-    expect(await sendVenueRequestReminders(scheduled.value.id, { sender: outbox })).toEqual({ sent: 1, failed: 0 });
+    expect(await sendVenueRequestReminders(scheduled.value.id, { sender: outbox })).toEqual({ sent: 0, failed: 0 });
+    expect(outbox.messages).toHaveLength(0);
+    const twoDaysBefore = addDays(todayLocal(), 5);
+    expect(await sendDueVenueRequestReminders({ sender: outbox, today: addDays(todayLocal(), 4) })).toMatchObject({
+      sent: 0,
+    });
+    expect(await sendDueVenueRequestReminders({ sender: outbox, today: twoDaysBefore })).toEqual({
+      sent: 1,
+      failed: 0,
+      practices: 1,
+    });
 
     const [email] = outbox.messages;
     expect(email?.to).toBe("soshan.admin@iit.ac.lk");
@@ -64,27 +77,74 @@ describe("venue booking reminder", () => {
     ]);
   });
 
-  it("skips cancelled practices and records failed sends", async () => {
+  it("is sent straight away when the practice is tomorrow, and only once", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const scheduled = await schedulePractice(
-      { date: addDays(todayLocal(), 3), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
+      { date: addDays(todayLocal(), 1), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
       admin.id,
     );
     if (!scheduled.ok) throw new Error(scheduled.error.message);
+    const outbox = new Outbox();
+    expect(await sendVenueRequestReminders(scheduled.value.id, { sender: outbox })).toEqual({ sent: 1, failed: 0 });
+    // An edit and the daily job don't send it again.
+    expect(await sendVenueRequestReminders(scheduled.value.id, { sender: outbox })).toEqual({ sent: 0, failed: 0 });
+    expect(await sendDueVenueRequestReminders({ sender: outbox })).toMatchObject({ sent: 0 });
+    expect(outbox.messages).toHaveLength(1);
+    expect((await getPractice(scheduled.value.id))?.venueReminderSentAt).not.toBeNull();
+  });
 
+  it("is skipped when an admin already marked the request as sent, or the practice was cancelled", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const schedule = async (days: number) => {
+      const result = await schedulePractice(
+        { date: addDays(todayLocal(), days), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
+        admin.id,
+      );
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value.id;
+    };
+    const handled = await schedule(6);
+    await setVenueBooking(handled, { step: "requested", done: true }, admin.id);
+    const cancelled = await schedule(6);
+    await setPracticeCancelled(cancelled, true, admin.id);
+
+    const outbox = new Outbox();
+    expect(await sendDueVenueRequestReminders({ sender: outbox, today: addDays(todayLocal(), 4) })).toEqual({
+      sent: 0,
+      failed: 0,
+      practices: 0,
+    });
+    expect(outbox.messages).toHaveLength(0);
+  });
+
+  it("is sent when a practice is moved closer, and retried the next day if sending failed", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const scheduled = await schedulePractice(
+      { date: addDays(todayLocal(), 10), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
+      admin.id,
+    );
+    if (!scheduled.ok) throw new Error(scheduled.error.message);
+    const id = scheduled.value.id;
+    const outbox = new Outbox();
+    expect(await sendVenueRequestReminders(id, { sender: outbox })).toEqual({ sent: 0, failed: 0 });
+
+    // Moved to tomorrow → due now. Brevo is down, so it isn't counted as sent…
+    await updatePractice(
+      id,
+      { date: addDays(todayLocal(), 1), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
+      admin.id,
+    );
     const failing: EmailSender = {
       send: async () => {
         throw new Error("Brevo is down");
       },
     };
-    expect(await sendVenueRequestReminders(scheduled.value.id, { sender: failing })).toEqual({ sent: 0, failed: 1 });
+    expect(await sendVenueRequestReminders(id, { sender: failing })).toEqual({ sent: 0, failed: 1 });
     expect((await prisma.emailLog.findFirstOrThrow()).error).toBe("Brevo is down");
+    expect((await getPractice(id))?.venueReminderSentAt).toBeNull();
 
-    await setPracticeCancelled(scheduled.value.id, true, admin.id);
-    expect(await sendVenueRequestReminders(scheduled.value.id, { sender: new Outbox() })).toEqual({
-      sent: 0,
-      failed: 0,
-    });
+    // …and the next run sends it.
+    expect(await sendDueVenueRequestReminders({ sender: outbox })).toMatchObject({ sent: 1, practices: 1 });
   });
 });
 

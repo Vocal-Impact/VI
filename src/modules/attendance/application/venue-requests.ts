@@ -2,11 +2,18 @@ import "server-only";
 import { brandLogoUrl, getEmailSender, venueRequestReminderEmail, type EmailSender } from "@/modules/notifications";
 import { prisma } from "@/shared/db/prisma";
 import { getEnv } from "@/shared/config/env";
-import { formatIsoDate, toIsoDate } from "@/shared/lib/dates";
+import { todayLocal } from "@/shared/lib/clock";
+import { addDays, formatIsoDate, fromIsoDate, toIsoDate, type IsoDate } from "@/shared/lib/dates";
 import { errorMessage, logger } from "@/shared/lib/logger";
 import { getSettings } from "@/shared/settings/settings";
 import { formatTimeRange } from "../domain/practice";
-import { gmailComposeUrl, renderVenueRequest, type VenueRequestDraft } from "../domain/venue-request";
+import {
+  gmailComposeUrl,
+  isVenueReminderDue,
+  renderVenueRequest,
+  VENUE_REMINDER_DAYS_BEFORE,
+  type VenueRequestDraft,
+} from "../domain/venue-request";
 
 const EXPECTED_STATUSES = ["PROSPECTIVE", "ACTIVE"] as const;
 
@@ -56,17 +63,30 @@ export interface VenueReminderSummary {
 }
 
 /**
- * After a practice is scheduled, emails every active admin a reminder to book
- * a venue with the IIT administration. The email's button opens the request,
- * already written from the template in Settings, as a draft in their Gmail.
+ * Emails every active admin the reminder to book a venue for one practice,
+ * if it's due (two days before; straight away when the practice is sooner),
+ * nobody has marked the request as sent, and it hasn't been sent already.
+ * Safe to call any time: after scheduling, after an edit, and from the daily job.
+ * The email's button opens the request, written from the template in Settings,
+ * as a draft in the admin's own Gmail.
  */
 export async function sendVenueRequestReminders(
   practiceId: string,
-  options: { sender?: EmailSender } = {},
+  options: { sender?: EmailSender; today?: IsoDate } = {},
 ): Promise<VenueReminderSummary> {
   const summary: VenueReminderSummary = { sent: 0, failed: 0 };
+  const today = options.today ?? todayLocal();
   const context = await loadContext(practiceId);
-  if (!context || context.practice.status === "CANCELLED") return summary;
+  if (!context) return summary;
+  const { practice } = context;
+  if (!isVenueReminderDue({ ...practice, date: toIsoDate(practice.date) }, today)) return summary;
+
+  // Claim it, so a double click, an edit and the daily job can't all send it.
+  const claimed = await prisma.practice.updateMany({
+    where: { id: practiceId, venueReminderSentAt: null, venueRequestedAt: null },
+    data: { venueReminderSentAt: new Date() },
+  });
+  if (claimed.count === 0) return summary;
 
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN", active: true },
@@ -110,5 +130,32 @@ export async function sendVenueRequestReminders(
       summary.failed += 1;
     }
   }
+  if (summary.sent === 0 && summary.failed > 0) {
+    await prisma.practice.update({ where: { id: practiceId }, data: { venueReminderSentAt: null } });
+  }
   return summary;
+}
+
+/** Daily job: reminds the admins about every practice whose venue reminder is due today. */
+export async function sendDueVenueRequestReminders(
+  options: { sender?: EmailSender; today?: IsoDate } = {},
+): Promise<VenueReminderSummary & { practices: number }> {
+  const today = options.today ?? todayLocal();
+  const due = await prisma.practice.findMany({
+    where: {
+      status: "SCHEDULED",
+      venueRequestedAt: null,
+      venueReminderSentAt: null,
+      date: { gte: fromIsoDate(today), lte: fromIsoDate(addDays(today, VENUE_REMINDER_DAYS_BEFORE)) },
+    },
+    select: { id: true },
+  });
+  const total = { sent: 0, failed: 0, practices: 0 };
+  for (const { id } of due) {
+    const result = await sendVenueRequestReminders(id, { ...options, today });
+    total.sent += result.sent;
+    total.failed += result.failed;
+    if (result.sent > 0) total.practices += 1;
+  }
+  return total;
 }

@@ -25,6 +25,8 @@ export interface PracticeView {
   /** ISO timestamps: request to the IIT administration sent / venue confirmed. */
   venueRequestedAt: string | null;
   venueConfirmedAt: string | null;
+  /** When the admins were emailed the "book a venue" reminder. */
+  venueReminderSentAt: string | null;
 }
 
 function toView(practice: Practice): PracticeView {
@@ -39,6 +41,7 @@ function toView(practice: Practice): PracticeView {
     status: practice.status,
     venueRequestedAt: practice.venueRequestedAt?.toISOString() ?? null,
     venueConfirmedAt: practice.venueConfirmedAt?.toISOString() ?? null,
+    venueReminderSentAt: practice.venueReminderSentAt?.toISOString() ?? null,
   };
 }
 

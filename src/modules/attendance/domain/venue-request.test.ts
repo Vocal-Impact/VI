@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { gmailComposeUrl, renderVenueRequest, type VenueRequestTemplate } from "./venue-request";
+import {
+  gmailComposeUrl,
+  isVenueReminderDue,
+  renderVenueRequest,
+  venueReminderDueDate,
+  type VenueRequestTemplate,
+} from "./venue-request";
 
 const template: VenueRequestTemplate = {
   to: ["facilities@iit.ac.lk", "events@iit.ac.lk"],
@@ -56,5 +62,34 @@ describe("compose links", () => {
     expect(url.searchParams.has("to")).toBe(false);
     expect(url.searchParams.has("cc")).toBe(false);
     expect(url.searchParams.has("authuser")).toBe(false);
+  });
+});
+
+describe("isVenueReminderDue", () => {
+  const today = "2026-10-07" as const;
+  const practice = (date: string, extra: Partial<Parameters<typeof isVenueReminderDue>[0]> = {}) => ({
+    date: date as `${number}-${number}-${number}`,
+    status: "SCHEDULED" as const,
+    venueRequestedAt: null,
+    venueReminderSentAt: null,
+    ...extra,
+  });
+
+  it("is due two days before the practice", () => {
+    expect(venueReminderDueDate("2026-10-09")).toBe("2026-10-07");
+    expect(isVenueReminderDue(practice("2026-10-09"), today)).toBe(true);
+    expect(isVenueReminderDue(practice("2026-10-10"), today)).toBe(false); // three days away: wait
+  });
+
+  it("is due straight away for practices tomorrow or today", () => {
+    expect(isVenueReminderDue(practice("2026-10-08"), today)).toBe(true);
+    expect(isVenueReminderDue(practice("2026-10-07"), today)).toBe(true);
+  });
+
+  it("is never due once marked as sent, already reminded, cancelled or past", () => {
+    expect(isVenueReminderDue(practice("2026-10-08", { venueRequestedAt: new Date() }), today)).toBe(false);
+    expect(isVenueReminderDue(practice("2026-10-08", { venueReminderSentAt: new Date() }), today)).toBe(false);
+    expect(isVenueReminderDue(practice("2026-10-08", { status: "CANCELLED" }), today)).toBe(false);
+    expect(isVenueReminderDue(practice("2026-10-06"), today)).toBe(false);
   });
 });

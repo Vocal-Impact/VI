@@ -16,6 +16,9 @@ import {
   type VenueBookingStep,
   type RsvpResponse,
 } from "@/modules/attendance";
+import { isVenueReminderDue, venueReminderDueDate } from "@/modules/attendance/domain";
+import { todayLocal } from "@/shared/lib/clock";
+import { formatIsoDate, isIsoDate } from "@/shared/lib/dates";
 import { errorMessage, logger } from "@/shared/lib/logger";
 import { formValues, toActionState, type ActionState } from "@/shared/lib/action-state";
 
@@ -30,6 +33,33 @@ function practicePayload(values: Record<string, string>) {
   };
 }
 
+/**
+ * Emails the admins the "book a venue" reminder once the response is sent, if
+ * it's already due (the practice is two days away or sooner). Otherwise the
+ * daily job sends it two days before.
+ */
+function remindAboutVenueSoon(practiceId: string): void {
+  after(async () => {
+    try {
+      await sendVenueRequestReminders(practiceId);
+    } catch (error) {
+      logger.warn("Venue request reminders failed", { practiceId, error: errorMessage(error) });
+    }
+  });
+}
+
+function venueReminderNote(date: string | undefined): string {
+  if (!date || !isIsoDate(date)) return "";
+  const today = todayLocal();
+  const dueNow = isVenueReminderDue(
+    { date, status: "SCHEDULED", venueRequestedAt: null, venueReminderSentAt: null },
+    today,
+  );
+  return dueNow
+    ? "It's soon, so the admins were emailed a reminder to book the venue."
+    : `Admins will get a reminder to book the venue on ${formatIsoDate(venueReminderDueDate(date), { year: undefined })} if it isn't marked as sent by then.`;
+}
+
 function refreshPractices(practiceId?: string): void {
   revalidatePath("/");
   revalidatePath("/attendance");
@@ -42,19 +72,11 @@ export async function schedulePracticeAction(_prev: ActionState, formData: FormD
   const result = await schedulePractice(practicePayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
   const practiceId = result.value.id;
-  // Remind the admins to book a venue with the IIT administration.
-  after(async () => {
-    try {
-      await sendVenueRequestReminders(practiceId);
-    } catch (error) {
-      logger.warn("Venue request reminders failed", { practiceId, error: errorMessage(error) });
-    }
-  });
+  remindAboutVenueSoon(practiceId);
   refreshPractices();
   return {
     status: "success",
-    message:
-      "Practice scheduled. Members can now see it and reply, and admins were emailed a reminder to book the venue.",
+    message: `Practice scheduled. Members can now see it and reply. ${venueReminderNote(values.date)}`,
   };
 }
 
@@ -67,6 +89,8 @@ export async function updatePracticeAction(
   const values = formValues(formData);
   const result = await updatePractice(practiceId, practicePayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
+  // Moved closer (e.g. to tomorrow)? The reminder may be due now.
+  remindAboutVenueSoon(practiceId);
   refreshPractices(practiceId);
   redirect(`/attendance/${practiceId}`);
 }
