@@ -13,6 +13,7 @@ import {
 import { cn } from "@/shared/lib/cn";
 import { Button, LinkButton } from "@/shared/ui/button";
 import { Checkbox, Textarea } from "@/shared/ui/form";
+import { useConfirm } from "@/shared/ui/client";
 import { Alert, Badge, Card, CardBody, CardHeader } from "@/shared/ui/layout";
 import { sendInvitesAction } from "../actions";
 
@@ -58,6 +59,7 @@ export function InviteComposer({
   const [override, setOverride] = useState(false);
   const [channel, setChannel] = useState<Channel>(single ? "WHATSAPP_LINK" : "EMAIL");
   const [done, setDone] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
   const [pending, startTransition] = useTransition();
 
   const allowedFor = (group: InviteGroup, allowOverride: boolean) =>
@@ -97,8 +99,18 @@ export function InviteComposer({
     });
   }
 
-  function send() {
+  async function send() {
     if (chosenGroups.length === 0 || blocked.length > 0) return;
+    // Emails go out to people at once, so ask first. (WhatsApp and copy can't wait for a
+    // dialog: browsers only allow opening WhatsApp or the clipboard straight from the click.)
+    if (channel === "EMAIL") {
+      const ok = await confirm({
+        title: `Email ${members.length === 1 ? (members[0]?.firstName ?? "this member") : `${members.length} people`} the invite?`,
+        description: `Groups: ${chosenGroups.map((group) => group.name).join(", ")}.${override ? " You're overriding the practice or voice-part rule as an admin." : ""}`,
+        confirmLabel: members.length === 1 ? "Send email" : `Send ${members.length} emails`,
+      });
+      if (!ok) return;
+    }
     const member = members[0];
     // Open WhatsApp / copy synchronously inside the click so browsers allow it.
     if (single && member && channel === "WHATSAPP_LINK") {
@@ -164,6 +176,7 @@ export function InviteComposer({
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {dialog}
       <div className="space-y-6">
         <Card>
           <CardHeader title="1. Choose groups" />

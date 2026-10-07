@@ -1,5 +1,6 @@
 "use client";
 
+import { SubmitButton } from "@/shared/ui/client";
 import Link from "next/link";
 import { useState } from "react";
 import { attendanceProgress } from "@/modules/attendance/domain";
@@ -142,9 +143,17 @@ export function EligibleList({
                       </LinkButton>
                       {member.kind === "READY" ? (
                         <form action={markAdded.bind(null, member.id)}>
-                          <Button type="submit" size="sm" variant="outline">
+                          <SubmitButton
+                            size="sm"
+                            variant="outline"
+                            confirm={{
+                              title: `Mark ${member.name} as added to WhatsApp?`,
+                              description: "Only once they're in the main WhatsApp group. Their status becomes Active.",
+                              confirmLabel: "Mark as added",
+                            }}
+                          >
                             Mark as added
-                          </Button>
+                          </SubmitButton>
                         </form>
                       ) : null}
                     </span>

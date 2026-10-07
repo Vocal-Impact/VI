@@ -1,5 +1,6 @@
 "use client";
 
+import { formatIsoDate, isIsoDate } from "@/shared/lib/dates";
 import { useActionState, useEffect, useRef } from "react";
 import { idleState, type ActionState } from "@/shared/lib/action-state";
 import { ActionFeedback, SubmitButton } from "@/shared/ui/client";
@@ -16,6 +17,10 @@ export interface PracticeFormValues {
 }
 
 /** Schedule a new practice, or edit one (date, time, venue, notes). */
+function describeDate(value: string): string {
+  return isIsoDate(value) ? formatIsoDate(value, { weekday: "long", month: "long", year: undefined }) : "this date";
+}
+
 export function PracticeForm({
   action,
   initial,
@@ -70,7 +75,18 @@ export function PracticeForm({
         />
       </Field>
       <div className="flex flex-wrap gap-2">
-        <SubmitButton className={mode === "schedule" ? "w-full" : undefined}>
+        <SubmitButton
+          className={mode === "schedule" ? "w-full" : undefined}
+          confirm={{
+            title: (data) =>
+              `${mode === "schedule" ? "Schedule" : "Save"} ${String(data.get("title") ?? "").trim() || "practice"} on ${describeDate(String(data.get("date") ?? ""))}?`,
+            description:
+              mode === "schedule"
+                ? "Members see it on their dashboard straight away and can say whether they're coming."
+                : "Members see the updated details straight away.",
+            confirmLabel: mode === "schedule" ? "Schedule practice" : "Save changes",
+          }}
+        >
           {mode === "schedule" ? "Schedule practice" : "Save changes"}
         </SubmitButton>
         {cancelHref ? (

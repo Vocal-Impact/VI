@@ -83,7 +83,18 @@ export function GroupForm({ group }: { group?: GroupValues }) {
         label="Main group"
         hint="Marking someone as joined makes them an Active member."
       />
-      <SubmitButton variant={group ? "outline" : "primary"} className="w-full">
+      <SubmitButton
+        variant={group ? "outline" : "primary"}
+        className="w-full"
+        confirm={{
+          title: (data) =>
+            `${group ? "Save" : "Add"} the group “${String(data.get("name") ?? "").trim() || "untitled"}”?`,
+          description: group
+            ? "Invites sent from now on use these details."
+            : "It becomes available for invites straight away.",
+          confirmLabel: group ? "Save group" : "Add group",
+        }}
+      >
         {group ? "Save group" : "Add group"}
       </SubmitButton>
     </form>

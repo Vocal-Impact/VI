@@ -1,5 +1,23 @@
 import { expect, type Page } from "@playwright/test";
 
+/**
+ * Answers the app's confirmation dialog (shown before creates, updates and
+ * deletes). Clicks the confirm button, or `cancel` to back out.
+ */
+export async function confirmDialog(
+  page: Page,
+  options: { title?: string | RegExp; cancel?: boolean } = {},
+): Promise<void> {
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  if (options.title) await expect(dialog.getByRole("heading", { name: options.title })).toBeVisible();
+  await dialog
+    .getByRole("button")
+    .nth(options.cancel ? 0 : 1)
+    .click();
+  await expect(dialog).toBeHidden();
+}
+
 /** Opens the dashboard with the shared admin session (see auth.setup.ts). */
 export async function openDashboard(page: Page): Promise<void> {
   await page.goto("/");
@@ -36,5 +54,6 @@ export async function schedulePractice(
   if (practice.title) await form.getByLabel("Title").fill(practice.title);
   if (practice.venue) await form.getByLabel("Venue").fill(practice.venue);
   await form.getByRole("button", { name: "Schedule practice" }).click();
+  await confirmDialog(page, { title: /^Schedule .* on / });
   await expect(page.getByText("Practice scheduled").first()).toBeVisible();
 }

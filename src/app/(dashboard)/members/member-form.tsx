@@ -10,12 +10,19 @@ import {
   STUDY_LEVEL_LABELS,
   VOICE_TYPES,
   VOICE_TYPE_LABELS,
+  type MemberStatus,
 } from "@/modules/members/domain";
 import { idleState, type ActionState } from "@/shared/lib/action-state";
 import { Checkbox, Field, Input, Select } from "@/shared/ui/form";
 import { Alert } from "@/shared/ui/layout";
 import { SubmitButton } from "@/shared/ui/client";
 import { LinkButton } from "@/shared/ui/button";
+
+function fullNameFrom(data: FormData): string {
+  return (
+    `${String(data.get("firstName") ?? "").trim()} ${String(data.get("lastName") ?? "").trim()}`.trim() || "this member"
+  );
+}
 
 export interface MemberFormValues {
   firstName: string;
@@ -230,7 +237,24 @@ export function MemberForm({
       ) : null}
 
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-        <SubmitButton>{mode === "create" ? "Save member" : "Save changes"}</SubmitButton>
+        <SubmitButton
+          confirm={
+            mode === "create"
+              ? {
+                  title: (data) => `Add ${fullNameFrom(data)}?`,
+                  description: (data) =>
+                    `They'll be added as ${MEMBER_STATUS_LABELS[(data.get("status") as MemberStatus) ?? "PROSPECTIVE"] ?? "Prospective"}${data.get("areaLabel") || data.get("coordinates") ? ", with their location for carpooling" : ""}.`,
+                  confirmLabel: "Add member",
+                }
+              : {
+                  title: (data) => `Save changes to ${fullNameFrom(data)}?`,
+                  description: "Their profile is updated straight away.",
+                  confirmLabel: "Save changes",
+                }
+          }
+        >
+          {mode === "create" ? "Save member" : "Save changes"}
+        </SubmitButton>
         <LinkButton href={cancelHref} variant="ghost">
           Cancel
         </LinkButton>

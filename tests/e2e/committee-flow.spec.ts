@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { E2E_MEMBER, MEMBER_STORAGE_STATE } from "./constants";
-import { formatShort, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
+import { confirmDialog, formatShort, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -34,6 +34,7 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await addGroup.getByLabel("Invite link").fill("https://chat.whatsapp.com/E2eMainGroupLink123");
   await addGroup.getByLabel("Main group").check();
   await addGroup.getByRole("button", { name: "Add group" }).click();
+  await confirmDialog(page, { title: /^Add the group/ });
   await expect(page.getByText("Group added")).toBeVisible();
   await expect(page.getByRole("link", { name: /VI Main/ })).toBeVisible();
 
@@ -53,9 +54,14 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await expect(page.getByLabel("Status")).toHaveValue("PROSPECTIVE");
   await expect(page.getByRole("button", { name: /send group invites/i })).toHaveCount(0);
   await page.getByRole("button", { name: "Save member" }).click();
+  await confirmDialog(page, { title: "Add Nethmi Perera?", cancel: true });
+  await expect(page).toHaveURL(/\/members\/new$/); // nothing saved
+  await page.getByRole("button", { name: "Save member" }).click();
+  await confirmDialog(page);
   await expect(page.getByText("Must be an @iit.ac.lk address")).toBeVisible();
   await page.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");
   await page.getByRole("button", { name: "Save member" }).click();
+  await confirmDialog(page);
   await expect(page.getByRole("heading", { level: 1, name: "Nethmi Perera" })).toBeVisible();
   await expect(page.getByText("0/3 practices")).toBeVisible();
   await expect(page.getByText("Vegetarian")).toBeVisible();
@@ -72,6 +78,7 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await page.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");
   await page.getByLabel("Current year of study").selectOption("L4");
   await page.getByRole("button", { name: "Save member" }).click();
+  await confirmDialog(page);
   await expect(page.getByText("This person already exists")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open their profile" })).toBeVisible();
 
@@ -113,12 +120,14 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   // Tests run in development email mode: the app must say so rather than claim it sent.
   await expect(page.getByText("Email isn't set up yet")).toBeVisible();
   await page.getByRole("button", { name: "Send email" }).click();
+  await confirmDialog(page, { title: "Email Nethmi the invite?" });
   await expect(page.getByText(/Recorded 1 invite\(s\), but NO email was delivered/)).toBeVisible();
 
   // Mark as joined in the main group → Active.
   await page.getByRole("link", { name: "Open profile" }).click();
   await expect(page.getByText("Invited", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Joined" }).click();
+  await confirmDialog(page, { title: /^Mark Nethmi as joined VI Main\?/ });
   await expect(page.getByText("Joined", { exact: true })).toBeVisible();
   await expect(page.getByText("Active", { exact: true }).first()).toBeVisible();
 });
@@ -134,11 +143,13 @@ test("a group page lists who to invite, sends bulk email invites and tracks who'
   await expect(activeSection.getByRole("link", { name: "Mala Member" })).toBeVisible();
   await activeSection.getByRole("checkbox", { name: "Select Mala Member" }).check();
   await page.getByRole("button", { name: "Email invites (1)" }).click();
+  await confirmDialog(page, { title: "Email the VI Main invite to 1 person?" });
   await expect(page.getByText(/Recorded 1 invite\(s\)/)).toBeVisible();
 
   // Mark them as in the group (bulk) → they move to the "In the group" tab.
   await page.getByRole("checkbox", { name: "Select Mala Member" }).check();
   await page.getByRole("button", { name: "Mark as joined" }).click();
+  await confirmDialog(page);
   await expect(page.getByText("1 marked as in VI Main")).toBeVisible();
   await page.getByRole("link", { name: /In the group/ }).click();
   await expect(page.getByRole("link", { name: "Mala Member" })).toBeVisible();
@@ -153,6 +164,7 @@ test("a group page lists who to invite, sends bulk email invites and tracks who'
   await addGroup.getByRole("button", { name: "Tenor", exact: true }).click();
   await addGroup.getByLabel("New members only after the required practices").uncheck();
   await addGroup.getByRole("button", { name: "Add group" }).click();
+  await confirmDialog(page, { title: /^Add the group/ });
   await expect(page.getByText("Group added")).toBeVisible();
   await page.getByRole("link", { name: /VI Tenors/ }).click();
   await expect(page.getByText("Tenors only").first()).toBeVisible();
@@ -174,6 +186,7 @@ test("CSV import shows a preview before saving", async ({ page }) => {
   await expect(page.getByText(/Line 5/)).toBeVisible();
   await expect(page.getByText(/All 3 new members will be added as/)).toBeVisible();
   await page.getByRole("button", { name: "Import 3 row(s)" }).click();
+  await confirmDialog(page, { title: "Import 3 row(s)?" });
   await expect(page.getByText("Import complete")).toBeVisible();
 
   await page.goto("/members?status=PROSPECTIVE");
@@ -188,6 +201,7 @@ test("CSV import shows a preview before saving", async ({ page }) => {
   await expect(page.getByText("Using the Status column (first-time setup)")).toBeVisible();
   await expect(page.getByText(/1 active, 2 prospective/)).toBeVisible();
   await page.getByRole("button", { name: "Import 3 row(s)" }).click();
+  await confirmDialog(page, { title: "Import 3 row(s)?" });
   await expect(page.getByText("Import complete")).toBeVisible();
   await page.goto("/members?status=ACTIVE");
   await expect(page.getByRole("link", { name: "Nimal Dias" })).toBeVisible();
@@ -197,8 +211,8 @@ test("a removed member can be found under Removed and restored", async ({ page }
   await openDashboard(page);
   await page.goto("/members");
   await page.getByRole("link", { name: "Amaya Perera" }).click();
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Remove member" }).click();
+  await confirmDialog(page, { title: "Remove Amaya Perera?" });
   await expect(page.getByText("This member has been removed")).toBeVisible();
 
   // Gone from the normal list, but findable.
@@ -208,6 +222,7 @@ test("a removed member can be found under Removed and restored", async ({ page }
   await expect(page.getByRole("heading", { level: 1, name: "Removed members" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Amaya Perera" })).toBeVisible();
   await page.getByRole("button", { name: "Restore" }).click();
+  await confirmDialog(page, { title: "Restore Amaya Perera?" });
   await expect(page.getByRole("link", { name: "Amaya Perera" })).toHaveCount(0);
 
   await page.goto("/members");
@@ -221,10 +236,12 @@ test("the practice venue accepts coordinates pasted from Google Maps", async ({ 
 
   await venue.getByLabel("Coordinates").fill("not a place");
   await venue.getByRole("button", { name: "Save" }).click();
+  await confirmDialog(page);
   await expect(page.getByText(/two numbers separated by a comma/)).toBeVisible();
 
   await venue.getByLabel("Coordinates").fill("6.895386124694451, 79.85567372806051");
   await venue.getByRole("button", { name: "Save" }).click();
+  await confirmDialog(page);
   await expect(page.getByText("Setting saved")).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Coordinates")).toHaveValue("6.895386, 79.855674");
@@ -257,6 +274,7 @@ test("an admin promotes a member to committee from Access & roles", async ({ pag
   await page.getByRole("button", { name: "Filter" }).click();
   await page.getByLabel("Access for Nethmi Perera").selectOption("COMMITTEE");
   await page.getByRole("button", { name: "Give access" }).click();
+  await confirmDialog(page, { title: "Change Nethmi Perera's access to Committee?" });
   await expect(page.getByText("Saved: Committee")).toBeVisible();
 
   // The member profile now shows their access.
@@ -312,9 +330,11 @@ test("members see scheduled practices and reply; committee sees who's coming", a
   const gmail = page.getByRole("link", { name: "Open the email in Gmail" });
   await expect(gmail).toHaveAttribute("href", /^https:\/\/mail\.google\.com\/mail\/\?view=cm/);
   await page.getByRole("button", { name: "Mark as sent" }).click();
+  await confirmDialog(page, { title: "Mark the venue request as sent?" });
   await expect(page.getByText(/✓ Marked as sent on/)).toBeVisible();
   await page.getByLabel("Venue they gave you").fill("Main Hall");
   await page.getByRole("button", { name: "Mark venue confirmed" }).click();
+  await confirmDialog(page, { title: "Confirm the venue as Main Hall?" });
   await expect(page.getByText("Venue confirmed", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: `${E2E_MEMBER.firstName} ${E2E_MEMBER.lastName}` }).first(),
@@ -325,13 +345,14 @@ test("members see scheduled practices and reply; committee sees who's coming", a
   await page.getByRole("link", { name: "Edit details" }).click();
   await page.getByLabel("Venue").fill("Studio 2");
   await page.getByRole("button", { name: "Save changes" }).click();
+  await confirmDialog(page);
   await expect(page.getByText("Studio 2").first()).toBeVisible();
   await member.goto("/");
   await expect(member.getByText("Studio 2")).toBeVisible();
 
   // Cancelling shows it as cancelled and closes replies.
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Cancel practice" }).click();
+  await confirmDialog(page, { title: "Cancel this practice?" });
   await expect(page.getByRole("button", { name: "Restore practice" })).toBeVisible();
   await member.goto("/");
   await expect(member.getByText("Cancelled")).toBeVisible();

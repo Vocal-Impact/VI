@@ -10,9 +10,10 @@ import {
   STUDY_LEVEL_LABELS,
 } from "@/modules/members/domain";
 import { StatusBadge, VoiceBadge } from "@/modules/members/ui";
-import { Button, buttonClasses, LinkButton } from "@/shared/ui/button";
+import { buttonClasses, LinkButton } from "@/shared/ui/button";
 import { Input, Select } from "@/shared/ui/form";
 import { Alert, Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
+import { SubmitButton } from "@/shared/ui/client";
 import { restoreMemberAction } from "./actions";
 
 export const metadata = { title: "Members" };
@@ -158,9 +159,17 @@ export default async function MembersPage(props: PageProps<"/members">) {
                         <Badge tone="red">Removed {member.deletedAt.toLocaleDateString("en-GB")}</Badge>
                         {canWrite ? (
                           <form action={restoreMemberAction.bind(null, member.id)}>
-                            <Button type="submit" size="sm" variant="outline">
+                            <SubmitButton
+                              size="sm"
+                              variant="outline"
+                              pendingText="Restoring…"
+                              confirm={{
+                                title: `Restore ${member.firstName} ${member.lastName}?`,
+                                confirmLabel: "Restore",
+                              }}
+                            >
                               Restore
-                            </Button>
+                            </SubmitButton>
                           </form>
                         ) : null}
                       </span>

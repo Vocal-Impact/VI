@@ -143,7 +143,17 @@ export function LocationForm({
         {state.fieldErrors?.consentGiven ? (
           <p className="text-xs font-medium text-red-600">{state.fieldErrors.consentGiven[0]}</p>
         ) : null}
-        <SubmitButton className="w-full">Save carpool details</SubmitButton>
+        <SubmitButton
+          className="w-full"
+          confirm={{
+            title: "Save these carpool details?",
+            description: (data) =>
+              `Location: ${String(data.get("coordinates") ?? "").trim() || String(data.get("areaLabel") ?? "").trim() || "—"}. ${data.get("canDrive") ? `Can drive, ${String(data.get("seats") ?? "0")} seat(s).` : "Doesn't drive."}`,
+            confirmLabel: "Save details",
+          }}
+        >
+          Save carpool details
+        </SubmitButton>
       </form>
 
       {removeAction ? (
@@ -152,7 +162,12 @@ export function LocationForm({
             variant="ghost"
             size="sm"
             className="w-full"
-            message="Remove this member's location and carpool details?"
+            confirm={{
+              title: "Remove this member's location?",
+              description:
+                "Their area, coordinates and carpool details are deleted, and they won't appear in lift plans.",
+              confirmLabel: "Remove location",
+            }}
           >
             Remove location (consent withdrawn)
           </ConfirmSubmit>

@@ -113,7 +113,15 @@ export function ImportWizard() {
           <input type="hidden" name="fileName" value={state.fileName} />
           <input type="hidden" name="csvText" value={state.csvText} />
           {state.useStatusColumn ? <input type="hidden" name="useStatusColumn" value="on" /> : null}
-          <SubmitButton disabled={!canCommit} pendingText="Importing…">
+          <SubmitButton
+            disabled={!canCommit}
+            pendingText="Importing…"
+            confirm={{
+              title: `Import ${preview.created.length + preview.updated.length} row(s)?`,
+              description: `${preview.created.length} new member(s) will be added${state.useStatusColumn ? " with the status from the file" : " as Prospective"} and ${preview.updated.length} existing member(s) updated. Invalid and duplicate rows are skipped.`,
+              confirmLabel: "Import",
+            }}
+          >
             Import {preview.created.length + preview.updated.length} row(s)
           </SubmitButton>
           <Button variant="ghost" onClick={() => window.location.reload()}>

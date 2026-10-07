@@ -13,12 +13,13 @@ import { PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/a
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
-import { Button, buttonClasses, LinkButton } from "@/shared/ui/button";
-import { ConfirmSubmit } from "@/shared/ui/client";
+import { buttonClasses, LinkButton } from "@/shared/ui/button";
+import { ConfirmSubmit, SubmitButton } from "@/shared/ui/client";
 import { Input } from "@/shared/ui/form";
 import { Alert, Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layout";
 import { deletePracticeAction, setPracticeCancelledAction, setVenueBookingAction } from "../actions";
 import { AttendanceChecklist } from "./attendance-checklist";
+import { VenueConfirmButton } from "./venue-confirm-button";
 
 export const metadata = { title: "Practice" };
 
@@ -29,6 +30,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   if (!practice) notFound();
 
   const today = todayLocal();
+  const practiceLabel = `${practice.title} on ${formatIsoDate(practice.date, { weekday: "long", month: "long", year: undefined })}`;
   const canManage = hasPermission(user.role, "practices:manage");
   const attendanceOpen = canTakeAttendance(user.role, practice, today);
   const isFuture = practice.date > today;
@@ -63,14 +65,28 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
               ) : null}
               <form action={setPracticeCancelledAction.bind(null, practice.id, practice.status !== "CANCELLED")}>
                 {practice.status === "CANCELLED" ? (
-                  <Button type="submit" variant="secondary" size="sm">
+                  <SubmitButton
+                    variant="secondary"
+                    size="sm"
+                    pendingText="Restoring…"
+                    confirm={{
+                      title: "Restore this practice?",
+                      description: `${practiceLabel} will be back on members' dashboards, and they can reply again.`,
+                      confirmLabel: "Restore practice",
+                    }}
+                  >
                     Restore practice
-                  </Button>
+                  </SubmitButton>
                 ) : (
                   <ConfirmSubmit
                     variant="ghost"
                     size="sm"
-                    message="Cancel this practice? Members will see it as cancelled."
+                    confirm={{
+                      title: "Cancel this practice?",
+                      description: `${practiceLabel} will show as cancelled to members, and replies will close. You can restore it later.`,
+                      confirmLabel: "Cancel practice",
+                      cancelLabel: "Keep it",
+                    }}
                   >
                     Cancel practice
                   </ConfirmSubmit>
@@ -81,7 +97,11 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                   <ConfirmSubmit
                     variant="ghost"
                     size="sm"
-                    message="Delete this practice with all its replies and attendance marks?"
+                    confirm={{
+                      title: "Delete this practice?",
+                      description: `${practiceLabel} will be deleted with all its replies and attendance marks. This can't be undone.`,
+                      confirmLabel: "Delete practice",
+                    }}
                   >
                     Delete
                   </ConfirmSubmit>
@@ -120,9 +140,18 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                   <div className="flex flex-wrap items-center gap-3 text-sm text-emerald-700">
                     <span>✓ Marked as sent on {formatTimestamp(practice.venueRequestedAt)}</span>
                     <form action={setVenueBookingAction.bind(null, practice.id, "requested", false)}>
-                      <Button type="submit" variant="ghost" size="sm">
+                      <SubmitButton
+                        variant="ghost"
+                        size="sm"
+                        pendingText="Undoing…"
+                        confirm={{
+                          title: "Undo “request sent”?",
+                          description: "The request and the venue confirmation will both be marked as not done.",
+                          confirmLabel: "Undo",
+                        }}
+                      >
                         Undo
-                      </Button>
+                      </SubmitButton>
                     </form>
                   </div>
                 ) : (
@@ -140,9 +169,18 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                         Open the email in Gmail
                       </a>
                       <form action={setVenueBookingAction.bind(null, practice.id, "requested", true)}>
-                        <Button type="submit" variant="outline" size="sm">
+                        <SubmitButton
+                          variant="outline"
+                          size="sm"
+                          confirm={{
+                            title: "Mark the venue request as sent?",
+                            description:
+                              "Only do this once the email has gone to the IIT administration. The other admins won't get a reminder for this practice.",
+                            confirmLabel: "Mark as sent",
+                          }}
+                        >
                           Mark as sent
-                        </Button>
+                        </SubmitButton>
                       </form>
                     </div>
                     <p className="text-xs text-slate-500">
@@ -164,9 +202,14 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                       {formatTimestamp(practice.venueConfirmedAt)}
                     </span>
                     <form action={setVenueBookingAction.bind(null, practice.id, "confirmed", false)}>
-                      <Button type="submit" variant="ghost" size="sm">
+                      <SubmitButton
+                        variant="ghost"
+                        size="sm"
+                        pendingText="Undoing…"
+                        confirm={{ title: "Undo “venue confirmed”?", confirmLabel: "Undo" }}
+                      >
                         Undo
-                      </Button>
+                      </SubmitButton>
                     </form>
                   </div>
                 ) : (
@@ -178,9 +221,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                       <span className="mb-1 block text-slate-600">Venue they gave you</span>
                       <Input name="venue" defaultValue={practice.venue ?? ""} maxLength={120} />
                     </label>
-                    <Button type="submit" size="sm">
-                      Mark venue confirmed
-                    </Button>
+                    <VenueConfirmButton />
                   </form>
                 )}
               </li>

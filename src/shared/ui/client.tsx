@@ -1,31 +1,81 @@
 "use client";
 
-import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type MouseEvent, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 import type { ActionState } from "@/shared/lib/action-state";
 import { Button } from "./button";
 import { Alert } from "./layout";
 import { Equalizer } from "./music";
+import { ConfirmDialog, resolveConfirm, type ConfirmContent, type FormConfirmOptions } from "./confirm";
 
-/** Submit button that disables itself and shows progress while the form's action runs. */
+export { useConfirm, type ConfirmContent, type FormConfirmOptions } from "./confirm";
+
+/**
+ * Submit button that disables itself and shows progress while the form's
+ * action runs. With `confirm`, it first asks in a dialog; the form is only
+ * submitted after "Confirm" (browser validation still runs first).
+ */
 export function SubmitButton({
   children,
   pendingText,
+  confirm,
+  onClick,
   ...props
-}: ComponentProps<typeof Button> & { pendingText?: ReactNode }) {
+}: ComponentProps<typeof Button> & { pendingText?: ReactNode; confirm?: FormConfirmOptions }) {
   const { pending } = useFormStatus();
+  const button = useRef<HTMLButtonElement>(null);
+  const approved = useRef(false);
+  const [asking, setAsking] = useState<ConfirmContent | null>(null);
+
+  function handleClick(event: MouseEvent<HTMLButtonElement>) {
+    onClick?.(event);
+    if (event.defaultPrevented || !confirm) return;
+    if (approved.current) {
+      approved.current = false; // confirmed: let this click submit
+      return;
+    }
+    event.preventDefault();
+    const form = event.currentTarget.form;
+    if (form && !form.noValidate && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    setAsking(resolveConfirm(confirm, form ? new FormData(form, event.currentTarget) : new FormData()));
+  }
+
   return (
-    <Button type="submit" disabled={pending || props.disabled} aria-busy={pending} {...props}>
-      {pending ? (
-        <>
-          <Equalizer className="h-3.5" bars={4} label="Working" />
-          {pendingText ?? "Saving…"}
-        </>
-      ) : (
-        children
-      )}
-    </Button>
+    <>
+      <Button
+        ref={button}
+        type="submit"
+        disabled={pending || props.disabled}
+        aria-busy={pending}
+        onClick={handleClick}
+        {...props}
+      >
+        {pending ? (
+          <>
+            <Equalizer className="h-3.5" bars={4} label="Working" />
+            {pendingText ?? "Saving…"}
+          </>
+        ) : (
+          children
+        )}
+      </Button>
+      {asking ? (
+        <ConfirmDialog
+          content={asking}
+          onResult={(ok) => {
+            setAsking(null);
+            if (!ok) return;
+            approved.current = true;
+            // Click again once the dialog has closed, so the form submits with this button as the submitter.
+            setTimeout(() => button.current?.click(), 0);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -45,20 +95,12 @@ export function ActionFeedback({ state, inline = true }: { state: ActionState; i
 }
 
 /** A submit button that asks for confirmation first (for destructive actions). */
-export function ConfirmSubmit({ message, children, ...props }: ComponentProps<typeof Button> & { message: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button
-      type="submit"
-      disabled={pending}
-      onClick={(event) => {
-        if (!window.confirm(message)) event.preventDefault();
-      }}
-      {...props}
-    >
-      {pending ? "Working…" : children}
-    </Button>
-  );
+/** A submit button that always asks first, styled for deletes and other actions that can't be undone. */
+export function ConfirmSubmit({
+  confirm,
+  ...props
+}: Omit<ComponentProps<typeof SubmitButton>, "confirm"> & { confirm: FormConfirmOptions }) {
+  return <SubmitButton pendingText="Working…" confirm={{ tone: "danger", ...confirm }} {...props} />;
 }
 
 export function CopyButton({ text, label = "Copy", className }: { text: string; label?: string; className?: string }) {

@@ -33,7 +33,16 @@ function SettingCard({
           {state.fieldErrors ? (
             <p className="text-xs font-medium text-red-600">{Object.values(state.fieldErrors).flat().join(". ")}</p>
           ) : null}
-          <SubmitButton size="sm">Save</SubmitButton>
+          <SubmitButton
+            size="sm"
+            confirm={{
+              title: `Save “${title}”?`,
+              description: "This applies to everyone using the app straight away.",
+              confirmLabel: "Save setting",
+            }}
+          >
+            Save
+          </SubmitButton>
         </form>
       </CardBody>
     </Card>

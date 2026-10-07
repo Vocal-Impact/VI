@@ -11,8 +11,8 @@ import { listGroups } from "@/modules/whatsapp-groups";
 import { INVITE_CHANNEL_LABELS, membershipStatus } from "@/modules/whatsapp-groups/domain";
 import { listAuditLog } from "@/shared/audit/audit-log";
 import { formatIsoDate, toIsoDate } from "@/shared/lib/dates";
-import { ConfirmSubmit } from "@/shared/ui/client";
-import { Button, LinkButton } from "@/shared/ui/button";
+import { ConfirmSubmit, SubmitButton } from "@/shared/ui/client";
+import { LinkButton } from "@/shared/ui/button";
 import { Select } from "@/shared/ui/form";
 import { Alert, Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
 import { markJoinedAction } from "../../whatsapp-groups/actions";
@@ -103,9 +103,18 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
           .
           {canWrite ? (
             <form action={restoreMemberAction.bind(null, member.id)} className="mt-2">
-              <Button type="submit" size="sm" variant="outline">
+              <SubmitButton
+                size="sm"
+                variant="outline"
+                pendingText="Restoring…"
+                confirm={{
+                  title: `Restore ${member.firstName} ${member.lastName}?`,
+                  description: "They'll be back in the members list, attendance and WhatsApp lists.",
+                  confirmLabel: "Restore member",
+                }}
+              >
                 Restore member
-              </Button>
+              </SubmitButton>
             </form>
           ) : null}
         </Alert>
@@ -117,9 +126,17 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
               Send group invites
             </LinkButton>
             <form action={markAddedAction.bind(null, member.id)}>
-              <Button type="submit" size="sm" variant="outline">
+              <SubmitButton
+                size="sm"
+                variant="outline"
+                confirm={{
+                  title: `Mark ${member.firstName} as added to WhatsApp?`,
+                  description: "Only once they're in the main WhatsApp group. Their status becomes Active.",
+                  confirmLabel: "Mark as added",
+                }}
+              >
                 Mark as added
-              </Button>
+              </SubmitButton>
             </form>
           </div>
         </Alert>
@@ -212,9 +229,19 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                           <Badge tone={GROUP_STATUS[status].tone}>{GROUP_STATUS[status].label}</Badge>
                           {status !== "JOINED" && canWrite ? (
                             <form action={markJoinedAction.bind(null, member.id, group.id)}>
-                              <Button type="submit" size="sm" variant="outline">
+                              <SubmitButton
+                                size="sm"
+                                variant="outline"
+                                confirm={{
+                                  title: `Mark ${member.firstName} as joined ${group.name}?`,
+                                  description: group.isMainGroup
+                                    ? "This is the main group, so their status becomes Active."
+                                    : "Only once you can see them in the group.",
+                                  confirmLabel: "Mark as joined",
+                                }}
+                              >
                                 Joined
-                              </Button>
+                              </SubmitButton>
                             </form>
                           ) : null}
                         </div>
@@ -290,9 +317,17 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                       </option>
                     ))}
                   </Select>
-                  <Button type="submit" variant="outline">
+                  <SubmitButton
+                    variant="outline"
+                    confirm={{
+                      title: `Change ${member.firstName}'s status?`,
+                      description:
+                        "Status decides the practice rule for WhatsApp groups, birthday reminders and who can sign in.",
+                      confirmLabel: "Change status",
+                    }}
+                  >
                     Update
-                  </Button>
+                  </SubmitButton>
                 </form>
                 {hasPermission(user.role, "users:manage") ? (
                   <LinkButton
@@ -311,7 +346,11 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                   <ConfirmSubmit
                     variant="outline"
                     className="w-full"
-                    message="Remove this member? They'll be hidden everywhere, but you can restore them from Members → Removed."
+                    confirm={{
+                      title: `Remove ${member.firstName} ${member.lastName}?`,
+                      description: "They'll be hidden everywhere. You can restore them from Members → Removed.",
+                      confirmLabel: "Remove member",
+                    }}
                   >
                     Remove member
                   </ConfirmSubmit>
@@ -321,7 +360,12 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                     <ConfirmSubmit
                       variant="danger"
                       className="w-full"
-                      message="Permanently erase this member and all their data? This cannot be undone."
+                      confirm={{
+                        title: `Permanently erase ${member.firstName} ${member.lastName}?`,
+                        description:
+                          "All their details, attendance, replies and invites are deleted for good (for data-removal requests). This can't be undone.",
+                        confirmLabel: "Erase permanently",
+                      }}
                     >
                       Erase permanently (data request)
                     </ConfirmSubmit>

@@ -7,6 +7,7 @@ import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { cn } from "@/shared/lib/cn";
 import { Button, LinkButton } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/form";
+import { useConfirm } from "@/shared/ui/client";
 import { Alert, Badge, Card, EmptyState } from "@/shared/ui/layout";
 import { markJoinedAction, markManyJoinedAction, sendInvitesAction } from "../actions";
 
@@ -54,6 +55,7 @@ export function GroupRoster({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const [pending, startTransition] = useTransition();
   const selectable = (row: GroupRosterRow) => canInvite && (row.eligible || override);
 
@@ -81,8 +83,17 @@ export function GroupRoster({
   const selectedIds = [...selected];
   const needsOverride = rows.some((row) => selected.has(row.id) && !row.eligible);
 
-  function emailSelected() {
+  async function emailSelected() {
     if (selectedIds.length === 0) return;
+    const people = `${selectedIds.length} ${selectedIds.length === 1 ? "person" : "people"}`;
+    const ok = await confirm({
+      title: `Email the ${groupName} invite to ${people}?`,
+      description: needsOverride
+        ? "Some of them can't join yet; you're overriding that as an admin. Each gets the invite link by email."
+        : "Each gets the group's invite link by email.",
+      confirmLabel: "Send emails",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const result = await sendInvitesAction({
         memberIds: selectedIds,
@@ -102,8 +113,14 @@ export function GroupRoster({
     });
   }
 
-  function markSelectedJoined() {
+  async function markSelectedJoined() {
     if (selectedIds.length === 0) return;
+    const ok = await confirm({
+      title: `Mark ${selectedIds.length} ${selectedIds.length === 1 ? "person" : "people"} as in ${groupName}?`,
+      description: "Only once you can see them in the group.",
+      confirmLabel: "Mark as joined",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const result = await markManyJoinedAction(groupId, selectedIds);
       toast.success(`${result.marked} marked as in ${groupName}`);
@@ -111,7 +128,13 @@ export function GroupRoster({
     });
   }
 
-  function markJoined(row: GroupRosterRow) {
+  async function markJoined(row: GroupRosterRow) {
+    const ok = await confirm({
+      title: `Mark ${row.name} as in ${groupName}?`,
+      description: "Only once you can see them in the group.",
+      confirmLabel: "Mark as joined",
+    });
+    if (!ok) return;
     startTransition(async () => {
       await markJoinedAction(row.id, groupId);
       toast.success(`${row.name} marked as in ${groupName}`);
@@ -124,6 +147,7 @@ export function GroupRoster({
 
   return (
     <div className="space-y-4">
+      {dialog}
       {canInvite ? (
         <Card className="sticky top-[57px] z-10 flex flex-wrap items-center justify-between gap-3 p-3 lg:top-2">
           <span className="text-sm font-medium">

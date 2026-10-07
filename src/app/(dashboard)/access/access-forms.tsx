@@ -76,7 +76,26 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
               disabled={row.isSelf}
             />
           ) : null}
-          <SubmitButton size="sm" variant={changed ? "primary" : "outline"} disabled={row.isSelf}>
+          <SubmitButton
+            size="sm"
+            variant={changed ? "primary" : "outline"}
+            disabled={row.isSelf}
+            confirm={{
+              title: changed
+                ? `Change ${row.name}'s access to ${ACCESS_LEVEL_LABELS[level]}?`
+                : `Save ${row.name}'s access settings?`,
+              description:
+                level === "ADMIN"
+                  ? "Admins can do everything, including managing access, settings and erasing members."
+                  : level === "COMMITTEE"
+                    ? "Committee can manage members, practices, attendance and invites."
+                    : level === "NONE"
+                      ? "They won't be able to sign in."
+                      : "They can sign in to see practices and reply.",
+              confirmLabel: changed ? "Change access" : "Save",
+              tone: changed && (row.level === "ADMIN" || level === "NONE") ? "danger" : "primary",
+            }}
+          >
             {row.level === "NONE" && level !== "NONE" ? "Give access" : "Save"}
           </SubmitButton>
         </div>
@@ -131,7 +150,15 @@ export function AccountRow({
             label="Birthday emails"
           />
           <Checkbox name="active" defaultChecked={account.active} label="Can sign in" />
-          <SubmitButton size="sm" variant="outline">
+          <SubmitButton
+            size="sm"
+            variant="outline"
+            confirm={{
+              title: (data) => `Save ${account.name}'s account as ${String(data.get("role") ?? "").toLowerCase()}?`,
+              description: (data) => (data.get("active") ? "They can sign in." : "They won't be able to sign in."),
+              confirmLabel: "Save",
+            }}
+          >
             Save
           </SubmitButton>
         </div>
@@ -163,7 +190,17 @@ export function NewAccountForm({ action }: { action: Action }) {
           <option value="ADMIN">Admin</option>
         </Select>
       </Field>
-      <SubmitButton className="w-full">Add account</SubmitButton>
+      <SubmitButton
+        className="w-full"
+        confirm={{
+          title: (data) =>
+            `Add ${String(data.get("email") ?? "").trim()} as ${String(data.get("role") ?? "").toLowerCase()}?`,
+          description: "They can sign in with this Google account straight away.",
+          confirmLabel: "Add account",
+        }}
+      >
+        Add account
+      </SubmitButton>
     </form>
   );
 }
