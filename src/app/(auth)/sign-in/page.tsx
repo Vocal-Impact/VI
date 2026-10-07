@@ -23,11 +23,11 @@ export default async function SignInPage(props: PageProps<"/sign-in">) {
   return (
     <main className="flex min-h-dvh flex-col lg:grid lg:grid-cols-2">
       {/* Stage panel */}
-      <section className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden bg-ink bg-staff px-8 py-10 text-brand-300 lg:min-h-64 lg:py-12">
+      <section className="relative flex shrink-0 flex-col items-center justify-center overflow-hidden bg-ink bg-staff px-8 pt-14 pb-12 text-brand-300 lg:min-h-64 lg:py-12">
         <FloatingNotes count={12} />
         <div className="relative animate-pop text-center">
           <LogoWordmark variant="white" className="mx-auto w-64 sm:w-80" priority />
-          <p className="mt-6 flex items-center justify-center gap-3 font-display text-sm font-bold tracking-[0.2em] text-slate-300 uppercase">
+          <p className="mt-7 flex items-center justify-center gap-3 font-display text-sm font-bold tracking-[0.2em] text-slate-300 uppercase">
             <Equalizer className="h-4 text-brand-400" bars={4} label={null} />
             Backstage
             <Equalizer className="h-4 text-brand-400" bars={4} label={null} />
@@ -36,10 +36,10 @@ export default async function SignInPage(props: PageProps<"/sign-in">) {
       </section>
 
       {/* Sign-in */}
-      <section className="flex flex-1 items-start justify-center bg-white px-4 pt-8 pb-10 lg:items-center lg:py-12">
+      <section className="flex flex-1 items-center justify-center bg-white px-6 pt-10 pb-16 lg:px-4 lg:py-12">
         <div className="w-full max-w-sm animate-fade-up">
           <h1 className="font-display text-3xl font-black text-ink italic">Welcome back</h1>
-          <p className="mt-1 mb-6 text-sm text-slate-600">Sign in with your IIT Google account.</p>
+          <p className="mt-2 mb-8 text-sm text-slate-600">Sign in with your IIT Google account.</p>
           {errorMessage ? (
             <Alert tone="error" className="mb-4">
               {errorMessage}

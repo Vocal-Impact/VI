@@ -48,7 +48,7 @@ export function SignInForm({ googleEnabled, passwordEnabled }: { googleEnabled: 
       ) : null}
 
       {passwordEnabled ? (
-        <form action={signInWithPassword} className="space-y-3 border-t border-slate-100 pt-4">
+        <form action={signInWithPassword} className="space-y-3 border-t border-slate-100 pt-5">
           <p className="text-xs font-medium tracking-wide text-amber-700 uppercase">Development sign-in</p>
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Field label="Email" htmlFor="email">
