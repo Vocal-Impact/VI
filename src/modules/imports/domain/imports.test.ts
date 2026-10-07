@@ -139,17 +139,33 @@ describe("buildRegistrationPreview with the 2026 Google Form", () => {
     location: { areaLabel: "Dehiwala", coordinates: { latitude: 6.851, longitude: 79.865 }, canDrive: true, seats: 3 },
   };
 
-  it("reads status, landmark and dietary preference for new members", () => {
+  it("adds everyone new as prospective and ignores the Status column by default", () => {
     const preview = buildRegistrationPreview(
       newCsv(
-        'x,nimal@iit.ac.lk,Nimal,Dias,W2026010,0775555555,Tenor,Placement Year,12/05/2003,Active,Kohuwala junction,"No beef, no pork"',
-        "x,sara@iit.ac.lk,Sara,Lee,W2026011,0776666666,Soprano 1,L4,,,,",
+        "x,nimal@iit.ac.lk,Nimal,Dias,W2026010,0775555555,Tenor,L4,,Active,,",
+        "x,sara@iit.ac.lk,Sara,Lee,W2026011,0776666666,Alto,L4,,whatever,,",
       ),
       [],
       options,
     );
-    expect(preview.missingColumns).toEqual([]);
     expect(preview.invalid).toEqual([]);
+    expect(preview.created.map((item) => item.data.status)).toEqual([null, null]);
+  });
+
+  it("reads status (first-time setup), landmark and dietary preference for new members", () => {
+    const preview = buildRegistrationPreview(
+      newCsv(
+        'x,nimal@iit.ac.lk,Nimal,Dias,W2026010,0775555555,Tenor,Placement Year,12/05/2003,Active,Kohuwala junction,"No beef, no pork"',
+        "x,sara@iit.ac.lk,Sara,Lee,W2026011,0776666666,Soprano 1,L4,,,,",
+        "x,bad@iit.ac.lk,Bad,Status,W2026012,0777777777,Alto,L4,,maybe,,",
+      ),
+      [],
+      { ...options, useStatusColumn: true },
+    );
+    expect(preview.missingColumns).toEqual([]);
+    expect(preview.invalid.map((issue) => issue.messages.join(" "))).toEqual([
+      "Status: Use Prospective, Active, Inactive or Alumni",
+    ]);
     expect(preview.created[0]?.data).toMatchObject({
       yearOfStudy: "PLACEMENT",
       status: "ACTIVE",
@@ -185,7 +201,7 @@ describe("buildRegistrationPreview with the 2026 Google Form", () => {
     const preview = buildRegistrationPreview(
       newCsv("x,amaya@iit.ac.lk,Amaya,Perera,W2024001,0771111111,Alto,L4,,Prospective,,"),
       [amaya],
-      options,
+      { ...options, useStatusColumn: true },
     );
     expect(preview.unchanged).toHaveLength(1);
     expect(preview.unchanged[0]?.data).toMatchObject({

@@ -169,15 +169,28 @@ test("CSV import shows a preview before saving", async ({ page }) => {
   await page.goto("/members/import");
   await page.getByLabel("CSV file").setInputFiles("tests/fixtures/registration-form.csv");
   await page.getByRole("button", { name: "Preview import" }).click();
-  await expect(page.getByText("3 new")).toBeVisible();
+  await expect(page.getByText("3 new", { exact: true })).toBeVisible();
   await expect(page.getByText("1 invalid")).toBeVisible();
   await expect(page.getByText(/Line 5/)).toBeVisible();
+  await expect(page.getByText(/All 3 new members will be added as/)).toBeVisible();
   await page.getByRole("button", { name: "Import 3 row(s)" }).click();
   await expect(page.getByText("Import complete")).toBeVisible();
 
   await page.goto("/members?status=PROSPECTIVE");
   await expect(page.getByRole("link", { name: "Amaya Perera" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Kavindu Silva" })).toBeVisible();
+
+  // First-time setup: the Status column decides, and the preview shows it.
+  await page.goto("/members/import");
+  await page.getByLabel("CSV file").setInputFiles("tests/fixtures/registration-form-2026.csv");
+  await page.getByLabel("First-time setup: use the file's Status column").check();
+  await page.getByRole("button", { name: "Preview import" }).click();
+  await expect(page.getByText("Using the Status column (first-time setup)")).toBeVisible();
+  await expect(page.getByText(/1 active, 2 prospective/)).toBeVisible();
+  await page.getByRole("button", { name: "Import 3 row(s)" }).click();
+  await expect(page.getByText("Import complete")).toBeVisible();
+  await page.goto("/members?status=ACTIVE");
+  await expect(page.getByRole("link", { name: "Nimal Dias" })).toBeVisible();
 });
 
 test("a removed member can be found under Removed and restored", async ({ page }) => {

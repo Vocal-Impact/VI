@@ -25,6 +25,7 @@ import { csvLine, diffFields, emptyPreview, splitDuplicateRows, type ImportPrevi
  * Number, Voice Type (Section in choir), Year of Study, Date of Birth, Status,
  * Location (Nearest Landmark), Dietary Preferences — plus the "Location
  * Coordinates" column that scripts/geocode/geocode_locations.py adds.
+ * New members are Prospective unless `useStatusColumn` is set (first load only).
  * Older exports ("IIT Email Address", "What is your voice type?") still work.
  */
 
@@ -159,6 +160,12 @@ const LABELS = {
 export interface RegistrationOptions {
   allowedDomain?: string;
   today: IsoDate;
+  /**
+   * Read the Status column for new members. Off by default: the form goes to
+   * newcomers, so everyone new is Prospective. Turned on only for the very
+   * first load of existing members.
+   */
+  useStatusColumn?: boolean;
 }
 
 export function parseRegistrationRow(
@@ -181,7 +188,7 @@ export function parseRegistrationRow(
   const voiceType = parseVoiceType(cells.voiceType ?? "");
   const dobCell = cells.dateOfBirth?.trim() ?? "";
   const dateOfBirth = dobCell === "" ? null : (take("Date of birth", parseDateOfBirth(dobCell, options.today)) ?? null);
-  const status = take("Status", parseMemberStatus(cells.status ?? "")) ?? null;
+  const status = options.useStatusColumn ? (take("Status", parseMemberStatus(cells.status ?? "")) ?? null) : null;
   const dietaryPreference =
     take("Dietary preferences", normalizeDietaryPreference(cells.dietaryPreference ?? "")) ?? null;
   const location = take("Location", parseLocation(cells.location ?? "", cells.coordinates ?? "")) ?? null;

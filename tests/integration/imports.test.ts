@@ -67,10 +67,23 @@ describe("CSV import (registration → details)", () => {
     expect(await prisma.auditLog.count({ where: { action: "import.commit" } })).toBe(3);
   });
 
-  it("imports the 2026 Google Form: status, encrypted landmark and dietary preference, coordinates column", async () => {
+  it("adds everyone new from a newcomer form as prospective, whatever the Status column says", async () => {
     const admin = await createUser();
     const form = readFileSync("tests/fixtures/registration-form-2026.csv", "utf8");
     const result = await commitImport("REGISTRATION", form, "new-form.csv", admin.id);
+    expect(result.ok && result.value).toMatchObject({ created: 3 });
+    const members = await prisma.member.findMany({ orderBy: { studentId: "asc" } });
+    expect(members.map((m) => [m.firstName, m.status, m.addedToWhatsappAt])).toEqual([
+      ["Nimal", "PROSPECTIVE", null],
+      ["Sara", "PROSPECTIVE", null],
+      ["Tharu", "PROSPECTIVE", null],
+    ]);
+  });
+
+  it("first-time setup: status from the file, encrypted landmark and dietary preference, coordinates column", async () => {
+    const admin = await createUser();
+    const form = readFileSync("tests/fixtures/registration-form-2026.csv", "utf8");
+    const result = await commitImport("REGISTRATION", form, "new-form.csv", admin.id, { useStatusColumn: true });
     expect(result.ok && result.value).toMatchObject({ created: 3, skipped: 0 });
     if (!result.ok) return;
 

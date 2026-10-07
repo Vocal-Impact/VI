@@ -28,7 +28,12 @@ function readCsv(text: string): Result<ParsedCsv> {
   return ok(csv);
 }
 
-async function registrationPreview(csv: ParsedCsv) {
+export interface ImportOptions {
+  /** Registration only: take new members' status from the Status column (first load of existing members). */
+  useStatusColumn?: boolean;
+}
+
+async function registrationPreview(csv: ParsedCsv, options: ImportOptions) {
   // A choir has a few hundred members at most, so compare against all of them
   // (including removed ones, whose student IDs and emails are still taken).
   const [existing, locations] = await Promise.all([listMembersForImport(), prisma.memberLocation.findMany()]);
@@ -52,7 +57,11 @@ async function registrationPreview(csv: ParsedCsv) {
       dateOfBirth: member.dateOfBirth ? toIsoDate(member.dateOfBirth) : null,
       location: locationByMember.get(member.id) ?? null,
     })),
-    { allowedDomain: getEnv().ALLOWED_EMAIL_DOMAIN, today: todayLocal() },
+    {
+      allowedDomain: getEnv().ALLOWED_EMAIL_DOMAIN,
+      today: todayLocal(),
+      useStatusColumn: options.useStatusColumn ?? false,
+    },
   );
 }
 
@@ -78,10 +87,14 @@ async function supplementaryPreview(csv: ParsedCsv) {
 }
 
 /** Dry run: parses and validates the CSV and reports what would change. Writes nothing. */
-export async function previewImport(profile: ImportProfileName, text: string): Promise<Result<AnyPreview>> {
+export async function previewImport(
+  profile: ImportProfileName,
+  text: string,
+  options: ImportOptions = {},
+): Promise<Result<AnyPreview>> {
   const csv = readCsv(text);
   if (!csv.ok) return csv;
-  if (profile === "REGISTRATION") return ok({ profile, preview: await registrationPreview(csv.value) });
+  if (profile === "REGISTRATION") return ok({ profile, preview: await registrationPreview(csv.value, options) });
   return ok({ profile, preview: await supplementaryPreview(csv.value) });
 }
 
@@ -104,8 +117,9 @@ export async function commitImport(
   text: string,
   fileName: string,
   actorId: string,
+  options: ImportOptions = {},
 ): Promise<Result<ImportSummary>> {
-  const result = await previewImport(profile, text);
+  const result = await previewImport(profile, text, options);
   if (!result.ok) return result;
   const { preview } = result.value;
   if (preview.missingColumns.length > 0)

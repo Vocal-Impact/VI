@@ -209,6 +209,8 @@ export interface ImportActionState {
   csvText?: string;
   preview?: AnyPreview;
   summary?: ImportSummary;
+  /** First-time load of existing members: take new members' status from the file. */
+  useStatusColumn?: boolean;
 }
 
 function readProfile(value: FormDataEntryValue | null): ImportProfileName {
@@ -219,11 +221,12 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   const user = await requirePermission("imports:run");
   const profile = readProfile(formData.get("profile"));
   const step = formData.get("step");
+  const useStatusColumn = profile === "REGISTRATION" && formData.get("useStatusColumn") === "on";
 
   if (step === "commit") {
     const csvText = String(formData.get("csvText") ?? "");
     const fileName = String(formData.get("fileName") ?? "import.csv");
-    const result = await commitImport(profile, csvText, fileName, user.id);
+    const result = await commitImport(profile, csvText, fileName, user.id, { useStatusColumn });
     if (!result.ok) return { status: "error", message: result.error.message, profile };
     geocodeSoon(result.value.locationsToGeocode);
     revalidatePath("/members");
@@ -237,7 +240,7 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   if (!file.name.toLowerCase().endsWith(".csv"))
     return { status: "error", message: "The file must be a .csv export", profile };
   const csvText = await file.text();
-  const result = await previewImport(profile, csvText);
+  const result = await previewImport(profile, csvText, { useStatusColumn });
   if (!result.ok) return { status: "error", message: result.error.message, profile };
-  return { status: "preview", profile, fileName: file.name, csvText, preview: result.value };
+  return { status: "preview", profile, fileName: file.name, csvText, preview: result.value, useStatusColumn };
 }
