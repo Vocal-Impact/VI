@@ -38,6 +38,9 @@ export interface ColumnSpec<F extends string> {
 /**
  * Maps profile fields to the actual CSV header names. Each CSV column is used
  * at most once, so "IIT Email Address" wins over a generic "Email Address".
+ * Exact matches come first; then a header that *starts with* an alias also
+ * counts, for Google Form questions with extra explanation in the title
+ * ("Location (Nearest Landmark). This is to help us organise carpooling…").
  */
 export function resolveColumns<F extends string>(
   csvHeaders: readonly string[],
@@ -50,6 +53,18 @@ export function resolveColumns<F extends string>(
 
   for (const spec of specs) {
     const match = spec.headers.map((alias) => byKey.get(normalizeHeader(alias))).find((h) => h && !used.has(h));
+    if (match) {
+      columns[spec.field] = match;
+      used.add(match);
+    }
+  }
+  for (const spec of specs) {
+    if (columns[spec.field]) continue;
+    const match = spec.headers
+      .map(normalizeHeader)
+      .filter((alias) => alias.length >= 5)
+      .map((alias) => csvHeaders.find((header) => !used.has(header) && normalizeHeader(header).startsWith(alias)))
+      .find(Boolean);
     if (match) {
       columns[spec.field] = match;
       used.add(match);

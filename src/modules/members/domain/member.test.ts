@@ -52,6 +52,8 @@ describe("parseStudyLevel", () => {
     ["Year 3", "PLACEMENT"],
     ["Final year", "L6"],
     ["PLACEMENT", "PLACEMENT"],
+    ["Done", "L6"],
+    ["Graduated", "L6"],
   ])("parses %s", (input, expected) => {
     expect(value(parseStudyLevel(input))).toBe(expected);
   });
@@ -69,6 +71,8 @@ describe("parseMemberStatus", () => {
     ["New member", "PROSPECTIVE"],
     ["Prospective", "PROSPECTIVE"],
     ["Alumni", "ALUMNI"],
+    ["Oldie", "ACTIVE"],
+    ["Newbie", "PROSPECTIVE"],
     ["", null],
   ])("parses %s", (input, expected) => {
     expect(value(parseMemberStatus(input))).toBe(expected);

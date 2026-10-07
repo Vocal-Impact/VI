@@ -84,6 +84,8 @@ export function parseStudyLevel(raw: string): Parsed<StudyLevel> {
   if (text.includes("placement") || text.includes("industr") || text.includes("internship"))
     return success("PLACEMENT");
   if (text.includes("final")) return success("L6");
+  if (["done", "finished", "completed", "graduated", "passed out", "alumni"].some((word) => text.startsWith(word)))
+    return success("L6");
   const level = text.match(/^(?:l|level)\s*([4-6])\b/);
   if (level) return success(`L${level[1]}` as StudyLevel);
   const year = text.match(/^(?:year\s*)?([1-4])(?:st|nd|rd|th)?(?:\s*year)?$/);
@@ -100,16 +102,23 @@ export function normalizeDietaryPreference(raw: string): Parsed<string | null> {
   return success(value);
 }
 
-/** Maps a form's status answer ("Active", "New member", "Alumni"). Blank → null (decided by the importer). */
+/**
+ * Maps a form's status answer ("Active", "Oldie", "New member", "Newbie",
+ * "Alumni"). Blank → null (decided by the importer).
+ */
 export function parseMemberStatus(raw: string): Parsed<MemberStatus | null> {
   const value = raw.trim().toLowerCase();
   if (value === "") return success(null);
   if (value.startsWith("inactive") || value.startsWith("not active")) return success("INACTIVE");
-  if (value.startsWith("active") || value.startsWith("current") || value.startsWith("existing"))
+  if (
+    ["active", "current", "existing", "oldie", "old member", "old", "senior", "returning"].some((word) =>
+      value.startsWith(word),
+    )
+  )
     return success("ACTIVE");
   if (value.startsWith("alum") || value.startsWith("graduated") || value.startsWith("past")) return success("ALUMNI");
-  if (value.startsWith("prospective") || value.startsWith("new")) return success("PROSPECTIVE");
-  return failure("Use Prospective, Active, Inactive or Alumni");
+  if (["prospective", "new", "fresher", "first"].some((word) => value.startsWith(word))) return success("PROSPECTIVE");
+  return failure("Use Prospective (or Newbie), Active (or Oldie), Inactive or Alumni");
 }
 
 /** Normalises to E.164 (e.g. +94771234567). Local numbers default to Sri Lanka. */

@@ -44,6 +44,29 @@ describe("resolveColumns", () => {
   });
 });
 
+describe("resolveColumns with long Google Form questions", () => {
+  it("matches a header that starts with a known column name, after exact matches", () => {
+    const { columns } = resolveColumns(
+      [
+        "Location (Nearest Landmark). This is to help us organize carpooling and to make sure y'all get home safe",
+        "Location Coordinates",
+        "Year of study",
+      ],
+      [
+        { field: "coordinates", headers: ["Location Coordinates"], required: false },
+        { field: "location", headers: ["Location (Nearest Landmark)", "Location"], required: false },
+        { field: "year", headers: ["Current Year of Study", "Year of Study"], required: true },
+      ],
+    );
+    expect(columns).toEqual({
+      coordinates: "Location Coordinates",
+      location:
+        "Location (Nearest Landmark). This is to help us organize carpooling and to make sure y'all get home safe",
+      year: "Year of study",
+    });
+  });
+});
+
 describe("parseYesNo", () => {
   it.each([
     ["Yes", true],
@@ -164,7 +187,7 @@ describe("buildRegistrationPreview with the 2026 Google Form", () => {
     );
     expect(preview.missingColumns).toEqual([]);
     expect(preview.invalid.map((issue) => issue.messages.join(" "))).toEqual([
-      "Status: Use Prospective, Active, Inactive or Alumni",
+      "Status: Use Prospective (or Newbie), Active (or Oldie), Inactive or Alumni",
     ]);
     expect(preview.created[0]?.data).toMatchObject({
       yearOfStudy: "PLACEMENT",
