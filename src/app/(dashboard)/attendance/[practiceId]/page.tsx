@@ -101,11 +101,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
 
       {venueRequest ? (
         <Card className="mb-6">
-          <CardHeader
-            title="Venue booking"
-            description="Admins only. Ask the IIT administration for a venue, then record each step here."
-            action={<VenueBookingBadge practice={practice} />}
-          />
+          <CardHeader title="Venue booking" action={<VenueBookingBadge practice={practice} />} />
           <CardBody>
             <ol className="space-y-5">
               <li className="space-y-2">

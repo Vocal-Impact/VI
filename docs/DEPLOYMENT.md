@@ -58,7 +58,8 @@ You don't create any tables yourself. The first deploy creates them.
 
 1. In Brevo, go to **Senders, domains & dedicated IPs → Senders → Add a sender**. Use the committee email that emails should come from, then click the verification link Brevo sends you.
 2. Go to **SMTP & API → API keys → Generate a new API key**. It starts with `xkeysib-`. Copy it.
-3. **Optional, for the email logo:** once the app is live it serves its own logo, so you can skip this.
+3. Go to **Security → Authorised IPs** (account menu, top right) and **deactivate IP blocking**. Vercel sends from changing addresses, so with blocking on, Brevo rejects the app's emails with _"unrecognised IP address"_.
+4. **Optional, for the email logo:** once the app is live it serves its own logo, so you can skip this.
 
 ---
 
@@ -247,6 +248,7 @@ Avoid Vercel **preview deployments** for now. They would use the live database, 
 | Build fails during `prisma migrate deploy`                                 | `DIRECT_URL` is missing or wrong (it must be the **non-pooled** Neon string).                                                                                             |
 | Google says **redirect_uri_mismatch**                                      | The redirect URI in Google Cloud must exactly match `BETTER_AUTH_URL` + `/api/auth/callback/google`.                                                                      |
 | Signed in with Google but get "not allowed"                                | That email isn't linked to an access level yet. Add it under **Access & roles** (or run Step 6 for the first admin). Members can sign in only if they're current members. |
+| Email fails: _401 … unrecognised IP address_                               | Brevo's **Authorised IPs** blocking is on. In Brevo, go to **Security → Authorised IPs** and deactivate blocking (or add the IP it names, for local testing only).        |
 | Test email fails: _Key not found_ / 401                                    | `BREVO_API_KEY` is wrong. It must be the `xkeysib-…` API key, not an SMTP key.                                                                                            |
 | Test email fails: _sender not valid_                                       | `EMAIL_FROM` must be a sender verified in Brevo.                                                                                                                          |
 | Phone numbers / locations show as `v1:…` or pages error after copying data | `DATA_ENCRYPTION_KEY` in Vercel differs from the key that encrypted the data. Put the original key back.                                                                  |
