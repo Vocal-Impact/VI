@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/modules/auth";
 import { getMember } from "@/modules/members";
-import { getEnv } from "@/shared/config/env";
 import { toIsoDate } from "@/shared/lib/dates";
 import { Card, CardBody, PageHeader } from "@/shared/ui/layout";
 import { updateMemberAction } from "../../actions";
@@ -32,7 +31,6 @@ export default async function EditMemberPage(props: PageProps<"/members/[id]/edi
             action={updateMemberAction.bind(null, id)}
             mode="edit"
             cancelHref={`/members/${id}`}
-            emailDomain={getEnv().ALLOWED_EMAIL_DOMAIN}
             initial={{
               firstName: member.firstName,
               lastName: member.lastName,

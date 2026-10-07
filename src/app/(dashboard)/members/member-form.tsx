@@ -58,13 +58,11 @@ export function MemberForm({
   initial = EMPTY,
   mode,
   cancelHref,
-  emailDomain,
 }: {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   initial?: MemberFormValues;
   mode: "create" | "edit";
   cancelHref: string;
-  emailDomain: string;
 }) {
   const [state, formAction] = useActionState(action, idleState);
   const values = { ...initial, ...(state.values ?? {}) } as MemberFormValues;
@@ -135,7 +133,7 @@ export function MemberForm({
             ))}
           </Select>
         </Field>
-        <Field label="WhatsApp number" htmlFor="whatsappNumber" hint="e.g. 077 123 4567" errors={errors.whatsappNumber}>
+        <Field label="WhatsApp number" htmlFor="whatsappNumber" errors={errors.whatsappNumber}>
           <Input
             id="whatsappNumber"
             name="whatsappNumber"
@@ -146,7 +144,7 @@ export function MemberForm({
             aria-invalid={!!errors.whatsappNumber}
           />
         </Field>
-        <Field label="IIT email address" htmlFor="email" hint={`Must end with @${emailDomain}`} errors={errors.email}>
+        <Field label="IIT email address" htmlFor="email" errors={errors.email}>
           <Input
             id="email"
             name="email"
@@ -168,12 +166,7 @@ export function MemberForm({
         <Field label="Date of birth (optional)" htmlFor="dateOfBirth" errors={errors.dateOfBirth}>
           <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={values.dateOfBirth} />
         </Field>
-        <Field
-          label="Dietary preferences (optional)"
-          htmlFor="dietaryPreference"
-          hint="e.g. Vegetarian, no beef, nut allergy. Stored encrypted."
-          errors={errors.dietaryPreference}
-        >
+        <Field label="Dietary preferences (optional)" htmlFor="dietaryPreference" errors={errors.dietaryPreference}>
           <Input
             id="dietaryPreference"
             name="dietaryPreference"
@@ -182,12 +175,7 @@ export function MemberForm({
           />
         </Field>
         {mode === "create" ? (
-          <Field
-            label="Status"
-            htmlFor="status"
-            hint="New joiners are Prospective. Choose Active for an existing member already in the groups."
-            errors={errors.status}
-          >
+          <Field label="Status" htmlFor="status" errors={errors.status}>
             <Select id="status" name="status" defaultValue={values.status || "PROSPECTIVE"}>
               {MEMBER_STATUSES.map((status) => (
                 <option key={status} value={status}>
@@ -203,20 +191,10 @@ export function MemberForm({
         <fieldset className="space-y-4 rounded-xl border border-slate-200 p-4">
           <legend className="px-1 text-sm font-semibold text-slate-800">Location for carpooling (optional)</legend>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Location (nearest landmark)"
-              htmlFor="areaLabel"
-              hint="e.g. Kohuwala junction. Coordinates are looked up automatically."
-              errors={errors.areaLabel}
-            >
+            <Field label="Location (nearest landmark)" htmlFor="areaLabel" errors={errors.areaLabel}>
               <Input id="areaLabel" name="areaLabel" maxLength={80} defaultValue={values.areaLabel ?? ""} />
             </Field>
-            <Field
-              label="Coordinates (optional)"
-              htmlFor="coordinates"
-              hint="If you have them: right-click the spot in Google Maps and click the numbers to copy."
-              errors={errors.coordinates}
-            >
+            <Field label="Coordinates (optional)" htmlFor="coordinates" errors={errors.coordinates}>
               <Input
                 id="coordinates"
                 name="coordinates"
@@ -230,7 +208,6 @@ export function MemberForm({
             name="consentGiven"
             defaultChecked={values.consentGiven === "on"}
             label="Member agreed to share their approximate location"
-            hint="Only the committee can see it, for carpool planning. Stored encrypted."
           />
           {errors.consentGiven ? <p className="text-xs font-medium text-red-600">{errors.consentGiven[0]}</p> : null}
         </fieldset>
