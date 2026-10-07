@@ -81,12 +81,26 @@ export type Env = z.infer<typeof envSchema>;
 let cached: Env | undefined;
 
 /**
+ * The app's public address. BETTER_AUTH_URL wins (set it for a custom domain);
+ * on Vercel it otherwise falls back to the project's own address, which Vercel
+ * provides automatically (VERCEL_PROJECT_PRODUCTION_URL, or VERCEL_URL for previews).
+ */
+export function resolveAppUrl(source: Record<string, string | undefined>): string | undefined {
+  if (source.BETTER_AUTH_URL) return source.BETTER_AUTH_URL;
+  const host =
+    source.VERCEL_ENV === "production"
+      ? (source.VERCEL_PROJECT_PRODUCTION_URL ?? source.VERCEL_URL)
+      : source.VERCEL_URL;
+  return host ? `https://${host}` : undefined;
+}
+
+/**
  * Validated server environment. Parsed lazily so `next build` does not need
  * runtime secrets, but fails fast with a clear message on first use.
  */
 export function getEnv(): Env {
   if (cached) return cached;
-  const result = envSchema.safeParse(process.env);
+  const result = envSchema.safeParse({ ...process.env, BETTER_AUTH_URL: resolveAppUrl(process.env) });
   if (!result.success) {
     const details = result.error.issues.map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`).join("\n");
     throw new Error(`Invalid environment configuration:\n${details}`);

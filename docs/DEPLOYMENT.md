@@ -81,25 +81,25 @@ For **`DATA_ENCRYPTION_KEY`**, use the **exact value from your local `.env`** if
 ## Step 5 — Deploy on Vercel
 
 1. Sign in to [vercel.com](https://vercel.com) **with GitHub**. Click **Add New → Project** and import the repository.
-2. **Framework preset:** Next.js (detected automatically). Leave the build settings as they are; the project's `vercel-build` script is used.
+2. **Framework preset:** Next.js (detected automatically). Leave the build settings alone: `vercel.json` tells Vercel to run `npm run vercel-build`, which applies database migrations before building. If **Settings → Build and Deployment → Build Command** has an override, switch it off.
 3. Open **Environment Variables** and add these for **Production**:
 
-   | Variable               | Value                                                                                             |
-   | ---------------------- | ------------------------------------------------------------------------------------------------- |
-   | `DATABASE_URL`         | Neon **pooled** string (Step 1)                                                                   |
-   | `DIRECT_URL`           | Neon **direct** string (Step 1)                                                                   |
-   | `BETTER_AUTH_SECRET`   | from Step 4                                                                                       |
-   | `BETTER_AUTH_URL`      | `https://<project-name>.vercel.app`, the address Vercel shows for the project (no trailing slash) |
-   | `GOOGLE_CLIENT_ID`     | from Step 2                                                                                       |
-   | `GOOGLE_CLIENT_SECRET` | from Step 2                                                                                       |
-   | `DATA_ENCRYPTION_KEY`  | from Step 4                                                                                       |
-   | `CRON_SECRET`          | from Step 4                                                                                       |
-   | `EMAIL_TRANSPORT`      | `brevo`                                                                                           |
-   | `BREVO_API_KEY`        | from Step 3                                                                                       |
-   | `EMAIL_FROM`           | `Vocal Impact <the-verified-sender@...>`                                                          |
-   | `NOMINATIM_USER_AGENT` | `VocalImpactApp/1.0 (contact: <committee email>)`                                                 |
-   | `ALLOWED_EMAIL_DOMAIN` | `iit.ac.lk`                                                                                       |
-   | `ORS_API_KEY`          | _optional:_ OpenRouteService key, for real road distances in "Lifts home"                         |
+   | Variable               | Value                                                                                                                                                      |
+   | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `DATABASE_URL`         | Neon **pooled** string (Step 1)                                                                                                                            |
+   | `DIRECT_URL`           | Neon **direct** string (Step 1)                                                                                                                            |
+   | `BETTER_AUTH_SECRET`   | from Step 4                                                                                                                                                |
+   | `BETTER_AUTH_URL`      | _optional:_ leave unset to use the project's own `https://<project>.vercel.app` address automatically. Set it only for a custom domain (no trailing slash) |
+   | `GOOGLE_CLIENT_ID`     | from Step 2                                                                                                                                                |
+   | `GOOGLE_CLIENT_SECRET` | from Step 2                                                                                                                                                |
+   | `DATA_ENCRYPTION_KEY`  | from Step 4                                                                                                                                                |
+   | `CRON_SECRET`          | from Step 4                                                                                                                                                |
+   | `EMAIL_TRANSPORT`      | `brevo`                                                                                                                                                    |
+   | `BREVO_API_KEY`        | from Step 3                                                                                                                                                |
+   | `EMAIL_FROM`           | `Vocal Impact <the-verified-sender@...>`                                                                                                                   |
+   | `NOMINATIM_USER_AGENT` | `VocalImpactApp/1.0 (contact: <committee email>)`                                                                                                          |
+   | `ALLOWED_EMAIL_DOMAIN` | `iit.ac.lk`                                                                                                                                                |
+   | `ORS_API_KEY`          | _optional:_ OpenRouteService key, for real road distances in "Lifts home"                                                                                  |
 
 | `FEATURE_LIFTS_HOME` | `false` while Lifts home is still experimental (hides it; set to `true` to switch it on) |
 | `GOOGLE_MAPS_API_KEY` | _optional:_ Google Geocoding key (needs billing; see Step 9) |
@@ -248,6 +248,8 @@ Avoid Vercel **preview deployments** for now. They would use the live database, 
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Build fails: _"Invalid environment configuration"_                         | A variable is missing or malformed; the log names it. Common ones: `DATA_ENCRYPTION_KEY` must be 32 bytes base64; `BETTER_AUTH_SECRET` must be at least 32 characters.    |
 | Build fails during `prisma migrate deploy`                                 | `DIRECT_URL` is missing or wrong (it must be the **non-pooled** Neon string).                                                                                             |
+| Build fails: _BETTER_AUTH_URL … received undefined_                        | Redeploy with the latest code (it now uses Vercel's address automatically), or set `BETTER_AUTH_URL` to `https://<project>.vercel.app`.                                   |
+| Build log says _Running "next build"_ (not `vercel-build`)                 | A Build Command override is set in Vercel → Settings → Build and Deployment. Switch it off so `vercel.json` is used; otherwise migrations never run.                      |
 | Google says **redirect_uri_mismatch**                                      | The redirect URI in Google Cloud must exactly match `BETTER_AUTH_URL` + `/api/auth/callback/google`.                                                                      |
 | Signed in with Google but get "not allowed"                                | That email isn't linked to an access level yet. Add it under **Access & roles** (or run Step 6 for the first admin). Members can sign in only if they're current members. |
 | Email fails: _401 … unrecognised IP address_                               | Brevo's **Authorised IPs** blocking is on. In Brevo, go to **Security → Authorised IPs** and deactivate blocking (or add the IP it names, for local testing only).        |
