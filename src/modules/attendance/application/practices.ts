@@ -22,6 +22,9 @@ export interface PracticeView {
   venue: string | null;
   notes: string | null;
   status: "SCHEDULED" | "CANCELLED";
+  /** ISO timestamps: request to the IIT administration sent / venue confirmed. */
+  venueRequestedAt: string | null;
+  venueConfirmedAt: string | null;
 }
 
 function toView(practice: Practice): PracticeView {
@@ -34,6 +37,8 @@ function toView(practice: Practice): PracticeView {
     venue: practice.venue,
     notes: practice.notes,
     status: practice.status,
+    venueRequestedAt: practice.venueRequestedAt?.toISOString() ?? null,
+    venueConfirmedAt: practice.venueConfirmedAt?.toISOString() ?? null,
   };
 }
 
@@ -198,6 +203,53 @@ export async function setPracticeCancelled(id: string, cancelled: boolean, actor
     await tx.practice.update({ where: { id }, data: { status: cancelled ? "CANCELLED" : "SCHEDULED" } });
     await writeAuditLog(
       { actorId, action: cancelled ? "practice.cancel" : "practice.restore", entity: "practice", entityId: id },
+      tx,
+    );
+  });
+  return ok(null);
+}
+
+export type VenueBookingStep = "requested" | "confirmed";
+
+/**
+ * Admins track booking the venue with the IIT administration: the request was
+ * sent, then the venue was confirmed (optionally naming the hall they got).
+ * Undoing "sent" also undoes "confirmed".
+ */
+export async function setVenueBooking(
+  id: string,
+  input: { step: VenueBookingStep; done: boolean; venue?: string },
+  actorId: string,
+): Promise<Result<null>> {
+  const current = await prisma.practice.findUnique({ where: { id } });
+  if (!current) return err("NOT_FOUND", "Practice not found");
+  const venue = input.venue?.trim();
+  if (venue !== undefined && venue.length > 120) return err("VALIDATION", "Venue must be 120 characters or fewer");
+
+  const now = new Date();
+  const data =
+    input.step === "requested"
+      ? input.done
+        ? { venueRequestedAt: current.venueRequestedAt ?? now }
+        : { venueRequestedAt: null, venueConfirmedAt: null }
+      : input.done
+        ? {
+            venueRequestedAt: current.venueRequestedAt ?? now,
+            venueConfirmedAt: now,
+            ...(venue ? { venue } : {}),
+          }
+        : { venueConfirmedAt: null };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.practice.update({ where: { id }, data });
+    await writeAuditLog(
+      {
+        actorId,
+        action: `practice.venue-${input.step}${input.done ? "" : "-undone"}`,
+        entity: "practice",
+        entityId: id,
+        diff: venue && input.step === "confirmed" && input.done ? { venue } : undefined,
+      },
       tx,
     );
   });

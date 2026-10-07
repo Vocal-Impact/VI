@@ -9,13 +9,14 @@ import {
   getRsvpSummary,
   getVenueRequestLinks,
 } from "@/modules/attendance";
-import { PracticeDetails, RsvpCountBadges } from "@/modules/attendance/ui";
+import { PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { todayLocal } from "@/shared/lib/clock";
 import { Button, buttonClasses, LinkButton } from "@/shared/ui/button";
 import { ConfirmSubmit } from "@/shared/ui/client";
+import { Input } from "@/shared/ui/form";
 import { Alert, Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layout";
-import { deletePracticeAction, setPracticeCancelledAction } from "../actions";
+import { deletePracticeAction, setPracticeCancelledAction, setVenueBookingAction } from "../actions";
 import { AttendanceChecklist } from "./attendance-checklist";
 
 export const metadata = { title: "Practice" };
@@ -31,7 +32,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   const attendanceOpen = canTakeAttendance(user.role, practice, today);
   const isFuture = practice.date > today;
   const canBookVenue =
-    hasPermission(user.role, "settings:manage") && practice.status === "SCHEDULED" && practice.date >= today;
+    hasPermission(user.role, "venues:book") && practice.status === "SCHEDULED" && practice.date >= today;
   const [summary, entries, threshold, venueRequest] = await Promise.all([
     getRsvpSummary(practiceId),
     practice.date <= today ? getAttendanceChecklist(practiceId) : Promise.resolve([]),
@@ -100,30 +101,83 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
       {venueRequest ? (
         <Card className="mb-6">
           <CardHeader
-            title="Book the venue"
-            description="The request to the IIT administration is already written. Open it, check it, and press Send."
+            title="Venue booking"
+            description="Admins only. Ask the IIT administration for a venue, then record each step here."
+            action={<VenueBookingBadge practice={practice} />}
           />
-          <CardBody className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <a
-                href={venueRequest.gmailUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={buttonClasses("primary", "sm")}
-              >
-                Open the email in Gmail
-              </a>
-              <a href={venueRequest.mailtoUrl} className={buttonClasses("outline", "sm")}>
-                Open in mail app
-              </a>
-            </div>
-            <p className="text-xs text-slate-500">
-              To: {venueRequest.draft.to.length ? venueRequest.draft.to.join(", ") : "no recipients set yet"}
-              {venueRequest.draft.cc.length ? ` · Cc: ${venueRequest.draft.cc.join(", ")}` : ""} ·{" "}
-              <Link href="/settings" className="text-brand-700 hover:underline">
-                Change the wording
-              </Link>
-            </p>
+          <CardBody>
+            <ol className="space-y-5">
+              <li className="space-y-2">
+                <p className="text-sm font-semibold text-ink">1. Send the request</p>
+                {practice.venueRequestedAt ? (
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-emerald-700">
+                    <span>✓ Marked as sent on {formatTimestamp(practice.venueRequestedAt)}</span>
+                    <form action={setVenueBookingAction.bind(null, practice.id, "requested", false)}>
+                      <Button type="submit" variant="ghost" size="sm">
+                        Undo
+                      </Button>
+                    </form>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-slate-600">
+                      The email is already written. Open it in Gmail, check it and press Send, then mark it as sent.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={venueRequest.gmailUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={buttonClasses("primary", "sm")}
+                      >
+                        Open the email in Gmail
+                      </a>
+                      <form action={setVenueBookingAction.bind(null, practice.id, "requested", true)}>
+                        <Button type="submit" variant="outline" size="sm">
+                          Mark as sent
+                        </Button>
+                      </form>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      To: {venueRequest.draft.to.length ? venueRequest.draft.to.join(", ") : "no recipients set yet"}
+                      {venueRequest.draft.cc.length ? ` · Cc: ${venueRequest.draft.cc.join(", ")}` : ""} ·{" "}
+                      <Link href="/settings" className="text-brand-700 hover:underline">
+                        Change the wording
+                      </Link>
+                    </p>
+                  </>
+                )}
+              </li>
+              <li className="space-y-2">
+                <p className="text-sm font-semibold text-ink">2. Venue confirmed by the administration</p>
+                {practice.venueConfirmedAt ? (
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-emerald-700">
+                    <span>
+                      ✓ {practice.venue ? <strong>{practice.venue}</strong> : "Confirmed"} on{" "}
+                      {formatTimestamp(practice.venueConfirmedAt)}
+                    </span>
+                    <form action={setVenueBookingAction.bind(null, practice.id, "confirmed", false)}>
+                      <Button type="submit" variant="ghost" size="sm">
+                        Undo
+                      </Button>
+                    </form>
+                  </div>
+                ) : (
+                  <form
+                    action={setVenueBookingAction.bind(null, practice.id, "confirmed", true)}
+                    className="flex flex-wrap items-end gap-2"
+                  >
+                    <label className="min-w-56 flex-1 text-sm">
+                      <span className="mb-1 block text-slate-600">Venue they gave you</span>
+                      <Input name="venue" defaultValue={practice.venue ?? ""} maxLength={120} />
+                    </label>
+                    <Button type="submit" size="sm">
+                      Mark venue confirmed
+                    </Button>
+                  </form>
+                )}
+              </li>
+            </ol>
           </CardBody>
         </Card>
       ) : null}
@@ -202,4 +256,17 @@ function RsvpList({
       </CardBody>
     </Card>
   );
+}
+
+/** "Tue, 7 Oct, 3:45 PM" in Sri Lanka time. */
+function formatTimestamp(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Colombo",
+  }).format(new Date(iso));
 }

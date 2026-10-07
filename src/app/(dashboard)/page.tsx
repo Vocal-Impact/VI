@@ -44,7 +44,11 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <UpcomingPractices memberId={user.memberId} manage={hasPermission(user.role, "practices:manage")} />
+        <UpcomingPractices
+          memberId={user.memberId}
+          manage={hasPermission(user.role, "practices:manage")}
+          showVenueBooking={hasPermission(user.role, "venues:book")}
+        />
 
         <Card>
           <CardHeader

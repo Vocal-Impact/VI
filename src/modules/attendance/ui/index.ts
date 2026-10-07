@@ -1,1 +1,1 @@
-export { PracticeDetails, RsvpCountBadges } from "./practice-details";
+export { PracticeCardLink, PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "./practice-details";

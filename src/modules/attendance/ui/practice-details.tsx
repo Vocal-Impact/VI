@@ -1,4 +1,5 @@
-import { CalendarDays, Clock, MapPin } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, ChevronRight, Clock, MapPin } from "lucide-react";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { cn } from "@/shared/lib/cn";
 import { Badge } from "@/shared/ui/layout";
@@ -60,5 +61,37 @@ export function RsvpCountBadges({ counts }: { counts: RsvpCounts }) {
       <Badge tone="red">✗ {counts.notGoing} can&apos;t</Badge>
       <Badge>? {counts.noResponse} no reply</Badge>
     </span>
+  );
+}
+
+/** Where booking the venue with the IIT administration stands (admins only). */
+export function VenueBookingBadge({
+  practice,
+}: {
+  practice: { venueRequestedAt: string | null; venueConfirmedAt: string | null };
+}) {
+  if (practice.venueConfirmedAt) return <Badge tone="green">Venue confirmed</Badge>;
+  if (practice.venueRequestedAt) return <Badge tone="blue">Venue requested</Badge>;
+  return <Badge tone="amber">Venue not requested</Badge>;
+}
+
+/**
+ * Makes a whole practice card open the practice page. Put it inside a
+ * `relative` card; buttons and forms in the card need `relative z-10` to stay
+ * clickable above it.
+ */
+export function PracticeCardLink({ practiceId, label }: { practiceId: string; label: string }) {
+  return (
+    <>
+      <Link
+        href={`/attendance/${practiceId}`}
+        aria-label={`Open ${label}`}
+        className="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+      />
+      <ChevronRight
+        className="pointer-events-none absolute top-3 right-3 size-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600"
+        aria-hidden="true"
+      />
+    </>
   );
 }

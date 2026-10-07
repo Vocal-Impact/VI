@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gmailComposeUrl, mailtoUrl, renderVenueRequest, type VenueRequestTemplate } from "./venue-request";
+import { gmailComposeUrl, renderVenueRequest, type VenueRequestTemplate } from "./venue-request";
 
 const template: VenueRequestTemplate = {
   to: ["facilities@iit.ac.lk", "events@iit.ac.lk"],
@@ -56,11 +56,5 @@ describe("compose links", () => {
     expect(url.searchParams.has("to")).toBe(false);
     expect(url.searchParams.has("cc")).toBe(false);
     expect(url.searchParams.has("authuser")).toBe(false);
-  });
-
-  it("builds a mailto link with CRLF line breaks", () => {
-    const url = mailtoUrl(draft);
-    expect(url.startsWith("mailto:facilities%40iit.ac.lk,events%40iit.ac.lk?cc=choir%40iit.ac.lk&subject=")).toBe(true);
-    expect(decodeURIComponent(url.split("body=")[1]!)).toBe(draft.body.replace(/\n/g, "\r\n"));
   });
 });

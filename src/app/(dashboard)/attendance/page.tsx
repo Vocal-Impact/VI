@@ -7,7 +7,7 @@ import {
   listUpcomingPractices,
 } from "@/modules/attendance";
 import { attendanceProgress } from "@/modules/attendance/domain";
-import { PracticeDetails, RsvpCountBadges } from "@/modules/attendance/ui";
+import { PracticeCardLink, PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { getSettings } from "@/shared/settings/settings";
@@ -21,6 +21,7 @@ export const metadata = { title: "Practices" };
 export default async function PracticesPage() {
   const user = await requirePermission("attendance:read");
   const canManage = hasPermission(user.role, "practices:manage");
+  const canBookVenues = hasPermission(user.role, "venues:book");
   const today = todayLocal();
   const [todays, upcoming, past, progress, settings] = await Promise.all([
     getTodaysPractice(),
@@ -83,22 +84,28 @@ export default async function PracticesPage() {
               {upcoming.map((practice) => (
                 <div
                   key={practice.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-3"
+                  className="group relative flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-3 pr-9 transition-colors hover:border-brand-300 hover:bg-slate-50/70"
                 >
+                  <PracticeCardLink
+                    practiceId={practice.id}
+                    label={`${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`}
+                  />
                   <div className="space-y-2">
                     <PracticeDetails practice={practice} today={today} />
-                    {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : null}
+                    {practice.status === "SCHEDULED" ? (
+                      <span className="flex flex-wrap gap-1.5">
+                        <RsvpCountBadges counts={practice.counts} />
+                        {canBookVenues ? <VenueBookingBadge practice={practice} /> : null}
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="flex gap-2">
-                    <LinkButton href={`/attendance/${practice.id}`} size="sm" variant="secondary">
-                      Who&apos;s coming
-                    </LinkButton>
-                    {canManage ? (
+                  {canManage ? (
+                    <div className="relative z-10 flex gap-2">
                       <LinkButton href={`/attendance/${practice.id}/edit`} size="sm" variant="outline">
                         Edit
                       </LinkButton>
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </CardBody>

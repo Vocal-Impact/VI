@@ -9,6 +9,8 @@ export {
   schedulePractice,
   updatePractice,
   setPracticeCancelled,
+  setVenueBooking,
+  type VenueBookingStep,
   deletePractice,
   setRsvp,
   getPracticeAttendeeIds,

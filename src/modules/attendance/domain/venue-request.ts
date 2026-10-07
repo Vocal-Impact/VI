@@ -68,17 +68,3 @@ export function gmailComposeUrl(draft: VenueRequestDraft, senderEmail?: string):
   params.set("body", draft.body);
   return `https://mail.google.com/mail/?${params.toString()}`;
 }
-
-/** The same draft for the device's default mail app (e.g. the Gmail or Mail app on a phone). */
-export function mailtoUrl(draft: VenueRequestDraft): string {
-  // encodeURIComponent writes spaces as %20, which every mail app understands (unlike "+").
-  const encode = encodeURIComponent;
-  const query = [
-    draft.cc.length ? `cc=${encode(draft.cc.join(","))}` : null,
-    `subject=${encode(draft.subject)}`,
-    `body=${encode(draft.body.replace(/\r?\n/g, "\r\n"))}`,
-  ]
-    .filter(Boolean)
-    .join("&");
-  return `mailto:${draft.to.map(encodeURIComponent).join(",")}?${query}`;
-}

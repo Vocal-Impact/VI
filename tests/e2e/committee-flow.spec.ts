@@ -304,8 +304,18 @@ test("members see scheduled practices and reply; committee sees who's coming", a
   await page.goto("/attendance");
   const card = page.locator("div.rounded-lg").filter({ hasText: "Concert rehearsal" }).first();
   await expect(card.getByText("✓ 1 going")).toBeVisible();
-  await card.getByRole("link", { name: "Who's coming" }).click();
+  await expect(card.getByText("Venue not requested")).toBeVisible();
+  await card.getByRole("link", { name: /^Open Concert rehearsal/ }).click();
   await expect(page.getByRole("heading", { name: "Going (1)" })).toBeVisible();
+
+  // Admin books the venue: open the ready-made Gmail draft, mark it sent, then confirmed.
+  const gmail = page.getByRole("link", { name: "Open the email in Gmail" });
+  await expect(gmail).toHaveAttribute("href", /^https:\/\/mail\.google\.com\/mail\/\?view=cm/);
+  await page.getByRole("button", { name: "Mark as sent" }).click();
+  await expect(page.getByText(/✓ Marked as sent on/)).toBeVisible();
+  await page.getByLabel("Venue they gave you").fill("Main Hall");
+  await page.getByRole("button", { name: "Mark venue confirmed" }).click();
+  await expect(page.getByText("Venue confirmed", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: `${E2E_MEMBER.firstName} ${E2E_MEMBER.lastName}` }).first(),
   ).toBeVisible();
@@ -315,7 +325,7 @@ test("members see scheduled practices and reply; committee sees who's coming", a
   await page.getByRole("link", { name: "Edit details" }).click();
   await page.getByLabel("Venue").fill("Studio 2");
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Studio 2")).toBeVisible();
+  await expect(page.getByText("Studio 2").first()).toBeVisible();
   await member.goto("/");
   await expect(member.getByText("Studio 2")).toBeVisible();
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { schedulePractice, sendVenueRequestReminders, setPracticeCancelled } from "@/modules/attendance";
+import {
+  getPractice,
+  schedulePractice,
+  sendVenueRequestReminders,
+  setPracticeCancelled,
+  setVenueBooking,
+} from "@/modules/attendance";
 import type { EmailMessage, EmailSender } from "@/modules/notifications";
 import { prisma } from "@/shared/db/prisma";
 import { todayLocal } from "@/shared/lib/clock";
@@ -79,5 +85,50 @@ describe("venue booking reminder", () => {
       sent: 0,
       failed: 0,
     });
+  });
+});
+
+describe("venue booking progress", () => {
+  it("records sent and confirmed, sets the confirmed venue, and undoes cleanly", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const scheduled = await schedulePractice(
+      { date: addDays(todayLocal(), 5), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
+      admin.id,
+    );
+    if (!scheduled.ok) throw new Error(scheduled.error.message);
+    const id = scheduled.value.id;
+
+    await setVenueBooking(id, { step: "requested", done: true }, admin.id);
+    let practice = await getPractice(id);
+    expect(practice?.venueRequestedAt).not.toBeNull();
+    expect(practice?.venueConfirmedAt).toBeNull();
+
+    await setVenueBooking(id, { step: "confirmed", done: true, venue: "  Studio 2 " }, admin.id);
+    practice = await getPractice(id);
+    expect(practice).toMatchObject({ venue: "Studio 2" });
+    expect(practice?.venueConfirmedAt).not.toBeNull();
+
+    await setVenueBooking(id, { step: "confirmed", done: false }, admin.id);
+    practice = await getPractice(id);
+    expect(practice?.venueConfirmedAt).toBeNull();
+    expect(practice?.venueRequestedAt).not.toBeNull();
+
+    // Confirming straight away also counts as requested; undoing "sent" clears both.
+    await setVenueBooking(id, { step: "confirmed", done: true }, admin.id);
+    await setVenueBooking(id, { step: "requested", done: false }, admin.id);
+    practice = await getPractice(id);
+    expect([practice?.venueRequestedAt, practice?.venueConfirmedAt]).toEqual([null, null]);
+    expect(practice?.venue).toBe("Studio 2");
+
+    expect(
+      (await prisma.auditLog.findMany({ where: { entityId: id }, orderBy: { createdAt: "asc" } })).map((e) => e.action),
+    ).toEqual([
+      "practice.schedule",
+      "practice.venue-requested",
+      "practice.venue-confirmed",
+      "practice.venue-confirmed-undone",
+      "practice.venue-confirmed",
+      "practice.venue-requested-undone",
+    ]);
   });
 });

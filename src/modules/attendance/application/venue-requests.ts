@@ -6,14 +6,13 @@ import { formatIsoDate, toIsoDate } from "@/shared/lib/dates";
 import { errorMessage, logger } from "@/shared/lib/logger";
 import { getSettings } from "@/shared/settings/settings";
 import { formatTimeRange } from "../domain/practice";
-import { gmailComposeUrl, mailtoUrl, renderVenueRequest, type VenueRequestDraft } from "../domain/venue-request";
+import { gmailComposeUrl, renderVenueRequest, type VenueRequestDraft } from "../domain/venue-request";
 
 const EXPECTED_STATUSES = ["PROSPECTIVE", "ACTIVE"] as const;
 
 export interface VenueRequestLinks {
   draft: VenueRequestDraft;
   gmailUrl: string;
-  mailtoUrl: string;
 }
 
 async function loadContext(practiceId: string) {
@@ -39,7 +38,7 @@ function buildLinks(
     expected: context.expected,
     senderName: sender.name,
   });
-  return { draft, gmailUrl: gmailComposeUrl(draft, sender.email), mailtoUrl: mailtoUrl(draft) };
+  return { draft, gmailUrl: gmailComposeUrl(draft, sender.email) };
 }
 
 /** The ready-made venue request for one admin, for the button on the practice page. */
@@ -97,7 +96,6 @@ export async function sendVenueRequestReminders(
           title: context.practice.title,
           draft: links.draft,
           gmailUrl: links.gmailUrl,
-          mailtoUrl: links.mailtoUrl,
           practiceUrl: `${base}/attendance/${practiceId}`,
           settingsUrl: `${base}/settings`,
           logoUrl: brandLogoUrl(),

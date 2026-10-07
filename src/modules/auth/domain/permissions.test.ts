@@ -22,3 +22,11 @@ describe("RBAC", () => {
     expect(hasPermission("MEMBER", "carpool:read")).toBe(false);
   });
 });
+
+describe("venue booking", () => {
+  it("is for admins only", () => {
+    expect(hasPermission("ADMIN", "venues:book")).toBe(true);
+    expect(hasPermission("COMMITTEE", "venues:book")).toBe(false);
+    expect(hasPermission("MEMBER", "venues:book")).toBe(false);
+  });
+});

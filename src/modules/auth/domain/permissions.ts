@@ -16,6 +16,8 @@ export const PERMISSIONS = [
   "practices:manage",
   "practices:rsvp",
   "rsvps:read",
+  /** Ask the IIT administration for a venue and track the booking. Admins only. */
+  "venues:book",
   "groups:read",
   "groups:manage",
   "invites:send",

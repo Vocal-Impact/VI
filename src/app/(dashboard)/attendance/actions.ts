@@ -11,7 +11,9 @@ import {
   setPracticeCancelled,
   sendVenueRequestReminders,
   setRsvp,
+  setVenueBooking,
   updatePractice,
+  type VenueBookingStep,
   type RsvpResponse,
 } from "@/modules/attendance";
 import { errorMessage, logger } from "@/shared/lib/logger";
@@ -110,4 +112,16 @@ export async function rsvpAction(practiceId: string, response: RsvpResponse): Pr
   if (!result.ok) return { ok: false, error: result.error.message };
   refreshPractices(practiceId);
   return { ok: true };
+}
+
+export async function setVenueBookingAction(
+  practiceId: string,
+  step: VenueBookingStep,
+  done: boolean,
+  formData: FormData,
+): Promise<void> {
+  const user = await requirePermission("venues:book");
+  const venue = formData.get("venue");
+  await setVenueBooking(practiceId, { step, done, venue: typeof venue === "string" ? venue : undefined }, user.id);
+  refreshPractices(practiceId);
 }

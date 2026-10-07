@@ -166,7 +166,6 @@ export interface VenueRequestReminderInput {
   /** The draft the buttons open: who it goes to and what it says. */
   draft: { to: string[]; cc: string[]; subject: string; body: string };
   gmailUrl: string;
-  mailtoUrl: string;
   practiceUrl: string;
   settingsUrl: string;
   logoUrl?: string;
@@ -189,7 +188,7 @@ export function venueRequestReminderEmail(input: VenueRequestReminderInput): Ema
     "",
     input.draft.body,
     "",
-    `Practice: ${input.practiceUrl}`,
+    `After sending it, mark "Request sent" (and later "Venue confirmed") on the practice page: ${input.practiceUrl}`,
     "",
     TEXT_SIGNATURE,
   ]
@@ -210,7 +209,6 @@ export function venueRequestReminderEmail(input: VenueRequestReminderInput): Ema
       ),
       paragraph("The request email is already written. Tap the button, check it, and press Send:"),
       button(input.gmailUrl, "Open the email in Gmail"),
-      `<p style="margin:0 0 18px;font-family:Arial,sans-serif;font-size:13px;color:${EMAIL_COLOURS.muted}">Using a phone mail app instead? <a href="${escapeHtml(input.mailtoUrl)}" style="color:${EMAIL_COLOURS.violet}">Open it in your mail app</a>.</p>`,
       card(
         [
           meta("To", recipients ?? "No recipients set yet"),
@@ -225,7 +223,7 @@ export function venueRequestReminderEmail(input: VenueRequestReminderInput): Ema
             `⚠️ No recipients are set. Add the administration&#39;s email address in <a href="${escapeHtml(input.settingsUrl)}" style="color:${EMAIL_COLOURS.violet}">Settings → General → Venue request email</a>.`,
           ),
       paragraph(
-        `Once it&#39;s booked, add the venue to <a href="${escapeHtml(input.practiceUrl)}" style="color:${EMAIL_COLOURS.violet}">the practice</a> so members can see it.`,
+        `After sending it, tick <b>Request sent</b> on <a href="${escapeHtml(input.practiceUrl)}" style="color:${EMAIL_COLOURS.violet}">the practice page</a>, and <b>Venue confirmed</b> once the administration replies, so the other admins know where it stands.`,
       ),
     ].join("\n"),
     logoUrl: input.logoUrl,
