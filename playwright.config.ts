@@ -52,6 +52,8 @@ export default defineConfig({
       GEOCODER: "disabled",
       CRON_SECRET: "e2e-cron-secret",
       DATA_ENCRYPTION_KEY: E2E_DATA_ENCRYPTION_KEY,
+      // Tests cover every feature, whatever a developer's .env switches off.
+      FEATURE_LIFTS_HOME: "true",
       ALLOWED_EMAIL_DOMAIN: "iit.ac.lk",
       GOOGLE_CLIENT_ID: "",
       GOOGLE_CLIENT_SECRET: "",
