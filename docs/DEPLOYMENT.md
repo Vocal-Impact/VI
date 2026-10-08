@@ -106,7 +106,9 @@ For **`DATA_ENCRYPTION_KEY`**, use the **exact value from your local `.env`** if
 
 **Do not add `ENABLE_PASSWORD_LOGIN`.** The app refuses to start with it in production.
 
-4. Click **Deploy**. The build:
+4. Click **Deploy**. Vercel's own automatic deploys are switched off (`vercel.json`), because GitHub Actions deploys instead (Step 5b). This first deploy from Vercel may say "skipped" or fail on missing settings; that's fine. Deploys come from GitHub Actions.
+
+   Every deploy runs `npm run vercel-build`, which:
    - creates and updates the database tables (`prisma migrate deploy`)
    - encrypts any unencrypted data (`npm run db:encrypt`)
    - builds the app
@@ -121,6 +123,26 @@ For **`DATA_ENCRYPTION_KEY`**, use the **exact value from your local `.env`** if
    Save. It can take a few minutes to take effect.
 
 7. Check it's alive: open `https://<project-name>.vercel.app/api/health`. It should show `{"status":"ok"}`. That means the app and the database are connected.
+
+---
+
+## Step 5b — Let GitHub Actions deploy (CI / CD)
+
+`.github/workflows/ci.yml` checks every push and pull request:
+
+- formatting, lint and type check
+- database migrations
+- unit, integration and Python tests
+- a production build and browser tests
+
+When everything passes on `main`, it **deploys to Vercel**. A failing commit never reaches the live site. It needs three repository secrets:
+
+1. **`VERCEL_TOKEN`:** Vercel → your avatar → **Account Settings → Tokens → Create**. Name it `github-actions`, scope it to the team that owns the project, and pick an expiry you'll remember to renew.
+2. **`VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`:** the easiest way is to run `npx vercel link` in the project folder on your laptop and choose the project. It creates `.vercel/project.json` containing `orgId` and `projectId`. (`.vercel` is ignored by git.)
+3. Add all three in GitHub → the repository → **Settings → Secrets and variables → Actions → New repository secret**.
+4. Push to `main`, or open **Actions → CI / CD → Run workflow**. The **Deploy to production** job runs after the checks, then confirms the site's `/api/health` is OK.
+
+The production environment variables stay in **Vercel**. The deploy job downloads them (`vercel pull`), so there's nothing secret to copy into GitHub apart from the three above.
 
 ---
 
@@ -233,8 +255,8 @@ The monthly free allowance covers a choir many times over.
 ## After launch — making changes
 
 1. Work and test **locally** (`npm run db:local`, `npm run dev`, `npm test`).
-2. `git push origin main`. Vercel redeploys in about 2 minutes and applies any database changes automatically.
-3. CI runs on every push (lint, type check, tests, build). A red ❌ means look before relying on that version.
+2. `git push origin main`, or merge a pull request into `main`. GitHub Actions runs every check (about 8 minutes). If they pass, it deploys to Vercel, applies any database changes and checks the site is up. You can follow it under the repository's **Actions** tab.
+3. **A red ❌ means nothing was deployed.** The live site keeps running the last good version. Open the failed run to see why, fix it, and push again.
 4. **Something broke?** Go to Vercel → **Deployments**, open the last good one, and use **⋯ → Promote to Production** to roll back instantly. A rollback doesn't undo database migrations, so avoid deleting columns in a hurry.
 5. **Dependabot** opens pull requests for package updates. Merge them one at a time. If one shows a merge conflict, comment `@dependabot rebase` on it.
 
@@ -244,31 +266,34 @@ Avoid Vercel **preview deployments** for now. They would use the live database, 
 
 ## Troubleshooting
 
-| Symptom                                                                    | Likely cause / fix                                                                                                                                                        |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build fails: _"Invalid environment configuration"_                         | A variable is missing or malformed; the log names it. Common ones: `DATA_ENCRYPTION_KEY` must be 32 bytes base64; `BETTER_AUTH_SECRET` must be at least 32 characters.    |
-| Build fails during `prisma migrate deploy`                                 | `DIRECT_URL` is missing or wrong (it must be the **non-pooled** Neon string).                                                                                             |
-| Build fails: _BETTER_AUTH_URL … received undefined_                        | Redeploy with the latest code (it now uses Vercel's address automatically), or set `BETTER_AUTH_URL` to `https://<project>.vercel.app`.                                   |
-| Build log says _Running "next build"_ (not `vercel-build`)                 | A Build Command override is set in Vercel → Settings → Build and Deployment. Switch it off so `vercel.json` is used; otherwise migrations never run.                      |
-| Google says **redirect_uri_mismatch**                                      | The redirect URI in Google Cloud must exactly match `BETTER_AUTH_URL` + `/api/auth/callback/google`.                                                                      |
-| Signed in with Google but get "not allowed"                                | That email isn't linked to an access level yet. Add it under **Access & roles** (or run Step 6 for the first admin). Members can sign in only if they're current members. |
-| Email fails: _401 … unrecognised IP address_                               | Brevo's **Authorised IPs** blocking is on. In Brevo, go to **Security → Authorised IPs** and deactivate blocking (or add the IP it names, for local testing only).        |
-| Test email fails: _Key not found_ / 401                                    | `BREVO_API_KEY` is wrong. It must be the `xkeysib-…` API key, not an SMTP key.                                                                                            |
-| Test email fails: _sender not valid_                                       | `EMAIL_FROM` must be a sender verified in Brevo.                                                                                                                          |
-| Phone numbers / locations show as `v1:…` or pages error after copying data | `DATA_ENCRYPTION_KEY` in Vercel differs from the key that encrypted the data. Put the original key back.                                                                  |
-| Daily job doesn't run                                                      | Check **Settings → System → Daily job runs** and Vercel → **Cron Jobs**. `CRON_SECRET` must be set in Vercel.                                                             |
-| First page load is slow after a quiet period                               | Normal: Neon's free database pauses when idle and takes a second or two to wake.                                                                                          |
+| Symptom                                                                       | Likely cause / fix                                                                                                                                                        |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build fails: _"Invalid environment configuration"_                            | A variable is missing or malformed; the log names it. Common ones: `DATA_ENCRYPTION_KEY` must be 32 bytes base64; `BETTER_AUTH_SECRET` must be at least 32 characters.    |
+| Build fails during `prisma migrate deploy`                                    | `DIRECT_URL` is missing or wrong (it must be the **non-pooled** Neon string).                                                                                             |
+| Build fails: _BETTER_AUTH_URL … received undefined_                           | Redeploy with the latest code (it now uses Vercel's address automatically), or set `BETTER_AUTH_URL` to `https://<project>.vercel.app`.                                   |
+| Actions deploy fails: _Add VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID_ | The repository secrets aren't set (Step 5b).                                                                                                                              |
+| Actions deploy fails: _not authorized_ / _token expired_                      | Create a new Vercel token and update the `VERCEL_TOKEN` secret.                                                                                                           |
+| Build log says _Running "next build"_ (not `vercel-build`)                    | A Build Command override is set in Vercel → Settings → Build and Deployment. Switch it off so `vercel.json` is used; otherwise migrations never run.                      |
+| Google says **redirect_uri_mismatch**                                         | The redirect URI in Google Cloud must exactly match `BETTER_AUTH_URL` + `/api/auth/callback/google`.                                                                      |
+| Signed in with Google but get "not allowed"                                   | That email isn't linked to an access level yet. Add it under **Access & roles** (or run Step 6 for the first admin). Members can sign in only if they're current members. |
+| Email fails: _401 … unrecognised IP address_                                  | Brevo's **Authorised IPs** blocking is on. In Brevo, go to **Security → Authorised IPs** and deactivate blocking (or add the IP it names, for local testing only).        |
+| Test email fails: _Key not found_ / 401                                       | `BREVO_API_KEY` is wrong. It must be the `xkeysib-…` API key, not an SMTP key.                                                                                            |
+| Test email fails: _sender not valid_                                          | `EMAIL_FROM` must be a sender verified in Brevo.                                                                                                                          |
+| Phone numbers / locations show as `v1:…` or pages error after copying data    | `DATA_ENCRYPTION_KEY` in Vercel differs from the key that encrypted the data. Put the original key back.                                                                  |
+| Daily job doesn't run                                                         | Check **Settings → System → Daily job runs** and Vercel → **Cron Jobs**. `CRON_SECRET` must be set in Vercel.                                                             |
+| First page load is slow after a quiet period                                  | Normal: Neon's free database pauses when idle and takes a second or two to wake.                                                                                          |
 
 ---
 
 ## Where secrets live (for the handover)
 
-| Secret                                       | Where it's used              | Can it be changed?                                       |
-| -------------------------------------------- | ---------------------------- | -------------------------------------------------------- |
-| `DATA_ENCRYPTION_KEY`                        | Vercel                       | **Never.** Data becomes unreadable.                      |
-| `BETTER_AUTH_SECRET`                         | Vercel                       | Yes; everyone is signed out.                             |
-| `CRON_SECRET`                                | Vercel                       | Yes.                                                     |
-| `BREVO_API_KEY`                              | Vercel                       | Yes; create a new one in Brevo, then delete the old one. |
-| `GOOGLE_CLIENT_SECRET`                       | Vercel                       | Yes; create a new secret in Google Cloud.                |
-| Neon password (`DATABASE_URL`, `DIRECT_URL`) | Vercel, GitHub backup secret | Yes; reset it in Neon, then update both places.          |
-| `BACKUP_PASSPHRASE`                          | GitHub secret                | Keep the old one until old backups expire (90 days).     |
+| Secret                                       | Where it's used              | Can it be changed?                                                                   |
+| -------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------ |
+| `DATA_ENCRYPTION_KEY`                        | Vercel                       | **Never.** Data becomes unreadable.                                                  |
+| `BETTER_AUTH_SECRET`                         | Vercel                       | Yes; everyone is signed out.                                                         |
+| `VERCEL_TOKEN`                               | GitHub secret (deploys)      | Yes; create a new token in Vercel and update the secret. Renew it before it expires. |
+| `CRON_SECRET`                                | Vercel                       | Yes.                                                                                 |
+| `BREVO_API_KEY`                              | Vercel                       | Yes; create a new one in Brevo, then delete the old one.                             |
+| `GOOGLE_CLIENT_SECRET`                       | Vercel                       | Yes; create a new secret in Google Cloud.                                            |
+| Neon password (`DATABASE_URL`, `DIRECT_URL`) | Vercel, GitHub backup secret | Yes; reset it in Neon, then update both places.                                      |
+| `BACKUP_PASSPHRASE`                          | GitHub secret                | Keep the old one until old backups expire (90 days).                                 |

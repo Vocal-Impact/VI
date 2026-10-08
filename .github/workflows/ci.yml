@@ -1,13 +1,21 @@
-name: CI
+name: CI / CD
 
+# CI: every pull request and every push to main runs all checks.
+# CD: a push (or merge) to main is deployed to production on Vercel, but only
+#     after every check has passed. Vercel's own Git deploys are switched off
+#     in vercel.json, so a failing commit can never reach the live site.
 on:
   pull_request:
   push:
     branches: [main]
+  # Re-run checks and deploy by hand: Actions → CI / CD → Run workflow.
+  workflow_dispatch:
 
+# A new push cancels older checks on a pull request, but never a running
+# production deploy (that could stop half-way through a database migration).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
@@ -63,6 +71,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Geocoding script tests (Python)
+        run: |
+          python3 -m pip install --quiet cryptography
+          python3 -m unittest discover -s scripts/geocode -v
+
       - name: Integration tests (Postgres)
         run: npm run test:integration
 
@@ -82,3 +95,65 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  deploy:
+    name: Deploy to production (Vercel)
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    # Only one production deploy at a time, in order.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Check the Vercel secrets are set
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::error::Add VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID as repository secrets (see docs/DEPLOYMENT.md)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install the Vercel CLI
+        run: npm install --global vercel@latest
+
+      # Production environment variables (DATABASE_URL, secrets…) come from Vercel, not GitHub.
+      - name: Pull the production settings from Vercel
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      # Runs `npm run vercel-build` (vercel.json): database migrations, encryption backfill, next build.
+      - name: Build (migrates the production database)
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check the live site is up
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error --max-time 20 "${{ steps.deploy.outputs.url }}/api/health"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::The new deployment didn't pass its health check. Roll back in Vercel → Deployments → Promote."
+          exit 1
