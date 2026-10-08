@@ -52,7 +52,12 @@ export function LocationForm({
 
   return (
     <div className="space-y-4">
-      <form action={formAction} className="space-y-4">
+      <form
+        // Re-create after a save so the fields show what was saved.
+        key={`${initial?.areaLabel}-${initial?.canDrive}-${initial?.seats}-${initial?.latitude}`}
+        action={formAction}
+        className="space-y-4"
+      >
         <ActionFeedback state={state} />
         {status ? (
           <p className="flex flex-wrap items-center gap-2">

@@ -125,7 +125,12 @@ export function AccountRow({
 }) {
   const [state, formAction] = useActionState(action, idleState);
   return (
-    <form action={formAction} className="space-y-2 px-4 py-3 sm:px-5">
+    <form
+      // Re-create after a save so the fields show what was saved (React resets forms to their first values).
+      key={`${account.role}-${account.active}-${account.receivesBirthdayReminders}`}
+      action={formAction}
+      className="space-y-2 px-4 py-3 sm:px-5"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-medium">

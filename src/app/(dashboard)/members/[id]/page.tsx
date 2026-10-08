@@ -309,7 +309,8 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
             <Card>
               <CardHeader title="Manage" />
               <CardBody className="space-y-4">
-                <form action={changeStatusAction.bind(null, member.id)} className="flex gap-2">
+                {/* Keyed on the status so the dropdown shows the new one after saving. */}
+                <form key={member.status} action={changeStatusAction.bind(null, member.id)} className="flex gap-2">
                   <Select name="status" defaultValue={member.status} aria-label="Status">
                     {MEMBER_STATUSES.map((status) => (
                       <option key={status} value={status}>
