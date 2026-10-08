@@ -23,7 +23,9 @@ export const viewport: Viewport = { themeColor: "#111111", width: "device-width"
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} ${archivo.variable} h-full`}>
-      <body className="min-h-full">
+      {/* Browser extensions (e.g. Grammarly) add attributes to <body> before React loads.
+          This only ignores attribute differences on <body> itself, not inside the page. */}
+      <body className="min-h-full" suppressHydrationWarning>
         {children}
         <Toaster richColors position="top-center" />
       </body>
