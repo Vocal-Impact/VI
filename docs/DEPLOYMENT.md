@@ -142,7 +142,7 @@ When everything passes on `main`, it **deploys to Vercel**. A failing commit nev
 3. Add all three in GitHub → the repository → **Settings → Secrets and variables → Actions → New repository secret**.
 4. Push to `main`, or open **Actions → CI / CD → Run workflow**. The **Deploy to production** job runs after the checks, then confirms the site's `/api/health` is OK.
 
-The production environment variables stay in **Vercel**. The deploy job downloads them (`vercel pull`), so there's nothing secret to copy into GitHub apart from the three above.
+The production environment variables stay in **Vercel**, and they can be marked _Sensitive_. GitHub Actions only decides _when_ to deploy: it uploads the code and **Vercel builds it** with those variables. So there's nothing secret to copy into GitHub apart from the three above.
 
 ---
 
@@ -273,6 +273,7 @@ Avoid Vercel **preview deployments** for now. They would use the live database, 
 | Build fails: _BETTER_AUTH_URL … received undefined_                           | Redeploy with the latest code (it now uses Vercel's address automatically), or set `BETTER_AUTH_URL` to `https://<project>.vercel.app`.                                   |
 | Actions deploy fails: _Add VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID_ | The repository secrets aren't set (Step 5b).                                                                                                                              |
 | Actions deploy fails: _not authorized_ / _token expired_                      | Create a new Vercel token and update the `VERCEL_TOKEN` secret.                                                                                                           |
+| Deploy fails with _P1013: The provided database string is invalid_            | `DATABASE_URL` / `DIRECT_URL` in Vercel is empty or not a `postgresql://…` address (copy it again from Neon → Connect, without the surrounding `psql '…'` or quotes).     |
 | Build log says _Running "next build"_ (not `vercel-build`)                    | A Build Command override is set in Vercel → Settings → Build and Deployment. Switch it off so `vercel.json` is used; otherwise migrations never run.                      |
 | Google says **redirect_uri_mismatch**                                         | The redirect URI in Google Cloud must exactly match `BETTER_AUTH_URL` + `/api/auth/callback/google`.                                                                      |
 | Signed in with Google but get "not allowed"                                   | That email isn't linked to an access level yet. Add it under **Access & roles** (or run Step 6 for the first admin). Members can sign in only if they're current members. |
