@@ -115,12 +115,27 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
     steps:
-      - name: Check the Vercel secrets are set
+      - name: Check the Vercel secrets
         run: |
           if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
             echo "::error::Add VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID as repository secrets (see docs/DEPLOYMENT.md)."
             exit 1
           fi
+          problems=0
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            value="${!name}"
+            if [ "$value" != "$(printf '%s' "$value" | tr -d "[:space:]\"'")" ]; then
+              echo "::error::$name contains spaces or quotes. Paste only the value, e.g. prj_abc123 without the quotation marks."
+              problems=1
+            fi
+          done
+          # Only the first characters are printed, never the secrets themselves.
+          if [[ "$VERCEL_PROJECT_ID" != prj_* ]]; then
+            echo "::error::VERCEL_PROJECT_ID should start with prj_ (it starts with '${VERCEL_PROJECT_ID:0:4}'). Copy projectId from .vercel/project.json."
+            problems=1
+          fi
+          echo "VERCEL_ORG_ID starts with '${VERCEL_ORG_ID:0:5}' (team_… for a team project, your user ID for a personal one)."
+          exit $problems
 
       - uses: actions/checkout@v7
 
@@ -138,6 +153,8 @@ jobs:
       - name: Build and deploy on Vercel
         id: deploy
         run: |
+          # "Project not found" here means the token can't see this project: create the token with
+          # the team that owns the project in its scope, and check the IDs (see docs/DEPLOYMENT.md).
           url=$(vercel deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
