@@ -14,6 +14,7 @@ import { buttonClasses, LinkButton } from "@/shared/ui/button";
 import { Input, Select } from "@/shared/ui/form";
 import { Alert, Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
 import { SubmitButton } from "@/shared/ui/client";
+import { FilterForm } from "@/shared/ui/filter-form";
 import { restoreMemberAction } from "./actions";
 
 export const metadata = { title: "Members" };
@@ -76,7 +77,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
       ) : null}
 
       <Card>
-        <form className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_repeat(3,auto)_auto]" role="search">
+        <FilterForm className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_repeat(3,auto)]">
           <Input
             name="q"
             placeholder="Search name, student ID, email or phone"
@@ -112,10 +113,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
               </option>
             ))}
           </Select>
-          <button type="submit" className={buttonClasses("secondary")}>
-            Filter
-          </button>
-        </form>
+        </FilterForm>
 
         {members.length === 0 ? (
           <div className="p-4">

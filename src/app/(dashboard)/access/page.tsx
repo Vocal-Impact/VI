@@ -1,3 +1,4 @@
+import { FilterForm } from "@/shared/ui/filter-form";
 import {
   accessFilterSchema,
   countAccessLevels,
@@ -5,7 +6,6 @@ import {
   listUnlinkedUsers,
   requirePermission,
 } from "@/modules/auth";
-import { buttonClasses } from "@/shared/ui/button";
 import { Input, Select } from "@/shared/ui/form";
 import { Card, CardBody, CardHeader, EmptyState, PageHeader, Stat } from "@/shared/ui/layout";
 import { createUserAction, setMemberAccessAction, updateUserAction } from "./actions";
@@ -48,7 +48,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
             title="Members"
             description="Choose a level and press Save. “Member” removes committee/admin powers but they can still sign in to reply to practices."
           />
-          <form className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_auto_auto]" role="search">
+          <FilterForm className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_auto]">
             <Input
               name="q"
               placeholder="Search name, email or student ID"
@@ -62,10 +62,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
               <option value="COMMITTEE">Committee</option>
               <option value="NONE">Members only</option>
             </Select>
-            <button type="submit" className={buttonClasses("secondary")}>
-              Filter
-            </button>
-          </form>
+          </FilterForm>
           {rows.length === 0 ? (
             <CardBody>
               <EmptyState title="No members found">Add members first (Members → Add member or Import CSV).</EmptyState>
