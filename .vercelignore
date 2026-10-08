@@ -1,0 +1,14 @@
+# Not needed to build or run the app on Vercel (GitHub Actions uploads the source).
+.local-db
+.env*
+!.env.example
+node_modules
+.next
+test-results
+playwright-report
+playwright/.auth
+coverage
+asset
+tests
+docs
+**/__pycache__

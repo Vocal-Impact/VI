@@ -127,23 +127,18 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-          cache: npm
 
       - name: Install the Vercel CLI
         run: npm install --global vercel@latest
 
-      # Production environment variables (DATABASE_URL, secrets…) come from Vercel, not GitHub.
-      - name: Pull the production settings from Vercel
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-
-      # Runs `npm run vercel-build` (vercel.json): database migrations, encryption backfill, next build.
-      - name: Build (migrates the production database)
-        run: vercel build --prod --token="$VERCEL_TOKEN"
-
-      - name: Deploy
+      # The build runs on Vercel, not here: Vercel's sensitive environment variables
+      # (DATABASE_URL, DATA_ENCRYPTION_KEY…) are only available there, and so is the
+      # project's own address. It runs `npm run vercel-build` (vercel.json): database
+      # migrations, encryption backfill, next build.
+      - name: Build and deploy on Vercel
         id: deploy
         run: |
-          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          url=$(vercel deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
 

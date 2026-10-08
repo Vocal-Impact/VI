@@ -11,6 +11,7 @@ export default defineConfig({
     // Read directly (not via `env()`) so `prisma generate` works in CI/Vercel
     // builds where no database URL is needed. Migrations prefer the direct
     // (non-pooled) Neon connection when one is configured.
-    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+    // `||`, not `??`: an empty DIRECT_URL (e.g. an unset Vercel variable) means "not set".
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL,
   },
 });
