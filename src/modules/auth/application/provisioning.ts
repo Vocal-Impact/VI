@@ -6,8 +6,8 @@ import { canMemberSignIn } from "../domain/access";
 /**
  * Who may sign in:
  *  - anyone an admin added (Access & roles) — their login already exists;
- *  - any current choir member, with their IIT email — a MEMBER login is created
- *    on first Google sign-in and linked to their member record.
+ *  - any choir member or alumnus, with their IIT email — a MEMBER login is
+ *    created on first Google sign-in and linked to their member record.
  */
 
 /** Called before Better Auth creates a new user (first sign-in). */
@@ -36,7 +36,7 @@ export async function linkNewLoginToMember(userId: string, email: string): Promi
 
 /**
  * May this login start a session? Disabled logins never; MEMBER logins only
- * while their member record is current (not alumni or removed).
+ * while their member record exists (not removed).
  */
 export async function maySignIn(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({

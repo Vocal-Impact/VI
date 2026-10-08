@@ -1,4 +1,4 @@
-import type { SessionUser } from "@/modules/auth";
+import { hasPermission, type SessionUser } from "@/modules/auth";
 import { getAttendanceThreshold, getAttendedCounts } from "@/modules/attendance";
 import { attendanceProgress } from "@/modules/attendance/domain";
 import { getBirthdayDashboard } from "@/modules/birthdays";
@@ -28,6 +28,7 @@ export async function MemberDashboard({ user }: { user: SessionUser }) {
     getBirthdayDashboard(),
   ]);
   const attended = counts.get(user.memberId) ?? 0;
+  const alumni = user.role === "ALUMNI" || user.role === "ALUMNI_COMMITTEE";
 
   return (
     <>
@@ -47,11 +48,30 @@ export async function MemberDashboard({ user }: { user: SessionUser }) {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <UpcomingPractices memberId={user.memberId} manage={false} take={6} />
+        <div className="space-y-6 lg:col-span-2">
+          {alumni ? (
+            <>
+              <UpcomingPractices
+                memberId={user.memberId}
+                manage={hasPermission(user.role, "practices:alumni-manage")}
+                audience="ALUMNI"
+                title="🎓 Alumni practices"
+                take={6}
+              />
+              <UpcomingPractices
+                memberId={user.memberId}
+                manage={false}
+                canReply={false}
+                title="🎼 Choir practices"
+                take={4}
+              />
+            </>
+          ) : (
+            <UpcomingPractices memberId={user.memberId} manage={false} take={6} />
+          )}
         </div>
         <div className="space-y-6">
-          <Stat label="Practices you've attended" value={attended} />
+          {alumni ? null : <Stat label="Practices you've attended" value={attended} />}
           <Card>
             <CardHeader title="🎂 Birthdays today" />
             <CardBody>

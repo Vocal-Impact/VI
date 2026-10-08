@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import {
   Cake,
   Car,
+  GraduationCap,
   Home,
   ListMusic,
   LogOut,
@@ -28,9 +29,18 @@ const ICONS = {
   chat: MessageCircle,
   cake: Cake,
   car: Car,
+  alumni: GraduationCap,
   cog: SlidersHorizontal,
   shield: ShieldCheck,
 } as const;
+
+const ROLE_NAMES: Record<string, string> = {
+  ADMIN: "admin",
+  COMMITTEE: "committee",
+  MEMBER: "member",
+  ALUMNI: "alumni",
+  ALUMNI_COMMITTEE: "alumni committee",
+};
 
 export interface NavItem {
   href: string;
@@ -97,7 +107,7 @@ export function AppShell({
     <div className="border-t border-white/10 pt-4">
       <p className="truncate text-sm font-semibold text-white">{user.name}</p>
       <p className="truncate text-xs text-slate-400">
-        {user.email} · {user.role.toLowerCase()}
+        {user.email} · {ROLE_NAMES[user.role] ?? user.role.toLowerCase()}
       </p>
       <button
         type="button"

@@ -90,6 +90,12 @@ enum PracticeStatus {
   CANCELLED
 }
 
+/// Who a practice is for: the current choir, or alumni (e.g. guest performances).
+enum PracticeAudience {
+  MEMBERS
+  ALUMNI
+}
+
 enum RsvpResponse {
   GOING
   NOT_GOING
@@ -231,15 +237,16 @@ model MemberLocation {
 // ─── Attendance ─────────────────────────────────────────────────────────────
 
 model Practice {
-  id                  String         @id @default(uuid()) @db.Uuid
-  date                DateTime       @db.Date
+  id                  String           @id @default(uuid()) @db.Uuid
+  date                DateTime         @db.Date
   /// Local Sri Lanka time, "HH:mm".
   startTime           String?
   endTime             String?
   title               String
   venue               String?
   notes               String?
-  status              PracticeStatus @default(SCHEDULED)
+  status              PracticeStatus   @default(SCHEDULED)
+  audience            PracticeAudience @default(MEMBERS)
   /// When an admin marked the venue request to the IIT administration as sent.
   venueRequestedAt    DateTime?
   /// When an admin marked the venue as confirmed by the administration.
@@ -247,8 +254,8 @@ model Practice {
   /// When the admins were emailed the reminder to book the venue (sent once, 2 days before).
   venueReminderSentAt DateTime?
   createdById         String?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @default(now()) @updatedAt
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @default(now()) @updatedAt
   attendances         Attendance[]
   rsvps               PracticeRsvp[]
 

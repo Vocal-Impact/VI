@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isIsoDate } from "@/shared/lib/dates";
-import { isValidTime, RSVP_RESPONSES } from "./domain/practice";
+import { isValidTime, PRACTICE_AUDIENCES, RSVP_RESPONSES } from "./domain/practice";
 
 const optionalText = (max: number) =>
   z
@@ -22,6 +22,7 @@ export const practiceInputSchema = z
     title: z.string().trim().min(1, "Title is required").max(100),
     venue: optionalText(120),
     notes: optionalText(500),
+    audience: z.enum(PRACTICE_AUDIENCES).optional().default("MEMBERS"),
   })
   .refine((value) => !value.endTime || value.endTime > value.startTime, {
     path: ["endTime"],

@@ -27,12 +27,15 @@ export function PracticeForm({
   mode,
   minDate,
   cancelHref,
+  audience = "MEMBERS",
 }: {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   initial: PracticeFormValues;
   mode: "schedule" | "edit";
   minDate?: string;
   cancelHref?: string;
+  /** Scheduling an alumni practice (guest performance) rather than a choir practice. */
+  audience?: "MEMBERS" | "ALUMNI";
 }) {
   const [state, formAction] = useActionState(action, idleState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -48,6 +51,7 @@ export function PracticeForm({
   return (
     <form ref={formRef} action={formAction} className="space-y-3" key={JSON.stringify(state.values ?? {})} noValidate>
       <ActionFeedback state={state} />
+      <input type="hidden" name="audience" value={audience} />
       <Field label="Date" htmlFor={`${prefix}-date`} errors={errors.date}>
         <Input id={`${prefix}-date`} name="date" type="date" defaultValue={values.date} min={minDate} required />
       </Field>
@@ -82,8 +86,10 @@ export function PracticeForm({
               `${mode === "schedule" ? "Schedule" : "Save"} ${String(data.get("title") ?? "").trim() || "practice"} on ${describeDate(String(data.get("date") ?? ""))}?`,
             description:
               mode === "schedule"
-                ? "Members see it on their dashboard straight away and can say whether they're coming."
-                : "Members see the updated details straight away.",
+                ? audience === "ALUMNI"
+                  ? "Alumni see it on their dashboard straight away and can say whether they're coming."
+                  : "Members see it on their dashboard straight away and can say whether they're coming."
+                : "Everyone invited sees the updated details straight away.",
             confirmLabel: mode === "schedule" ? "Schedule practice" : "Save changes",
           }}
         >

@@ -10,7 +10,7 @@ import { validationError } from "@/shared/lib/validation";
 import { getMembersByIds, markAddedToWhatsapp } from "@/modules/members";
 import { getAttendedCounts } from "@/modules/attendance";
 import { brandLogoUrl, getEmailSender, groupInviteEmail } from "@/modules/notifications";
-import { hasPermission, type Role } from "@/modules/auth/domain";
+import { hasPermission, type AccessRole } from "@/modules/auth/domain";
 import {
   buildWaMeUrl,
   canInviteToGroup,
@@ -23,7 +23,7 @@ import { sendInvitesSchema } from "../schemas";
 
 export interface InviteActor {
   id: string;
-  role: Role;
+  role: AccessRole;
 }
 
 /** Everything the "Send group invites" screen needs for the selected members. */

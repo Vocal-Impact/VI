@@ -4,14 +4,15 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/shared/db/prisma";
 import { getAuth } from "../infrastructure/better-auth";
-import { hasPermission, type Permission, type Role } from "../domain/permissions";
+import { effectiveRole, hasPermission, type AccessRole, type Permission } from "../domain/permissions";
 import { canMemberSignIn } from "../domain/access";
 
 export interface SessionUser {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  /** Stored role, narrowed for alumni (see effectiveRole). Use it for every permission check. */
+  role: AccessRole;
   /** The choir member this login belongs to, if any (needed to RSVP). */
   memberId: string | null;
 }
@@ -37,9 +38,15 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     },
   });
   if (!user || !user.active) return null;
-  // Member logins stop working as soon as the member becomes alumni or is removed.
+  // Member logins stop working as soon as the member is removed.
   if (user.role === "MEMBER" && !canMemberSignIn(user.member)) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role, memberId: user.memberId };
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: effectiveRole(user.role, user.member?.status),
+    memberId: user.memberId,
+  };
 });
 
 export async function requireUser(): Promise<SessionUser> {

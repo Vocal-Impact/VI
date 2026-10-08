@@ -271,7 +271,7 @@ test("an admin promotes a member to committee from Access & roles", async ({ pag
   await expect(page.getByRole("heading", { level: 1, name: "Access & roles" })).toBeVisible();
 
   await page.getByLabel("Search").fill("nethmi");
-  await page.getByRole("button", { name: "Filter" }).click();
+  await expect(page).toHaveURL(/[?&]q=nethmi/); // filters as you type, no button
   await page.getByLabel("Access for Nethmi Perera").selectOption("COMMITTEE");
   await page.getByRole("button", { name: "Give access" }).click();
   await confirmDialog(page, { title: "Change Nethmi Perera's access to Committee?" });

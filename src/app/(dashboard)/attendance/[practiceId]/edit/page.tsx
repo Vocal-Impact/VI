@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/modules/auth";
+import { managePermissionFor } from "@/modules/attendance/domain";
 import { getPractice } from "@/modules/attendance";
 import { Card, CardBody, PageHeader } from "@/shared/ui/layout";
 import { updatePracticeAction } from "../../actions";
@@ -9,10 +10,10 @@ import { PracticeForm } from "../../practice-form";
 export const metadata = { title: "Edit practice" };
 
 export default async function EditPracticePage(props: PageProps<"/attendance/[practiceId]/edit">) {
-  await requirePermission("practices:manage");
   const { practiceId } = await props.params;
   const practice = await getPractice(practiceId);
   if (!practice) notFound();
+  await requirePermission(managePermissionFor(practice.audience));
 
   return (
     <>
@@ -23,13 +24,14 @@ export default async function EditPracticePage(props: PageProps<"/attendance/[pr
           </Link>
         }
         title="Edit practice"
-        description="Members see the new date, time and venue straight away."
+        description="Everyone invited sees the new date, time and venue straight away."
       />
       <Card className="max-w-xl">
         <CardBody>
           <PracticeForm
             action={updatePracticeAction.bind(null, practice.id)}
             mode="edit"
+            audience={practice.audience}
             cancelHref={`/attendance/${practice.id}`}
             initial={{
               date: practice.date,

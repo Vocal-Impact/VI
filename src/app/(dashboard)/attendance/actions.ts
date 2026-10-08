@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { requirePermission } from "@/modules/auth";
+import { hasPermission, requirePermission, requireUser } from "@/modules/auth";
 import {
   deletePractice,
+  getPractice,
   schedulePractice,
   setAttendance,
   setPracticeCancelled,
@@ -16,7 +17,12 @@ import {
   type VenueBookingStep,
   type RsvpResponse,
 } from "@/modules/attendance";
-import { isVenueReminderDue, venueReminderDueDate } from "@/modules/attendance/domain";
+import {
+  isVenueReminderDue,
+  managePermissionFor,
+  venueReminderDueDate,
+  type PracticeAudience,
+} from "@/modules/attendance/domain";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate, isIsoDate } from "@/shared/lib/dates";
 import { errorMessage, logger } from "@/shared/lib/logger";
@@ -30,7 +36,19 @@ function practicePayload(values: Record<string, string>) {
     title: values.title ?? "",
     venue: values.venue ?? "",
     notes: values.notes ?? "",
+    audience: audienceFrom(values.audience),
   };
+}
+
+function audienceFrom(value: string | undefined): PracticeAudience {
+  return value === "ALUMNI" ? "ALUMNI" : "MEMBERS";
+}
+
+/** Choir practices need practices:manage; alumni practices practices:alumni-manage. */
+async function requirePracticeManager(practiceId: string) {
+  const practice = await getPractice(practiceId);
+  const user = await requirePermission(managePermissionFor(practice?.audience ?? "MEMBERS"));
+  return { user, practice };
 }
 
 /**
@@ -63,12 +81,13 @@ function venueReminderNote(date: string | undefined): string {
 function refreshPractices(practiceId?: string): void {
   revalidatePath("/");
   revalidatePath("/attendance");
+  revalidatePath("/alumni");
   if (practiceId) revalidatePath(`/attendance/${practiceId}`);
 }
 
 export async function schedulePracticeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requirePermission("practices:manage");
   const values = formValues(formData);
+  const user = await requirePermission(managePermissionFor(audienceFrom(values.audience)));
   const result = await schedulePractice(practicePayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
   const practiceId = result.value.id;
@@ -85,7 +104,7 @@ export async function updatePracticeAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requirePermission("practices:manage");
+  const { user } = await requirePracticeManager(practiceId);
   const values = formValues(formData);
   const result = await updatePractice(practiceId, practicePayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
@@ -96,16 +115,17 @@ export async function updatePracticeAction(
 }
 
 export async function setPracticeCancelledAction(practiceId: string, cancelled: boolean): Promise<void> {
-  const user = await requirePermission("practices:manage");
+  const { user } = await requirePracticeManager(practiceId);
   await setPracticeCancelled(practiceId, cancelled, user.id);
   refreshPractices(practiceId);
 }
 
 export async function deletePracticeAction(practiceId: string): Promise<void> {
   const user = await requirePermission("settings:manage");
+  const practice = await getPractice(practiceId);
   await deletePractice(practiceId, user.id);
   refreshPractices();
-  redirect("/attendance");
+  redirect(practice?.audience === "ALUMNI" ? "/alumni" : "/attendance");
 }
 
 export interface ToggleResult {
@@ -130,7 +150,10 @@ export async function toggleAttendanceAction(
 
 /** "Going" / "Can't make it" — always for the signed-in person's own member record. */
 export async function rsvpAction(practiceId: string, response: RsvpResponse): Promise<{ ok: boolean; error?: string }> {
-  const user = await requirePermission("practices:rsvp");
+  const user = await requireUser();
+  // Members reply to choir practices, alumni to alumni practices (checked again against the practice).
+  if (!hasPermission(user.role, "practices:rsvp") && !hasPermission(user.role, "practices:alumni-rsvp"))
+    return { ok: false, error: "You can't reply to practices" };
   if (!user.memberId) return { ok: false, error: "Your login isn't linked to a member record" };
   const result = await setRsvp({ practiceId, memberId: user.memberId, response });
   if (!result.ok) return { ok: false, error: result.error.message };

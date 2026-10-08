@@ -21,8 +21,8 @@ export function accessLevelOf(user: { role: Role | string; active: boolean } | n
   return "NONE";
 }
 
-/** Member statuses that may sign in to see practices and RSVP (alumni and removed members may not). */
-export const MEMBER_SIGN_IN_STATUSES = ["PROSPECTIVE", "ACTIVE", "INACTIVE"] as const;
+/** Member statuses that may sign in (removed members may not). Alumni get limited access, see effectiveRole. */
+export const MEMBER_SIGN_IN_STATUSES = ["PROSPECTIVE", "ACTIVE", "INACTIVE", "ALUMNI"] as const;
 
 export function canMemberSignIn(member: { status: string; deletedAt: Date | null } | null | undefined): boolean {
   return (

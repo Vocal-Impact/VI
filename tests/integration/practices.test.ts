@@ -115,13 +115,13 @@ describe("RSVPs", () => {
 });
 
 describe("member sign-in", () => {
-  it("creates a MEMBER login for current members on first Google sign-in", async () => {
+  it("creates a MEMBER login for members and alumni on first Google sign-in", async () => {
     const member = await createMember({ firstName: "Sachini", email: "sachini.w2@iit.ac.lk", status: "ACTIVE" });
     await createMember({ email: "old.alumni@iit.ac.lk", status: "ALUMNI" });
 
     expect(await mayCreateLogin("Sachini.W2@IIT.ac.lk")).toBe(true);
     expect(await mayCreateLogin("stranger@gmail.com")).toBe(false);
-    expect(await mayCreateLogin("old.alumni@iit.ac.lk")).toBe(false);
+    expect(await mayCreateLogin("old.alumni@iit.ac.lk")).toBe(true);
 
     // Better Auth creates the row, then the after-hook links it.
     await prisma.user.create({ data: { id: "google-user", name: "From Google", email: "sachini.w2@iit.ac.lk" } });
@@ -133,8 +133,10 @@ describe("member sign-in", () => {
     // A member who already has a login doesn't get a second one.
     expect(await mayCreateLogin("sachini.w2@iit.ac.lk")).toBe(false);
 
-    // Becoming alumni ends member sign-in; committee/admin logins are unaffected by member status.
+    // Alumni keep signing in (with limited access); removed members can't.
     await prisma.member.update({ where: { id: member.id }, data: { status: "ALUMNI" } });
+    expect(await maySignIn("google-user")).toBe(true);
+    await prisma.member.update({ where: { id: member.id }, data: { deletedAt: new Date() } });
     expect(await maySignIn("google-user")).toBe(false);
     await prisma.user.update({ where: { id: "google-user" }, data: { role: "COMMITTEE" } });
     expect(await maySignIn("google-user")).toBe(true);

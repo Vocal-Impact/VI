@@ -69,6 +69,7 @@ export async function setAttendance(
 
   const practice = await prisma.practice.findUnique({ where: { id: practiceId } });
   if (!practice) return err("NOT_FOUND", "Practice not found");
+  if (practice.audience === "ALUMNI") return err("FORBIDDEN", "Attendance isn't taken at alumni practices");
   const practiceDate = toIsoDate(practice.date);
   if (!canTakeAttendance(actor.role, { date: practiceDate, status: practice.status }, todayLocal())) {
     return err(

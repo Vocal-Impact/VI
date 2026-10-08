@@ -16,11 +16,11 @@ describe("accessLevelOf", () => {
 });
 
 describe("canMemberSignIn", () => {
-  it("lets current members sign in but not alumni or removed members", () => {
+  it("lets members and alumni sign in, but not removed members", () => {
     expect(canMemberSignIn({ status: "PROSPECTIVE", deletedAt: null })).toBe(true);
     expect(canMemberSignIn({ status: "ACTIVE", deletedAt: null })).toBe(true);
     expect(canMemberSignIn({ status: "INACTIVE", deletedAt: null })).toBe(true);
-    expect(canMemberSignIn({ status: "ALUMNI", deletedAt: null })).toBe(false);
+    expect(canMemberSignIn({ status: "ALUMNI", deletedAt: null })).toBe(true);
     expect(canMemberSignIn({ status: "ACTIVE", deletedAt: new Date() })).toBe(false);
     expect(canMemberSignIn(null)).toBe(false);
   });

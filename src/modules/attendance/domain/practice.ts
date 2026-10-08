@@ -79,3 +79,22 @@ export function countRsvps(
   }
   return { going, notGoing, noResponse: expectedMemberIds.size - answered.size };
 }
+
+/** Who a practice is for: the current choir, or alumni (guest performances). */
+export const PRACTICE_AUDIENCES = ["MEMBERS", "ALUMNI"] as const;
+export type PracticeAudience = (typeof PRACTICE_AUDIENCES)[number];
+
+/** Member statuses that are asked to reply to a practice for this audience. */
+export function expectedStatusesFor(audience: PracticeAudience): Array<"PROSPECTIVE" | "ACTIVE" | "ALUMNI"> {
+  return audience === "ALUMNI" ? ["ALUMNI"] : ["PROSPECTIVE", "ACTIVE"];
+}
+
+/** Whether someone with this member status may reply to a practice for this audience. */
+export function canReplyAs(memberStatus: string, audience: PracticeAudience): boolean {
+  return audience === "ALUMNI" ? memberStatus === "ALUMNI" : memberStatus !== "ALUMNI";
+}
+
+/** The permission needed to schedule, edit or cancel a practice for this audience. */
+export function managePermissionFor(audience: PracticeAudience): "practices:manage" | "practices:alumni-manage" {
+  return audience === "ALUMNI" ? "practices:alumni-manage" : "practices:manage";
+}

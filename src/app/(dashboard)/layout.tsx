@@ -6,6 +6,7 @@ const NAV: Array<NavItem & { permission?: Permission; feature?: Feature }> = [
   { href: "/", label: "Dashboard", icon: "home" },
   { href: "/members", label: "Members", icon: "users", permission: "members:read" },
   { href: "/attendance", label: "Practices", icon: "check", permission: "attendance:read" },
+  { href: "/alumni", label: "Alumni practices", icon: "alumni", permission: "practices:alumni-manage" },
   { href: "/whatsapp-groups", label: "WhatsApp", icon: "chat", permission: "groups:read" },
   { href: "/birthdays", label: "Birthdays", icon: "cake", permission: "birthdays:read" },
   { href: "/carpool", label: "Lifts home", icon: "car", permission: "carpool:read", feature: "liftsHome" },

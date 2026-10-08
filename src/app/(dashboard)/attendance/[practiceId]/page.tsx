@@ -1,7 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requirePermission, hasPermission } from "@/modules/auth";
-import { canTakeAttendance, canUnmarkAttendance, venueReminderDueDate, type RsvpPerson } from "@/modules/attendance";
+import { notFound, redirect } from "next/navigation";
+import { requireUser, hasPermission } from "@/modules/auth";
+import {
+  canTakeAttendance,
+  canUnmarkAttendance,
+  managePermissionFor,
+  venueReminderDueDate,
+  type RsvpPerson,
+} from "@/modules/attendance";
 import {
   getAttendanceChecklist,
   getAttendanceThreshold,
@@ -25,21 +31,25 @@ import { VenueConfirmButton } from "./venue-confirm-button";
 export const metadata = { title: "Practice" };
 
 export default async function PracticePage(props: PageProps<"/attendance/[practiceId]">) {
-  const user = await requirePermission("attendance:read");
+  const user = await requireUser();
   const { practiceId } = await props.params;
   const practice = await getPractice(practiceId);
   if (!practice) notFound();
+  // Choir practices are for the committee; alumni practices also for alumni organisers.
+  const alumni = practice.audience === "ALUMNI";
+  if (!hasPermission(user.role, alumni ? "practices:alumni-manage" : "attendance:read")) redirect("/forbidden");
 
   const today = todayLocal();
   const practiceLabel = `${practice.title} on ${formatIsoDate(practice.date, { weekday: "long", month: "long", year: undefined })}`;
-  const canManage = hasPermission(user.role, "practices:manage");
-  const attendanceOpen = canTakeAttendance(user.role, practice, today);
+  const canManage = hasPermission(user.role, managePermissionFor(practice.audience));
+  const canOpenProfiles = hasPermission(user.role, "members:read");
+  const attendanceOpen = !alumni && canTakeAttendance(user.role, practice, today);
   const isFuture = practice.date > today;
   const canBookVenue =
     hasPermission(user.role, "venues:book") && practice.status === "SCHEDULED" && practice.date >= today;
   const [summary, entries, threshold, venueRequest] = await Promise.all([
     getRsvpSummary(practiceId),
-    practice.date <= today ? getAttendanceChecklist(practiceId) : Promise.resolve([]),
+    practice.date <= today && !alumni ? getAttendanceChecklist(practiceId) : Promise.resolve([]),
     getAttendanceThreshold(),
     canBookVenue ? getVenueRequestLinks(practiceId, user) : Promise.resolve(null),
   ]);
@@ -48,8 +58,8 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
     <>
       <PageHeader
         back={
-          <Link href="/attendance" className="text-sm text-brand-700 hover:underline">
-            ← Practices
+          <Link href={alumni ? "/alumni" : "/attendance"} className="text-sm text-brand-700 hover:underline">
+            {alumni ? "← Alumni practices" : "← Practices"}
           </Link>
         }
         title={practice.title}
@@ -59,7 +69,8 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
               <LinkButton href={`/attendance/${practice.id}/edit`} variant="outline" size="sm">
                 Edit details
               </LinkButton>
-              {hasPermission(user.role, "carpool:read") &&
+              {!alumni &&
+              hasPermission(user.role, "carpool:read") &&
               isFeatureEnabled("liftsHome") &&
               practice.status === "SCHEDULED" ? (
                 <LinkButton href={`/carpool?practice=${practice.id}`} variant="secondary" size="sm">
@@ -67,7 +78,9 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                 </LinkButton>
               ) : null}
               <form action={setPracticeCancelledAction.bind(null, practice.id, practice.status !== "CANCELLED")}>
-                {practice.status === "CANCELLED" ? (
+                {alumni ? (
+                  <Alert tone="info">This is an alumni practice. Attendance isn&apos;t taken for it.</Alert>
+                ) : practice.status === "CANCELLED" ? (
                   <SubmitButton
                     variant="secondary"
                     size="sm"
@@ -233,11 +246,28 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
         </Card>
       ) : null}
 
-      {hasPermission(user.role, "rsvps:read") && practice.status === "SCHEDULED" ? (
+      {(alumni || hasPermission(user.role, "rsvps:read")) && practice.status === "SCHEDULED" ? (
         <div className="mb-6 grid gap-4 md:grid-cols-3">
-          <RsvpList title="Going" tone="text-emerald-700" people={summary.going} showTime />
-          <RsvpList title="Can't make it" tone="text-red-600" people={summary.notGoing} showTime />
-          <RsvpList title="No reply yet" tone="text-slate-500" people={summary.noResponse} />
+          <RsvpList
+            title="Going"
+            tone="text-emerald-700"
+            people={summary.going}
+            showTime
+            linkToProfiles={canOpenProfiles}
+          />
+          <RsvpList
+            title="Can't make it"
+            tone="text-red-600"
+            people={summary.notGoing}
+            showTime
+            linkToProfiles={canOpenProfiles}
+          />
+          <RsvpList
+            title="No reply yet"
+            tone="text-slate-500"
+            people={summary.noResponse}
+            linkToProfiles={canOpenProfiles}
+          />
         </div>
       ) : null}
 
@@ -270,11 +300,14 @@ function RsvpList({
   tone,
   people,
   showTime = false,
+  linkToProfiles = true,
 }: {
   title: string;
   tone: string;
   people: RsvpPerson[];
   showTime?: boolean;
+  /** Off for alumni organisers, who can't open member profiles. */
+  linkToProfiles?: boolean;
 }) {
   return (
     <Card>
@@ -286,9 +319,13 @@ function RsvpList({
           <ul className="max-h-72 space-y-1.5 overflow-y-auto text-sm">
             {people.map((person) => (
               <li key={person.memberId} className="flex justify-between gap-2">
-                <Link href={`/members/${person.memberId}`} className="truncate hover:underline">
-                  {person.name}
-                </Link>
+                {linkToProfiles ? (
+                  <Link href={`/members/${person.memberId}`} className="truncate hover:underline">
+                    {person.name}
+                  </Link>
+                ) : (
+                  <span className="truncate">{person.name}</span>
+                )}
                 <span className="shrink-0 text-xs text-slate-500">
                   {showTime && person.respondedAt
                     ? person.respondedAt.toLocaleString("en-GB", {
