@@ -1,4 +1,5 @@
 # Not needed to build or run the app on Vercel (GitHub Actions uploads the source).
+# Keep tests/: the build type-checks every .ts file, including playwright.config.ts.
 .local-db
 .env*
 !.env.example
@@ -9,6 +10,5 @@ playwright-report
 playwright/.auth
 coverage
 asset
-tests
 docs
 **/__pycache__
