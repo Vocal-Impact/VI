@@ -18,8 +18,21 @@ test.describe("signed out", () => {
     await page.goto("/sign-in");
     await page.getByLabel("Email").fill("e2e-admin@iit.ac.lk");
     await page.getByLabel("Password").fill("wrong-password");
-    await page.getByRole("button", { name: "Sign in with password" }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    // The sign-in form's error box (Next.js also has a hidden route-announcer "alert").
+    const error = page.getByRole("alert").filter({ hasText: /\S/ });
+    const submit = async () => {
+      await page.getByRole("button", { name: "Sign in with password" }).click();
+      await expect(error).toBeVisible();
+      return (await error.textContent()) ?? "";
+    };
+    let message = await submit();
+    // The setup project has just signed in three test accounts; sign-in is rate-limited to
+    // 3 attempts per 10 s, so wait for the window to pass rather than test the limiter.
+    if (/too many requests/i.test(message)) {
+      await page.waitForTimeout(11_000);
+      message = await submit();
+    }
+    expect(message).toMatch(/invalid email or password/i);
     await expect(page).toHaveURL(/\/sign-in/);
   });
 });
