@@ -6,7 +6,7 @@ export {
   createGroup,
   updateGroup,
   setGroupArchived,
-  moveGroup,
+  reorderGroups,
   type GroupStats,
 } from "./application/groups";
 export {

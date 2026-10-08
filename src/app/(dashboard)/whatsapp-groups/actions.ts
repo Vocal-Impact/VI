@@ -5,7 +5,7 @@ import { requirePermission } from "@/modules/auth";
 import {
   createGroup,
   markInviteJoined,
-  moveGroup,
+  reorderGroups,
   sendInvites,
   setGroupArchived,
   updateGroup,
@@ -48,12 +48,16 @@ export async function setGroupArchivedAction(groupId: string, archived: boolean)
   const user = await requirePermission("groups:manage");
   await setGroupArchived(groupId, archived, user.id);
   revalidatePath("/whatsapp-groups");
+  revalidatePath(`/whatsapp-groups/${groupId}/edit`);
 }
 
-export async function moveGroupAction(groupId: string, direction: "up" | "down"): Promise<void> {
-  await requirePermission("groups:manage");
-  await moveGroup(groupId, direction);
+/** Saves the new order after dragging groups on the WhatsApp page. */
+export async function reorderGroupsAction(orderedIds: string[]): Promise<{ ok: boolean }> {
+  const user = await requirePermission("groups:manage");
+  const result = await reorderGroups(orderedIds, user.id);
   revalidatePath("/whatsapp-groups");
+  revalidatePath("/whatsapp-groups/invite");
+  return { ok: result.ok };
 }
 
 export type SendInvitesActionResult = { ok: true; value: SendInvitesResult } | { ok: false; error: string };

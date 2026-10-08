@@ -5,6 +5,7 @@ import {
   listGroups,
   listWhatsAppQueue,
   markInviteJoined,
+  reorderGroups,
   sendInvites,
 } from "@/modules/whatsapp-groups";
 import { prisma } from "@/shared/db/prisma";
@@ -117,5 +118,24 @@ describe("Ready for WhatsApp list", () => {
     ]);
     expect(rows.some((row) => row.id === activeIn.id)).toBe(false);
     expect(rows[0]?.id).toBe(activeMissing.id);
+  });
+});
+
+describe("ordering groups", () => {
+  it("saves a dragged order and never loses a group missing from a stale list", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const a = await createGroup({ name: "A" });
+    const b = await createGroup({ name: "B" });
+    const c = await createGroup({ name: "C" });
+    const order = async () => (await listGroups()).map((group) => group.name);
+
+    expect((await reorderGroups([c.id, a.id, b.id], admin.id)).ok).toBe(true);
+    expect(await order()).toEqual(["C", "A", "B"]);
+
+    // A list from before "D" was added still keeps D (at the end); unknown ids are ignored.
+    const d = await createGroup({ name: "D" });
+    await reorderGroups([b.id, c.id, a.id, "00000000-0000-0000-0000-000000000000"], admin.id);
+    expect(await order()).toEqual(["B", "C", "A", "D"]);
+    expect(d.id).toBeTruthy();
   });
 });

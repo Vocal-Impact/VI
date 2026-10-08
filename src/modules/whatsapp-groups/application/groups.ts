@@ -126,22 +126,26 @@ export async function setGroupArchived(id: string, archived: boolean, actorId: s
   return ok(null);
 }
 
-/** Swaps a group with its neighbour in the display order. */
-export async function moveGroup(id: string, direction: "up" | "down"): Promise<Result<null>> {
+/**
+ * Saves the display order after a drag and drop: `orderedIds` is the active
+ * groups, top to bottom. Unknown ids are ignored, and any active group missing
+ * from the list keeps its place after the others, so a stale page can't lose one.
+ */
+export async function reorderGroups(orderedIds: readonly string[], actorId: string): Promise<Result<null>> {
   const groups = await prisma.whatsAppGroup.findMany({
     where: { archived: false },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true },
   });
-  const index = groups.findIndex((group) => group.id === id);
-  const swapWith = direction === "up" ? index - 1 : index + 1;
-  if (index < 0 || swapWith < 0 || swapWith >= groups.length) return ok(null);
+  const known = new Set(groups.map((group) => group.id));
+  const requested = [...new Set(orderedIds)].filter((id) => known.has(id));
+  const order = [...requested, ...groups.map((group) => group.id).filter((id) => !requested.includes(id))];
 
-  const reordered = [...groups];
-  [reordered[index], reordered[swapWith]] = [reordered[swapWith]!, reordered[index]!];
-  await prisma.$transaction(
-    reordered.map((group, position) =>
-      prisma.whatsAppGroup.update({ where: { id: group.id }, data: { sortOrder: position + 1 } }),
-    ),
-  );
+  await prisma.$transaction(async (tx) => {
+    for (const [position, id] of order.entries()) {
+      await tx.whatsAppGroup.update({ where: { id }, data: { sortOrder: position + 1 } });
+    }
+    await writeAuditLog({ actorId, action: "group.reorder", entity: "whatsapp_group", diff: { order } }, tx);
+  });
   return ok(null);
 }
