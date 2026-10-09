@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ChevronRight, GripVertical } from "lucide-react";
 import {
@@ -46,6 +46,8 @@ export interface GroupListItem {
 export function GroupList({ groups, canManage }: { groups: GroupListItem[]; canManage: boolean }) {
   const [active, setActive] = useState(() => groups.filter((group) => !group.archived));
   const [, startTransition] = useTransition();
+  // A stable id keeps the drag library's screen-reader ids the same on the server and in the browser.
+  const dndId = useId();
   const archived = groups.filter((group) => group.archived);
 
   // Pick up new data after a save or another admin's change.
@@ -94,13 +96,10 @@ export function GroupList({ groups, canManage }: { groups: GroupListItem[]; canM
 
   if (!canManage) return <div className="space-y-3">{rows}</div>;
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+    <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={active.map((group) => group.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-3">{rows}</div>
       </SortableContext>
-      {active.length > 1 ? (
-        <p className="text-xs text-slate-500">Drag the ⠿ handle to change the order invites show the groups in.</p>
-      ) : null}
     </DndContext>
   );
 }
