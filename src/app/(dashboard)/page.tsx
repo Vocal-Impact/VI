@@ -35,10 +35,11 @@ export default async function DashboardPage() {
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Active members" value={counts.ACTIVE} href="/members?status=ACTIVE" />
         <Stat label="Prospective" value={counts.PROSPECTIVE} href="/members?status=PROSPECTIVE" />
-        <Stat label="Ready for WhatsApp" value={eligible.length} href="/attendance/eligible" />
+        <Stat label="Ready for WhatsApp" value={eligible.length} href="/whatsapp-groups/ready" />
         <Stat
           label="Missing details"
           value={missing.missingBirthday + missing.missingLocation}
+          href="/members?missing=details"
           hint={`${missing.missingBirthday} birthdays · ${missing.missingLocation} areas`}
         />
       </div>
@@ -70,7 +71,7 @@ export default async function DashboardPage() {
             ))}
             {birthdays.nextSevenDays.map((entry) => (
               <p key={entry.person.id} className="text-sm text-slate-700">
-                {entry.person.name} — {formatIsoDate(entry.date, { year: undefined })}{" "}
+                {entry.person.name}: {formatIsoDate(entry.date, { year: undefined })}{" "}
                 <span className="text-slate-500">
                   (in {entry.daysUntil} day{entry.daysUntil === 1 ? "" : "s"})
                 </span>
@@ -86,7 +87,7 @@ export default async function DashboardPage() {
               pendingInvites > 0 ? `${pendingInvites} member(s) invited but not yet marked as joined` : undefined
             }
             action={
-              <Link href="/attendance/eligible" className="text-sm text-brand-700 hover:underline">
+              <Link href="/whatsapp-groups/ready" className="text-sm text-brand-700 hover:underline">
                 Open list
               </Link>
             }

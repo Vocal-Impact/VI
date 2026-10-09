@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMember as createMemberService, markAddedToWhatsapp } from "@/modules/members";
+import { createMember as createMemberService, listMembers, markAddedToWhatsapp } from "@/modules/members";
 import { listEligibleMembers, setAttendance } from "@/modules/attendance";
 import { getInviteContext, markInviteJoined, sendInvites } from "@/modules/whatsapp-groups";
 import { ConsoleEmailSender } from "@/modules/notifications";
@@ -166,5 +166,23 @@ describe("adding a member with a starting status", () => {
       user.id,
     );
     expect(bad.ok).toBe(false);
+  });
+});
+
+describe("members missing details", () => {
+  it("lists current members without a birthday or location", async () => {
+    const noBirthday = await createMember({ firstName: "NoBirthday", status: "ACTIVE" });
+    const hasBirthday = await createMember({ firstName: "HasBirthday", status: "ACTIVE", dateOfBirth: "2004-05-06" });
+    await createMember({ firstName: "Alumnus", status: "ALUMNI" }); // not a current member
+    await prisma.memberLocation.create({
+      data: { memberId: hasBirthday.id, areaLabelEncrypted: "Nugegoda", geocodeStatus: "PENDING", consentGiven: true },
+    });
+
+    const names = async (missing: "birthday" | "location" | "details") =>
+      (await listMembers({ missing })).map((member) => member.firstName).sort();
+    expect(await names("birthday")).toEqual(["NoBirthday"]);
+    expect(await names("location")).toEqual(["NoBirthday"]);
+    expect(await names("details")).toEqual(["NoBirthday"]);
+    expect(noBirthday.id).toBeTruthy();
   });
 });

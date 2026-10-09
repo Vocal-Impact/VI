@@ -65,6 +65,8 @@ export const memberFilterSchema = z.object({
   year: z.enum(STUDY_LEVELS).optional(),
   /** Show removed (soft-deleted) members instead of current ones. */
   removed: z.boolean().optional(),
+  /** Current members (prospective or active) missing a birthday, a location, or either. */
+  missing: z.enum(["birthday", "location", "details"]).optional(),
 });
 
 export type MemberFilter = z.infer<typeof memberFilterSchema>;

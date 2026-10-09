@@ -50,8 +50,13 @@ export default async function BirthdaysPage(props: PageProps<"/birthdays">) {
 
       {dashboard.missing > 0 && showDetails ? (
         <Alert tone="info" className="mb-6">
-          {dashboard.missing} current member(s) have no birthday on file. Import the details form or add it on their
-          profile.
+          {dashboard.missing === 1
+            ? "1 current member has no birthday on file. "
+            : `${dashboard.missing} current members have no birthday on file. `}
+          <Link href="/members?missing=birthday" className="font-semibold underline">
+            See who
+          </Link>{" "}
+          and add it on their profile, or import the details form.
         </Alert>
       ) : null}
 

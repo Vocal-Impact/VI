@@ -63,6 +63,21 @@ export default async function MembersPage(props: PageProps<"/members">) {
         }
       />
 
+      {filter.missing ? (
+        <Alert tone="info" className="mb-4">
+          Showing current members with no{" "}
+          {filter.missing === "birthday"
+            ? "birthday"
+            : filter.missing === "location"
+              ? "location"
+              : "birthday or location"}{" "}
+          on file. Open someone to add it, or import the details form.{" "}
+          <Link href="/members" className="font-semibold underline">
+            Show everyone
+          </Link>
+        </Alert>
+      ) : null}
+
       {filter.removed ? (
         <Alert tone="warning" title="Removed members" className="mb-4">
           These records are hidden from lists, attendance and the carpool map, and can&apos;t sign in. Restore anyone
@@ -78,6 +93,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
 
       <Card>
         <FilterForm className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_repeat(3,auto)]">
+          {filter.missing ? <input type="hidden" name="missing" value={filter.missing} /> : null}
           <Input
             name="q"
             placeholder="Search name, student ID, email or phone"
@@ -181,7 +197,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
                     className="hidden max-w-48 truncate text-slate-600 xl:table-cell"
                     title={member.dietaryPreference ?? ""}
                   >
-                    {member.dietaryPreference ?? <span className="text-slate-300">—</span>}
+                    {member.dietaryPreference ?? <span className="text-slate-400">None</span>}
                   </Td>
                 </tr>
               ))}

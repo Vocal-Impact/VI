@@ -77,9 +77,12 @@ function whereForFilter(filter: MemberFilter, includeDeleted = false): Prisma.Me
   const phone = q ? normalizeWhatsappNumber(q) : null;
   return {
     deletedAt: includeDeleted ? undefined : filter.removed ? { not: null } : null,
-    status: filter.status,
+    status: filter.status ?? (filter.missing ? { in: ["PROSPECTIVE", "ACTIVE"] } : undefined),
     voiceType: filter.voiceType,
     yearOfStudy: filter.year,
+    ...(filter.missing === "birthday" ? { dateOfBirth: null } : {}),
+    ...(filter.missing === "location" ? { location: null } : {}),
+    AND: filter.missing === "details" ? [{ OR: [{ dateOfBirth: null }, { location: null }] }] : undefined,
     OR: q
       ? [
           { firstName: { contains: q, mode: "insensitive" } },
@@ -107,6 +110,7 @@ export function parseMemberFilter(searchParams: Record<string, string | string[]
     removed: status === REMOVED_FILTER ? true : undefined,
     voiceType: pick("voiceType"),
     year: pick("year"),
+    missing: pick("missing"),
   });
   return parsed.success ? parsed.data : {};
 }
