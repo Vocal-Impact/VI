@@ -123,7 +123,7 @@ export function AppShell({
     <div className="min-h-screen lg:flex">
       <aside className="hidden w-64 shrink-0 flex-col justify-between bg-ink bg-staff p-4 lg:sticky lg:top-0 lg:flex lg:h-screen">
         <div>
-          <Link href="/" className="mb-8 block px-2 pt-2" aria-label="Vocal Impact — dashboard">
+          <Link href="/" className="mb-8 block px-2 pt-2" aria-label="Vocal Impact dashboard">
             <LogoWordmark variant="white" className="w-40" priority />
           </Link>
           {nav}
@@ -132,7 +132,7 @@ export function AppShell({
       </aside>
 
       <header className="sticky top-0 z-20 flex items-center justify-between bg-ink px-4 py-2.5 lg:hidden">
-        <Link href="/" aria-label="Vocal Impact — dashboard">
+        <Link href="/" aria-label="Vocal Impact dashboard">
           <LogoWordmark variant="white" className="w-28" priority />
         </Link>
         <button

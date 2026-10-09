@@ -74,7 +74,7 @@ export const settingDefinitions = {
     label: "Practice venue",
     schema: venueSchema,
     // Placeholder: IIT, Ramakrishna Road, Colombo 06. Confirm in Settings.
-    defaultValue: { name: "IIT — Ramakrishna Road, Colombo 06", latitude: 6.868, longitude: 79.859 } as Venue,
+    defaultValue: { name: "IIT, Ramakrishna Road, Colombo 06", latitude: 6.868, longitude: 79.859 } as Venue,
   },
   venueRequestTemplate: {
     label: "Venue request email",

@@ -20,7 +20,7 @@ const envSchema = z
      * 32 random bytes as base64: `openssl rand -base64 32`. Losing it makes that data unreadable.
      */
     DATA_ENCRYPTION_KEY: z
-      .string({ error: "DATA_ENCRYPTION_KEY is required — generate one with: openssl rand -base64 32" })
+      .string({ error: "DATA_ENCRYPTION_KEY is required. Generate one with: openssl rand -base64 32" })
       .refine(
         (value) => parseEncryptionKey(value) !== null,
         "DATA_ENCRYPTION_KEY must be 32 bytes as base64 (openssl rand -base64 32)",
@@ -57,7 +57,7 @@ const envSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["ENABLE_PASSWORD_LOGIN"],
-        message: "Password login is for local development and tests only — never enable it in production.",
+        message: "Password login is for local development and tests only. Never enable it in production.",
       });
     }
     if (env.EMAIL_TRANSPORT === "brevo" && !env.BREVO_API_KEY) {

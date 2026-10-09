@@ -53,7 +53,7 @@ describe("countRsvps", () => {
         { memberId: "a", response: "GOING" },
         { memberId: "b", response: "NOT_GOING" },
         { memberId: "c", response: "GOING" },
-        { memberId: "zz", response: "GOING" }, // e.g. alumni — not expected
+        { memberId: "zz", response: "GOING" }, // e.g. alumni, not expected
       ],
       expected,
     );

@@ -15,7 +15,7 @@ import { importAction, type ImportActionState } from "../actions";
 const PROFILES = {
   REGISTRATION: {
     label: "Registration form (new members)",
-    hint: "Columns: Email Address, First Name, Last Name, IIT Student ID, WhatsApp Number, Voice Type (Section in choir), Current Year of Study — optional: Date of Birth, Status, Location (Nearest Landmark), Dietary Preferences, Location Coordinates. New people are added as Prospective. Landmarks are located automatically after the import.",
+    hint: "Columns: Email Address, First Name, Last Name, IIT Student ID, WhatsApp Number, Voice Type (Section in choir), Current Year of Study. Optional: Date of Birth, Status, Location (Nearest Landmark), Dietary Preferences, Location Coordinates. New people are added as Prospective. Landmarks are located automatically after the import.",
   },
   SUPPLEMENTARY_DETAILS: {
     label: "Details form (birthday & carpool)",
@@ -35,7 +35,7 @@ export function ImportWizard() {
         {state.summary.created} new, {state.summary.updated} updated, {state.summary.unchanged} unchanged,{" "}
         {state.summary.skipped} skipped.
         {state.summary.locationsToGeocode.length > 0
-          ? ` Finding coordinates for ${state.summary.locationsToGeocode.length} location${state.summary.locationsToGeocode.length === 1 ? "" : "s"} in the background — check the Carpool page in a minute.`
+          ? ` Finding coordinates for ${state.summary.locationsToGeocode.length} location${state.summary.locationsToGeocode.length === 1 ? "" : "s"} in the background. Check the Carpool page in a minute.`
           : ""}
         <div className="mt-3 flex gap-2">
           <LinkButton href="/members" size="sm">
@@ -238,8 +238,8 @@ function Changes({ changes }: { changes: FieldChange[] }) {
       {changes.map((change) => (
         <li key={change.field}>
           <span className="font-medium">{change.field}:</span>{" "}
-          <span className="text-red-700 line-through">{change.from || "—"}</span> →{" "}
-          <span className="text-emerald-700">{change.to || "—"}</span>
+          <span className="text-red-700 line-through">{change.from || "(empty)"}</span> →{" "}
+          <span className="text-emerald-700">{change.to || "(empty)"}</span>
         </li>
       ))}
     </ul>

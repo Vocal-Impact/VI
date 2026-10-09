@@ -3,7 +3,7 @@ import { button, card, EMAIL_COLOURS, featureCard, paragraph, renderEmailLayout,
 import { escapeHtml } from "./email";
 
 /** Plain-text footer shared by the text versions. */
-const TEXT_SIGNATURE = "— Vocal Impact 🎶";
+const TEXT_SIGNATURE = "Vocal Impact 🎶";
 
 // ─── Birthday reminder ─────────────────────────────────────────────────
 
@@ -33,8 +33,8 @@ export function birthdayDigestEmail(
     "",
     `Birthdays today (${dateLabel}):`,
     ...people.map((person) => {
-      const age = person.turningAge ? ` — turning ${person.turningAge}` : "";
-      return `• ${person.name} (${person.voiceType})${age} — WhatsApp ${person.whatsappNumber}`;
+      const age = person.turningAge ? `, turning ${person.turningAge}` : "";
+      return `• ${person.name} (${person.voiceType})${age}. WhatsApp: ${person.whatsappNumber}`;
     }),
     "",
     "Don't forget to wish them in the group! 🎶",
@@ -54,7 +54,7 @@ ${button(waMe(person.whatsappNumber), "Wish them on WhatsApp", EMAIL_COLOURS.gre
 
   const html = renderEmailLayout({
     title: subject,
-    preheader: `${people.map((person) => person.name).join(", ")} — ${dateLabel}`,
+    preheader: `${people.map((person) => person.name).join(", ")} · ${dateLabel}`,
     heading: people.length === 1 ? "🎂 A birthday today!" : `🎂 ${people.length} birthdays today!`,
     bodyHtml: `${paragraph(`Hi ${richText(recipientName)}, here's who's celebrating on <b>${richText(dateLabel)}</b>:`)}
 ${cards}
@@ -107,7 +107,7 @@ ${description}
 
 const NEXT_STEPS = [
   ["1", "Tap a green button", "on your phone"],
-  ["2", "WhatsApp opens", "— tap “Join group”"],
+  ["2", "WhatsApp opens", "Tap “Join group”"],
   ["3", "Say hi!", "We can't wait to sing with you"],
 ];
 
@@ -206,7 +206,7 @@ export function venueRequestReminderEmail(input: VenueRequestReminderInput): Ema
 // ─── Test email ────────────────────────────────────────────────────────
 
 export function testEmail(to: string, name: string, logoUrl?: string): EmailMessage {
-  const subject = "Vocal Impact app — test email";
+  const subject = "Vocal Impact app: test email";
   const text = `Hi ${name},\n\nThis is a test email from the Vocal Impact app. If you can read this, email is working. 🎶\n\n${TEXT_SIGNATURE}`;
   const html = renderEmailLayout({
     title: subject,

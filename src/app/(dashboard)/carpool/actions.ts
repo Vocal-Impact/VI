@@ -11,7 +11,7 @@ export async function geocodePendingAction(): Promise<ActionState> {
   if (!isFeatureEnabled("liftsHome")) return { status: "error", message: "Lifts home is switched off." };
   const summary = await geocodeLocations({ limit: 8 });
   revalidatePath("/carpool");
-  const remaining = summary.remaining > 0 ? ` ${summary.remaining} still waiting — run again.` : "";
+  const remaining = summary.remaining > 0 ? ` ${summary.remaining} still waiting. Run it again to continue.` : "";
   return {
     status: "success",
     message: `Located ${summary.located}, not found ${summary.notFound}, failed ${summary.failed}.${remaining}`,

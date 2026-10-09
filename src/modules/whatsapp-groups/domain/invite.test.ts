@@ -80,7 +80,7 @@ describe("renderInviteMessage", () => {
       ],
     );
     expect(message).toBe(
-      "Hi Amaya Perera!\n• VI Main — https://chat.whatsapp.com/A1\n• Altos — https://chat.whatsapp.com/B2\nBye",
+      "Hi Amaya Perera!\n• VI Main: https://chat.whatsapp.com/A1\n• Altos: https://chat.whatsapp.com/B2\nBye",
     );
   });
 });

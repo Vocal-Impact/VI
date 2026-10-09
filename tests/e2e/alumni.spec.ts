@@ -39,7 +39,7 @@ test("alumni see choir practices read-only and organise and reply to their own p
 
   // …and replies to it from the dashboard.
   await alumna.goto("/");
-  await alumna.getByRole("button", { name: /^Going — Guest performance/ }).click();
+  await alumna.getByRole("button", { name: /^Going: Guest performance/ }).click();
   await expect(alumna.getByText("See you there!")).toBeVisible();
   await alumnaContext.close();
 

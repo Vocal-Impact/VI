@@ -86,7 +86,7 @@ describe("suggestCarpools", () => {
     expect(result.driverGroups[0]?.passengers).toHaveLength(1);
   });
 
-  it("uses real road distances when available — a short straight line can still be a long drive", () => {
+  it("uses real road distances when available (a short straight line can still be a long drive)", () => {
     // Straight-line, the passenger looks on the way. By road (e.g. across a canal with no bridge) it's a 6 km detour.
     const passenger = person("across-canal", 6.82, 79.87);
     const ids = [VENUE_ID, driver.id, passenger.id];

@@ -120,7 +120,7 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
         </Alert>
       ) : null}
       {eligible && canWrite ? (
-        <Alert tone="success" title={`Ready for WhatsApp — attended ${attended} practices`} className="mb-4">
+        <Alert tone="success" title={`Ready for WhatsApp: attended ${attended} practices`} className="mb-4">
           <div className="mt-2 flex flex-wrap gap-2">
             <LinkButton href={`/whatsapp-groups/invite?members=${member.id}`} size="sm">
               Send group invites
@@ -187,14 +187,14 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                 />
                 <Detail
                   label="Added to WhatsApp"
-                  value={member.addedToWhatsappAt ? member.addedToWhatsappAt.toLocaleDateString("en-GB") : "—"}
+                  value={member.addedToWhatsappAt ? member.addedToWhatsappAt.toLocaleDateString("en-GB") : "Not yet"}
                 />
               </dl>
             </CardBody>
           </Card>
 
           <Card>
-            <CardHeader title="WhatsApp groups" description="Tick “Joined” once you see them in the group." />
+            <CardHeader title="WhatsApp groups" />
             <CardBody>
               {groups.length === 0 ? (
                 <EmptyState title="No groups set up yet">
@@ -262,7 +262,7 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                 <ul className="grid gap-1 text-sm sm:grid-cols-2">
                   {member.attendances.map((attendance) => (
                     <li key={attendance.practiceId}>
-                      ✓ {formatIsoDate(toIsoDate(attendance.practice.date))} — {attendance.practice.title}
+                      ✓ {formatIsoDate(toIsoDate(attendance.practice.date))} · {attendance.practice.title}
                     </li>
                   ))}
                 </ul>
@@ -277,7 +277,7 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                 <ul className="space-y-1 text-xs text-slate-600">
                   {audit.map((entry) => (
                     <li key={entry.id}>
-                      {entry.createdAt.toLocaleString("en-GB")} — <span className="font-medium">{entry.action}</span>
+                      {entry.createdAt.toLocaleString("en-GB")}: <span className="font-medium">{entry.action}</span>
                       {entry.actor ? ` by ${entry.actor.name}` : ""}
                     </li>
                   ))}
@@ -289,7 +289,7 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader title="Carpool" description="Approximate area only — never a full address." />
+            <CardHeader title="Carpool" />
             <CardBody>
               {hasPermission(user.role, "carpool:write") ? (
                 <LocationForm
@@ -336,13 +336,9 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                     variant="secondary"
                     className="w-full"
                   >
-                    App access: {ACCESS_LEVEL_LABELS[accessLevelOf(member.user)]} — change
+                    App access: {ACCESS_LEVEL_LABELS[accessLevelOf(member.user)]} (change)
                   </LinkButton>
                 ) : null}
-                <p className="text-xs text-slate-500">
-                  Stopped coming? Set them to <b>Inactive</b>. Graduated? <b>Alumni</b>. Use Remove only for records
-                  that shouldn&apos;t be here (duplicates, test entries).
-                </p>
                 <form action={removeMemberAction.bind(null, member.id)}>
                   <ConfirmSubmit
                     variant="outline"

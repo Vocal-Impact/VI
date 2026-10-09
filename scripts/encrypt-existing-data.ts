@@ -16,7 +16,7 @@ import { encryptExistingData } from "../src/shared/crypto/encrypt-existing";
 async function main(): Promise<void> {
   const key = parseEncryptionKey(process.env.DATA_ENCRYPTION_KEY ?? "");
   if (!key)
-    throw new Error("DATA_ENCRYPTION_KEY is missing or not 32 bytes — generate one with: openssl rand -base64 32");
+    throw new Error("DATA_ENCRYPTION_KEY is missing or not 32 bytes. Generate one with: openssl rand -base64 32");
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: (process.env.DIRECT_URL || process.env.DATABASE_URL) as string }),
   });

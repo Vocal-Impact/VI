@@ -114,7 +114,7 @@ export function CopyButton({ text, label = "Copy", className }: { text: string; 
           await navigator.clipboard.writeText(text);
           toast.success("Copied to clipboard");
         } catch {
-          toast.error("Could not copy — select and copy manually");
+          toast.error("Could not copy. Select and copy manually");
         }
       }}
     >

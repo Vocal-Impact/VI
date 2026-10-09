@@ -75,7 +75,7 @@ export function renderInviteMessage(
   member: { firstName: string; lastName: string },
   groups: readonly InviteGroup[],
 ): string {
-  const groupList = groups.map((group) => `• ${group.name} — ${group.inviteLink}`).join("\n");
+  const groupList = groups.map((group) => `• ${group.name}: ${group.inviteLink}`).join("\n");
   return template
     .replaceAll("{firstName}", member.firstName)
     .replaceAll("{lastName}", member.lastName)

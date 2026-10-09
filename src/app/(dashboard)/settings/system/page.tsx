@@ -45,7 +45,7 @@ export default async function SystemPage() {
                 <Badge tone="green">Sending for real</Badge> via <span className="font-mono">{email.via}</span>
               </p>
             ) : (
-              <Alert tone="warning" title="Development mode — nothing is delivered">
+              <Alert tone="warning" title="Development mode: nothing is delivered">
                 Emails are only printed in the server terminal. Set EMAIL_TRANSPORT=brevo and BREVO_API_KEY (README →
                 Deploy, step 4) and restart the app.
               </Alert>
@@ -65,7 +65,7 @@ export default async function SystemPage() {
                   ? "Logo from EMAIL_LOGO_URL"
                   : logo === "site"
                     ? "Logo from this site"
-                    : "No public logo yet — emails show this text instead. Set EMAIL_LOGO_URL (see README)."}
+                    : "No public logo yet, so emails show this text instead. Set EMAIL_LOGO_URL (see README)."}
               </span>
             </div>
             <TestEmailButton />
@@ -107,7 +107,7 @@ export default async function SystemPage() {
               can read them.
             </p>
             <p className="text-amber-800">
-              Keep a copy of DATA_ENCRYPTION_KEY in the committee password manager — without it this data cannot be
+              Keep a copy of DATA_ENCRYPTION_KEY in the committee password manager. Without it this data cannot be
               recovered.
             </p>
           </CardBody>

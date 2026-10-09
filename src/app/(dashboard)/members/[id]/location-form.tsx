@@ -26,8 +26,8 @@ interface LocationValue {
 const GEOCODE_LABELS: Record<string, { label: string; tone: "green" | "amber" | "red" }> = {
   OK: { label: "On map", tone: "green" },
   PENDING: { label: "Waiting to be located", tone: "amber" },
-  NOT_FOUND: { label: "Area not found — drop a pin", tone: "red" },
-  FAILED: { label: "Locating failed — drop a pin", tone: "red" },
+  NOT_FOUND: { label: "Area not found. Drop a pin", tone: "red" },
+  FAILED: { label: "Locating failed. Drop a pin", tone: "red" },
 };
 
 export function LocationForm({
@@ -107,7 +107,6 @@ export function LocationForm({
         <Field
           label="Or paste coordinates from Google Maps"
           htmlFor="coordinates"
-          hint="Find the spot (e.g. their nearest junction) in Google Maps, right-click it and click the numbers to copy."
           errors={state.fieldErrors?.coordinates}
         >
           <Input
@@ -143,7 +142,6 @@ export function LocationForm({
           required
           defaultChecked={initial !== null}
           label="Member agreed to share their approximate location"
-          hint="Only the committee can see it, for carpool planning."
         />
         {state.fieldErrors?.consentGiven ? (
           <p className="text-xs font-medium text-red-600">{state.fieldErrors.consentGiven[0]}</p>
@@ -153,7 +151,7 @@ export function LocationForm({
           confirm={{
             title: "Save these carpool details?",
             description: (data) =>
-              `Location: ${String(data.get("coordinates") ?? "").trim() || String(data.get("areaLabel") ?? "").trim() || "—"}. ${data.get("canDrive") ? `Can drive, ${String(data.get("seats") ?? "0")} seat(s).` : "Doesn't drive."}`,
+              `Location: ${String(data.get("coordinates") ?? "").trim() || String(data.get("areaLabel") ?? "").trim() || "not given"}. ${data.get("canDrive") ? `Can drive, ${String(data.get("seats") ?? "0")} seat(s).` : "Doesn't drive."}`,
             confirmLabel: "Save details",
           }}
         >

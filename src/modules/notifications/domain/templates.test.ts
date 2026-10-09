@@ -46,7 +46,7 @@ describe("birthday email", () => {
     ]);
     expect(email.to).toBe("c@iit.ac.lk");
     expect(email.subject).toBe("🎂 It's Amaya Perera's birthday today");
-    expect(email.text).toContain("Amaya Perera (Alto) — turning 22 — WhatsApp +94771234567");
+    expect(email.text).toContain("Amaya Perera (Alto), turning 22. WhatsApp: +94771234567");
     expect(email.html).toContain("Amaya Perera");
     expect(email.html).toContain('href="https://wa.me/94771234567"');
     expect(email.html).toContain("Wish them on WhatsApp");
@@ -65,7 +65,7 @@ describe("WhatsApp invite email", () => {
   const input = {
     to: "nethmi@iit.ac.lk",
     firstName: "Nethmi",
-    text: "Hi Nethmi!\n• VI Main — https://chat.whatsapp.com/Main123\nSee you!",
+    text: "Hi Nethmi!\n• VI Main: https://chat.whatsapp.com/Main123\nSee you!",
     before: "Hi Nethmi! Here are your groups:\n",
     after: "\nSee you at the next practice!",
     groups: [

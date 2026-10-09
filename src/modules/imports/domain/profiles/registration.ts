@@ -140,7 +140,7 @@ export function parseLocation(landmarkCell: string, coordinatesCell: string): Pa
   if (coordinates && !inSriLanka(coordinates)) return { ok: false, message: "Coordinates are outside Sri Lanka" };
   if (!landmark && !coordinates) return { ok: true, value: null };
   const areaLabel = (landmark || formatCoordinates(coordinates!)).slice(0, MAX_AREA_LENGTH);
-  if (areaLabel.length < 2) return { ok: false, message: "Too short — name the nearest landmark" };
+  if (areaLabel.length < 2) return { ok: false, message: "Too short. Name the nearest landmark" };
   return { ok: true, value: { areaLabel, coordinates, canDrive: false, seats: 0 } };
 }
 

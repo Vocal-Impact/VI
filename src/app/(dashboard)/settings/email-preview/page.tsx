@@ -76,7 +76,7 @@ export default async function EmailPreviewPage() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-slate-600">
-        Previews with sample people — nothing is sent.{" "}
+        Previews with sample people. Nothing is sent.{" "}
         <Link href="/settings/system" className="text-brand-700 hover:underline">
           Back to System &amp; data
         </Link>

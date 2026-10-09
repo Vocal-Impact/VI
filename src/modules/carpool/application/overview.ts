@@ -41,7 +41,7 @@ export type RoutingStatus =
   | "road" // real road distances and routes
   | "not-configured" // no ORS_API_KEY: straight-line estimate × road factor
   | "too-many" // more people than one free matrix request allows
-  | "unavailable"; // the routing service failed — estimates for now
+  | "unavailable"; // the routing service failed: estimates for now
 
 async function buildDistanceTable(
   provider: RouteProvider | null,

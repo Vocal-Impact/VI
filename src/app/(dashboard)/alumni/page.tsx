@@ -67,7 +67,7 @@ export default async function AlumniPracticesPage() {
                       >
                         <span>
                           <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
-                          <span className="text-slate-500">— {practice.title}</span>
+                          <span className="text-slate-500">· {practice.title}</span>
                         </span>
                         {practice.status === "CANCELLED" ? <Badge tone="red">Cancelled</Badge> : null}
                       </Link>

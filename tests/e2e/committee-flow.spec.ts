@@ -118,7 +118,7 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   }
 
   // Now on the "Ready for WhatsApp" list → send the invite by email.
-  await page.goto("/attendance/eligible");
+  await page.goto("/whatsapp-groups/ready");
   await expect(page.getByRole("link", { name: "Nethmi Perera" })).toBeVisible();
   await page
     .getByRole("listitem")
@@ -128,7 +128,7 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await expect(page.getByRole("heading", { name: "Send group invites" })).toBeVisible();
   await page.getByRole("radio", { name: /Email/ }).check();
   await expect(page.getByLabel("Message preview")).toHaveValue(
-    /Hi Nethmi![\s\S]*VI Main — https:\/\/chat\.whatsapp\.com\/E2eMainGroupLink123/,
+    /Hi Nethmi![\s\S]*VI Main: https:\/\/chat\.whatsapp\.com\/E2eMainGroupLink123/,
   );
   // Tests run in development email mode: the app must say so rather than claim it sent.
   await expect(page.getByText("Email isn't set up yet")).toBeVisible();
@@ -318,9 +318,9 @@ test("members see scheduled practices and reply; committee sees who's coming", a
   await expect(member.getByText("Concert rehearsal")).toBeVisible();
   await expect(member.getByText("6:00 PM – 8:00 PM")).toBeVisible();
   await expect(member.getByText("Main Hall")).toBeVisible();
-  await member.getByRole("button", { name: /^Going — Concert rehearsal/ }).click();
+  await member.getByRole("button", { name: /^Going: Concert rehearsal/ }).click();
   await expect(member.getByText("See you there!")).toBeVisible();
-  await expect(member.getByRole("button", { name: /^Going — Concert rehearsal/ })).toHaveAttribute(
+  await expect(member.getByRole("button", { name: /^Going: Concert rehearsal/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -369,6 +369,6 @@ test("members see scheduled practices and reply; committee sees who's coming", a
   await expect(page.getByRole("button", { name: "Restore practice" })).toBeVisible();
   await member.goto("/");
   await expect(member.getByText("Cancelled")).toBeVisible();
-  await expect(member.getByRole("button", { name: /^Going — Concert rehearsal/ })).toBeDisabled();
+  await expect(member.getByRole("button", { name: /^Going: Concert rehearsal/ })).toBeDisabled();
   await memberContext.close();
 });

@@ -111,7 +111,7 @@ export function buildSupplementaryPreview(
       preview.invalid.push({
         row: csvLine(index),
         studentId: value.studentId,
-        messages: ["No member with this student ID — import the registration form first or add them manually"],
+        messages: ["No member with this student ID. Import the registration form first or add them manually"],
       });
       continue;
     }

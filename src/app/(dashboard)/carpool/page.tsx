@@ -87,7 +87,7 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
         <Select id="practice" name="practice" defaultValue={practiceId} className="h-9 w-auto max-w-full">
           {choices.map((choice) => (
             <option key={choice.id} value={choice.id}>
-              {choice.title} — {formatIsoDate(choice.date, { year: undefined })},{" "}
+              {choice.title}: {formatIsoDate(choice.date, { year: undefined })},{" "}
               {formatTimeRange(choice.startTime, choice.endTime)}
             </option>
           ))}
@@ -120,7 +120,7 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
       {overview.routingStatus === "not-configured" ? (
         <Alert tone="warning" title="Distances are estimates, not real roads" className="mb-4">
           Without a routing service the app uses straight-line distance × 1.3, so a real detour can be longer than
-          shown. Add a free OpenRouteService key (ORS_API_KEY — see README) to match on actual roads. The “Open in
+          shown. Add a free OpenRouteService key (ORS_API_KEY, see the README) to match on actual roads. The “Open in
           Google Maps” buttons always use real roads.
         </Alert>
       ) : overview.routingStatus === "too-many" ? (
@@ -214,7 +214,7 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
                     <li key={passenger.id}>
                       {passenger.name}{" "}
                       <span className="text-slate-500">
-                        — {passenger.areaLabel} · {phone(passenger.id)}
+                        · {passenger.areaLabel} · {phone(passenger.id)}
                       </span>
                     </li>
                   ))}
@@ -227,7 +227,7 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
         <Card>
           <CardHeader
             title="👥 Going the same way"
-            description="No driver, but they live close together — could share a taxi or travel together."
+            description="No driver, but they live close together. They could share a taxi or travel together."
           />
           <CardBody className="space-y-4">
             {suggestions.neighbourGroups.length === 0 ? (
@@ -245,7 +245,7 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
                     <li key={member.id}>
                       {member.name}{" "}
                       <span className="text-slate-500">
-                        — {member.areaLabel} · {phone(member.id)}
+                        · {member.areaLabel} · {phone(member.id)}
                       </span>
                     </li>
                   ))}
