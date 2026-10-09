@@ -10,7 +10,6 @@ import { attendanceProgress } from "@/modules/attendance/domain";
 import { PracticeCardLink, PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
-import { getSettings } from "@/shared/settings/settings";
 import { LinkButton } from "@/shared/ui/button";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
 import { schedulePracticeAction } from "./actions";
@@ -23,12 +22,11 @@ export default async function PracticesPage() {
   const canManage = hasPermission(user.role, "practices:manage");
   const canBookVenues = hasPermission(user.role, "venues:book");
   const today = todayLocal();
-  const [todays, upcoming, past, progress, settings] = await Promise.all([
+  const [todays, upcoming, past, progress] = await Promise.all([
     getTodaysPractice(),
     listUpcomingPractices({ includeCancelled: true }),
     listPastPractices(),
     listProspectiveProgress(),
-    getSettings(),
   ]);
 
   return (
@@ -38,9 +36,6 @@ export default async function PracticesPage() {
         description={`Schedule practices, see who's coming and take attendance. New members join the main WhatsApp groups after ${progress.threshold} practices.`}
         actions={
           <>
-            <LinkButton href="/attendance/eligible" variant="secondary">
-              Ready for WhatsApp
-            </LinkButton>
             <LinkButton href="/attendance/reports" variant="outline">
               Reports
             </LinkButton>
@@ -76,7 +71,7 @@ export default async function PracticesPage() {
           </Card>
 
           <Card>
-            <CardHeader title="Upcoming" description="Members see these on their dashboard and reply." />
+            <CardHeader title="Upcoming" />
             <CardBody className="space-y-3">
               {upcoming.length === 0 ? (
                 <EmptyState title="Nothing scheduled">Schedule the next practice so members can reply.</EmptyState>
@@ -126,7 +121,7 @@ export default async function PracticesPage() {
                       >
                         <span>
                           <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
-                          <span className="text-slate-500">— {practice.title}</span>
+                          <span className="text-slate-500">· {practice.title}</span>
                         </span>
                         {practice.status === "CANCELLED" ? (
                           <Badge tone="red">Cancelled</Badge>
@@ -153,7 +148,6 @@ export default async function PracticesPage() {
                   minDate={user.role === "ADMIN" ? undefined : today}
                   initial={{ date: today, startTime: "", endTime: "", title: "Practice", venue: "", notes: "" }}
                 />
-                <p className="mt-2 text-xs text-slate-500">Usual venue: {settings.practiceVenue.name}</p>
               </CardBody>
             </Card>
           ) : null}

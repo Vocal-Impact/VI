@@ -43,7 +43,7 @@ export function RsvpButtons({
       onClick={() => choose(value)}
       disabled={disabled || pending}
       aria-pressed={response === value}
-      aria-label={`${RSVP_LABELS[value]} — ${practiceLabel}`}
+      aria-label={`${RSVP_LABELS[value]}: ${practiceLabel}`}
       className={cn(
         "inline-flex h-9 items-center gap-1.5 rounded-lg border-2 px-3 text-sm font-semibold transition-all",
         "disabled:cursor-not-allowed disabled:opacity-50",

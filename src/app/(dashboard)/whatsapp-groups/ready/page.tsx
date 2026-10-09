@@ -16,8 +16,8 @@ const FILTERS = [
 
 type Filter = (typeof FILTERS)[number]["key"];
 
-export default async function EligiblePage(props: PageProps<"/attendance/eligible">) {
-  const user = await requirePermission("attendance:read");
+export default async function EligiblePage(props: PageProps<"/whatsapp-groups/ready">) {
+  const user = await requirePermission("groups:read");
   const { show } = await props.searchParams;
   const filter: Filter = FILTERS.some((f) => f.key === show) ? (show as Filter) : "not-invited";
   const { rows, threshold } = await listWhatsAppQueue();
@@ -35,8 +35,8 @@ export default async function EligiblePage(props: PageProps<"/attendance/eligibl
     <>
       <PageHeader
         back={
-          <Link href="/attendance" className="text-sm text-brand-700 hover:underline">
-            ← Practices
+          <Link href="/whatsapp-groups" className="text-sm text-brand-700 hover:underline">
+            ← WhatsApp groups
           </Link>
         }
         title="Ready for WhatsApp"
@@ -46,7 +46,7 @@ export default async function EligiblePage(props: PageProps<"/attendance/eligibl
         {FILTERS.map(({ key, label }) => (
           <Link
             key={key}
-            href={key === "not-invited" ? "/attendance/eligible" : `/attendance/eligible?show=${key}`}
+            href={key === "not-invited" ? "/whatsapp-groups/ready" : `/whatsapp-groups/ready?show=${key}`}
             aria-current={filter === key ? "page" : undefined}
             className={cn(
               "border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap",

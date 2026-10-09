@@ -71,7 +71,7 @@ function readLocationFields(values: Record<string, string>): LocationFields {
   if (values.consentGiven !== "on")
     return {
       ok: false,
-      fieldErrors: { consentGiven: ["Tick this only if the member agreed — or leave the location empty"] },
+      fieldErrors: { consentGiven: ["Tick this only if the member agreed, or leave the location empty"] },
     };
   return { ok: true, location: { areaLabel: area || coordinatesText, coordinates } };
 }
@@ -130,7 +130,7 @@ export async function markAddedAction(memberId: string): Promise<void> {
   const user = await requirePermission("members:write");
   await markAddedToWhatsapp(memberId, user.id);
   revalidatePath(`/members/${memberId}`);
-  revalidatePath("/attendance/eligible");
+  revalidatePath("/whatsapp-groups/ready");
   revalidatePath("/");
 }
 

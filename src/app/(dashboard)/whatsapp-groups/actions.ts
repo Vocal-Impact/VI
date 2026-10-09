@@ -70,7 +70,7 @@ export async function sendInvitesAction(input: {
 }): Promise<SendInvitesActionResult> {
   const user = await requirePermission("invites:send");
   const result = await sendInvites(input, user);
-  revalidatePath("/attendance/eligible");
+  revalidatePath("/whatsapp-groups/ready");
   revalidatePath("/whatsapp-groups");
   for (const groupId of input.groupIds) revalidatePath(`/whatsapp-groups/${groupId}`);
   for (const memberId of input.memberIds) revalidatePath(`/members/${memberId}`);
@@ -84,7 +84,7 @@ export async function markJoinedAction(memberId: string, groupId: string): Promi
   revalidatePath(`/whatsapp-groups/${groupId}`);
   revalidatePath("/whatsapp-groups");
   revalidatePath(`/members/${memberId}`);
-  revalidatePath("/attendance/eligible");
+  revalidatePath("/whatsapp-groups/ready");
   revalidatePath("/");
 }
 
@@ -101,7 +101,7 @@ export async function markManyJoinedAction(
   }
   revalidatePath(`/whatsapp-groups/${groupId}`);
   revalidatePath("/whatsapp-groups");
-  revalidatePath("/attendance/eligible");
+  revalidatePath("/whatsapp-groups/ready");
   revalidatePath("/");
   return { ok: true, marked };
 }

@@ -104,7 +104,7 @@ export default async function GroupPage(props: PageProps<"/whatsapp-groups/[grou
                     </Td>
                     <Td>{VOICE_TYPE_LABELS[member.voiceType as VoiceType]}</Td>
                     <Td className="lowercase first-letter:uppercase">{member.status}</Td>
-                    <Td className="text-slate-500">{member.joinedAt?.toLocaleDateString("en-GB") ?? "—"}</Td>
+                    <Td className="text-slate-500">{member.joinedAt?.toLocaleDateString("en-GB") ?? "Unknown"}</Td>
                   </tr>
                 ))}
               </tbody>

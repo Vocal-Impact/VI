@@ -119,7 +119,7 @@ export function InviteComposer({
     if (single && channel === "MANUAL") {
       void navigator.clipboard
         .writeText(preview)
-        .catch(() => toast.error("Could not copy — select the text and copy it"));
+        .catch(() => toast.error("Could not copy. Select the text and copy it"));
     }
 
     startTransition(async () => {
@@ -141,11 +141,11 @@ export function InviteComposer({
       } else if (channel === "EMAIL") {
         setDone(
           failed > 0
-            ? `${sent} email(s) sent, ${failed} failed — see each member's profile.`
+            ? `${sent} email(s) sent, ${failed} failed. See each member's profile.`
             : `${sent} invite email(s) sent.`,
         );
       } else if (channel === "WHATSAPP_LINK") {
-        setDone("WhatsApp opened with the message ready — press Send there. The invite has been recorded.");
+        setDone("WhatsApp opened with the message ready. Press Send there. The invite has been recorded.");
       } else {
         setDone("Message copied to your clipboard and the invite recorded.");
       }
@@ -166,7 +166,7 @@ export function InviteComposer({
               Open profile
             </LinkButton>
           ) : null}
-          <LinkButton href="/attendance/eligible" size="sm" variant="outline">
+          <LinkButton href="/whatsapp-groups/ready" size="sm" variant="outline">
             Back to the list
           </LinkButton>
         </div>
@@ -252,7 +252,7 @@ export function InviteComposer({
               disabled={!single}
               title="WhatsApp (pre-filled message)"
               description={
-                single ? `Opens a chat with ${members[0]?.whatsappNumber} — you press Send` : "One member at a time"
+                single ? `Opens a chat with ${members[0]?.whatsappNumber}. You press Send.` : "One member at a time"
               }
             />
             <ChannelOption
@@ -272,7 +272,7 @@ export function InviteComposer({
           <CardHeader
             title="3. Preview"
             description={
-              single ? undefined : `Showing ${members[0]?.firstName}'s message — each member gets their own name.`
+              single ? undefined : `Showing ${members[0]?.firstName}'s message. Each member gets their own name.`
             }
           />
           <CardBody>

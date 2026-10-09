@@ -27,13 +27,13 @@ const SECTIONS: Array<{ kind: Kind; title: string; hint: string }> = [
   {
     kind: "ACTIVE_NOT_IN_GROUP",
     title: "Active members not in the main group",
-    hint: "Already choir members — invite them, or open the group and mark them as joined.",
+    hint: "Already choir members. Invite them, or open the group and mark them as joined.",
   },
   { kind: "READY", title: "Ready to join", hint: "Prospective members who have reached the practice count." },
   {
     kind: "STILL_ATTENDING",
     title: "Still attending practices",
-    hint: "Not eligible for the main groups yet — open groups only.",
+    hint: "Not eligible for the main groups yet. They can join open groups only.",
   },
 ];
 

@@ -143,7 +143,7 @@ export async function toggleAttendanceAction(
   const user = await requirePermission("attendance:write");
   const result = await setAttendance({ practiceId, memberId, present }, user);
   if (!result.ok) return { ok: false, error: result.error.message };
-  revalidatePath("/attendance/eligible");
+  revalidatePath("/whatsapp-groups/ready");
   revalidatePath("/");
   return { ok: true, attendedCount: result.value.attendedCount };
 }

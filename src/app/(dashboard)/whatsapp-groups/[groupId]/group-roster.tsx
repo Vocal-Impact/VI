@@ -26,9 +26,9 @@ export interface GroupRosterRow {
 type Section = "active" | "ready" | "invited" | "blocked";
 
 const SECTIONS: Array<{ key: Section; title: string; hint: string }> = [
-  { key: "active", title: "Active members not in this group", hint: "Already choir members — add them first." },
+  { key: "active", title: "Active members not in this group", hint: "Already choir members. Add them first." },
   { key: "ready", title: "Ready to invite", hint: "Eligible and not invited yet." },
-  { key: "invited", title: "Invited — waiting to join", hint: "Tick “Joined” once you see them in the group." },
+  { key: "invited", title: "Invited, waiting to join", hint: "Tick “Joined” once you see them in the group." },
   { key: "blocked", title: "Can't join yet", hint: "Admins can override (e.g. a committee member in a part group)." },
 ];
 
@@ -106,8 +106,8 @@ export function GroupRoster({
         return;
       }
       const { sent, failed } = result.value;
-      if (!emailDelivery) toast.warning(`Recorded ${sent} invite(s) — email isn't set up, so nothing was delivered.`);
-      else if (failed > 0) toast.error(`${sent} sent, ${failed} failed — check each member's profile.`);
+      if (!emailDelivery) toast.warning(`Recorded ${sent} invite(s). Email isn't set up, so nothing was delivered.`);
+      else if (failed > 0) toast.error(`${sent} sent, ${failed} failed. Check each member's profile.`);
       else toast.success(`Invite emails sent to ${sent} ${sent === 1 ? "person" : "people"} 🎶`);
       setSelected(new Set());
     });
@@ -188,7 +188,7 @@ export function GroupRoster({
       ) : null}
 
       {!emailDelivery && canInvite ? (
-        <Alert tone="warning">Email isn&apos;t set up yet — invites will be recorded but not delivered.</Alert>
+        <Alert tone="warning">Email isn&apos;t set up yet. Invites will be recorded but not delivered.</Alert>
       ) : null}
 
       {SECTIONS.map(({ key, title, hint }) => {

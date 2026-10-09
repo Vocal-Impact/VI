@@ -30,6 +30,10 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
   },
+  async redirects() {
+    // "Ready for WhatsApp" moved from Practices to the WhatsApp section; keep old bookmarks working.
+    return [{ source: "/attendance/eligible", destination: "/whatsapp-groups/ready", permanent: true }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

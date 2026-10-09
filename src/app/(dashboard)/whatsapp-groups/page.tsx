@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { requirePermission, hasPermission } from "@/modules/auth";
-import { listGroups, listInviteHistory } from "@/modules/whatsapp-groups";
+import { listGroups, listInviteHistory, listWhatsAppQueue } from "@/modules/whatsapp-groups";
 import { INVITE_CHANNEL_LABELS } from "@/modules/whatsapp-groups/domain";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
+import { LinkButton } from "@/shared/ui/button";
 import { GroupForm } from "./group-form";
 import { GroupList } from "./group-list";
 
@@ -11,13 +12,24 @@ export const metadata = { title: "WhatsApp groups" };
 export default async function WhatsAppGroupsPage() {
   const user = await requirePermission("groups:read");
   const canManage = hasPermission(user.role, "groups:manage");
-  const [groups, history] = await Promise.all([listGroups({ includeArchived: canManage }), listInviteHistory(30)]);
+  const [groups, history, queue] = await Promise.all([
+    listGroups({ includeArchived: canManage }),
+    listInviteHistory(30),
+    listWhatsAppQueue(),
+  ]);
+  // Waiting to be added: active members not in the main group, and prospective members who reached the threshold.
+  const readyCount = queue.rows.filter((row) => row.kind !== "STILL_ATTENDING" && !row.invitedAt).length;
 
   return (
     <>
       <PageHeader
         title="WhatsApp groups"
-        description="Open a group to see who's in it and send invites. Invite links are private — anyone with a link can join."
+        description="Open a group to see who's in it and send invites."
+        actions={
+          <LinkButton href="/whatsapp-groups/ready" variant="secondary">
+            Ready for WhatsApp{readyCount > 0 ? ` (${readyCount})` : ""}
+          </LinkButton>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -93,7 +105,7 @@ export default async function WhatsAppGroupsPage() {
 
         {canManage ? (
           <Card className="h-fit">
-            <CardHeader title="Add a group" description="WhatsApp → group → Invite via link → Copy link." />
+            <CardHeader title="Add a group" description="" />
             <CardBody>
               <GroupForm />
             </CardBody>

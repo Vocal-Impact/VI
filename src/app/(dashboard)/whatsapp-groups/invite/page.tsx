@@ -23,7 +23,7 @@ export default async function InvitePage(props: PageProps<"/whatsapp-groups/invi
   );
 
   const back = (
-    <Link href="/attendance/eligible" className="text-sm text-brand-700 hover:underline">
+    <Link href="/whatsapp-groups/ready" className="text-sm text-brand-700 hover:underline">
       ← Ready for WhatsApp
     </Link>
   );
