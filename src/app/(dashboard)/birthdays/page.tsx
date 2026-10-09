@@ -5,11 +5,9 @@ import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { buttonClasses } from "@/shared/ui/button";
 import { Alert, Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layout";
-import { cn } from "@/shared/lib/cn";
+import { BirthdayCalendar } from "./birthday-calendar";
 
 export const metadata = { title: "Birthdays" };
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function parseMonth(value: string | undefined, today: string): { year: number; month: number } {
   const match = value?.match(/^(\d{4})-(\d{2})$/);
@@ -128,41 +126,26 @@ export default async function BirthdaysPage(props: PageProps<"/birthdays">) {
           }
         />
         <CardBody>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500">
-            {WEEKDAYS.map((day) => (
-              <div key={day}>{day}</div>
-            ))}
-          </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
-            {Array.from({ length: leadingBlanks }, (_, index) => (
-              <div key={`blank-${index}`} />
-            ))}
-            {Array.from({ length: daysInMonth }, (_, index) => {
-              const day = index + 1;
-              const iso = `${monthKey(year, month)}-${String(day).padStart(2, "0")}`;
-              const entries = byDay.get(day) ?? [];
-              return (
-                <div
-                  key={day}
-                  className={cn(
-                    "min-h-16 rounded-md border p-1 text-left text-xs sm:min-h-20",
-                    iso === dashboard.today ? "border-brand-500 bg-brand-50" : "border-slate-100",
-                  )}
-                >
-                  <span className="font-medium text-slate-500">{day}</span>
-                  {entries.map((entry) => (
-                    <p
-                      key={entry.person.id}
-                      className="mt-0.5 truncate rounded bg-brand-100 px-1 text-brand-800"
-                      title={entry.person.name}
-                    >
-                      🎂 {entry.person.name.split(" ")[0]}
-                    </p>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
+          <BirthdayCalendar
+            monthKey={monthKey(year, month)}
+            leadingBlanks={leadingBlanks}
+            daysInMonth={daysInMonth}
+            today={dashboard.today}
+            linkToProfiles={showDetails}
+            days={Object.fromEntries(
+              [...byDay].map(([day, entries]) => [
+                day,
+                entries.map((entry) => ({
+                  id: entry.person.id,
+                  name: entry.person.name,
+                  // Age and part only for those who may see member details; nothing else leaves the server.
+                  detail: showDetails
+                    ? `Turns ${entry.turningAge} · ${VOICE_TYPE_LABELS[entry.person.voiceType as VoiceType]}`
+                    : undefined,
+                })),
+              ]),
+            )}
+          />
         </CardBody>
       </Card>
     </>
