@@ -99,16 +99,12 @@ export function VenueSetting({ value }: { value: { name: string; latitude: numbe
     <SettingCard
       settingKey="practiceVenue"
       title="Practice venue"
-      description="Where lifts home start from, and the default venue for new practices."
+      description="Default Venue: Where lifts home start from, and the default venue for new practices."
     >
       <Field label="Name" htmlFor="venue-name">
         <Input id="venue-name" name="name" defaultValue={value.name} />
       </Field>
-      <Field
-        label="Coordinates"
-        htmlFor="venue-coordinates"
-        hint="In Google Maps, right-click the spot and click the numbers at the top to copy them, then paste here."
-      >
+      <Field label="Coordinates" htmlFor="venue-coordinates" hint="">
         <Input
           id="venue-coordinates"
           name="coordinates"
@@ -139,7 +135,7 @@ export function VenueRequestSetting({
       settingKey="venueRequestTemplate"
       className="lg:col-span-2"
       title="Venue request email"
-      description="When a practice is scheduled, admins get an email with a button that opens this request as a draft in their own Gmail, ready to send to the IIT administration. Placeholders: {date}, {time}, {venue}, {title}, {expected}, {senderName}."
+      description="Placeholders: {date}, {time}, {venue}, {title}, {expected}, {senderName}."
     >
       <Field label="To" htmlFor="venueRequestTo" hint="One or more addresses, separated by commas.">
         <Input id="venueRequestTo" name="to" defaultValue={value.to.join(", ")} placeholder="facilities@iit.ac.lk" />
@@ -150,11 +146,7 @@ export function VenueRequestSetting({
       <Field label="Subject" htmlFor="venueRequestSubject">
         <Input id="venueRequestSubject" name="subject" defaultValue={value.subject} required />
       </Field>
-      <Field
-        label="Message"
-        htmlFor="venueRequestBody"
-        hint="Plain text: Gmail drafts opened from a link can't carry bold or colours, but line breaks and links are kept."
-      >
+      <Field label="Message" htmlFor="venueRequestBody" hint="">
         <Textarea id="venueRequestBody" name="body" rows={16} defaultValue={value.body} required />
       </Field>
     </SettingCard>

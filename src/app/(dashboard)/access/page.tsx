@@ -31,10 +31,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
 
   return (
     <>
-      <PageHeader
-        title="Access & roles"
-        description="Every current member can sign in with their IIT Google account to see practices and reply. Promote members to Committee or Admin here."
-      />
+      <PageHeader title="Access & roles" description="Manage access and roles of all members" />
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label="Admins" value={counts.ADMIN} href="/access?level=ADMIN" />
@@ -44,10 +41,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader
-            title="Members"
-            description="Choose a level and press Save. “Member” removes committee/admin powers but they can still sign in to reply to practices."
-          />
+          <CardHeader title="Members" description="" />
           <FilterForm className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_auto]">
             <Input
               name="q"

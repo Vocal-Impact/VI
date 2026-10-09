@@ -75,13 +75,11 @@ export function GroupForm({ group }: { group?: GroupValues }) {
         name="requiresEligibility"
         defaultChecked={values ? values.requiresEligibility === "on" : (group?.requiresEligibility ?? true)}
         label="New members only after the required practices"
-        hint="Applies to prospective members only. Untick for groups they can join straight away."
       />
       <Checkbox
         name="isMainGroup"
         defaultChecked={values ? values.isMainGroup === "on" : (group?.isMainGroup ?? false)}
         label="Main group"
-        hint="Marking someone as joined makes them an Active member."
       />
       <SubmitButton
         variant={group ? "outline" : "primary"}
@@ -151,9 +149,6 @@ function PartsPicker({ prefix, initialParts }: { prefix: string; initialParts: s
           ))}
         </div>
       ) : null}
-      <p className="text-xs text-slate-500">
-        Admins can still add someone from another part (e.g. a committee member).
-      </p>
       <input type="hidden" name="allowedVoiceTypes" value={onlySomeParts ? parts.join(",") : ""} />
     </fieldset>
   );

@@ -181,12 +181,7 @@ export function NewAccountForm({ action }: { action: Action }) {
       <Field label="Name" htmlFor="new-account-name" errors={state.fieldErrors?.name}>
         <Input id="new-account-name" name="name" defaultValue={state.values?.name ?? ""} required />
       </Field>
-      <Field
-        label="Google account email"
-        htmlFor="new-account-email"
-        hint="If a member has this email, the login is linked to them automatically."
-        errors={state.fieldErrors?.email}
-      >
+      <Field label="Google account email" htmlFor="new-account-email" hint="" errors={state.fieldErrors?.email}>
         <Input id="new-account-email" name="email" type="email" defaultValue={state.values?.email ?? ""} required />
       </Field>
       <Field label="Role" htmlFor="new-account-role">
