@@ -3,6 +3,7 @@ import { requirePermission, hasPermission } from "@/modules/auth";
 import { listGroups, listInviteHistory, listWhatsAppQueue } from "@/modules/whatsapp-groups";
 import { INVITE_CHANNEL_LABELS } from "@/modules/whatsapp-groups/domain";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
+import { cn } from "@/shared/lib/cn";
 import { LinkButton } from "@/shared/ui/button";
 import { GroupForm } from "./group-form";
 import { GroupList } from "./group-list";
@@ -32,8 +33,9 @@ export default async function WhatsAppGroupsPage() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      {/* The right-hand column only holds "Add a group" (admins); without it the lists use the full width. */}
+      <div className={cn("grid gap-6", canManage && "lg:grid-cols-3")}>
+        <div className={cn("space-y-6", canManage && "lg:col-span-2")}>
           <Card>
             <CardHeader title="Groups" />
             <CardBody className="space-y-3">
