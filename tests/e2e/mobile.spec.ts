@@ -49,6 +49,8 @@ test("tapping a birthday on the calendar shows who it is", async ({ page }) => {
   const card = page.getByRole("dialog", { name: /^Birthdays on / });
   await expect(card.getByText("🎂 Mala Member")).toBeVisible();
   await expect(card.getByRole("link", { name: "Open profile" })).toBeVisible();
+  // Measure once the pop-in animation (which briefly overshoots) has finished.
+  await card.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
   const box = await card.boundingBox();
   const viewport = page.viewportSize()!;
   expect(box!.x).toBeGreaterThanOrEqual(0);
