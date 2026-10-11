@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { formatIsoDate, type IsoDate } from "@/shared/lib/dates";
@@ -14,11 +15,21 @@ export interface CalendarBirthday {
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Gap between the day and the card, and the margin kept from the screen edges. */
+const GAP = 6;
+const EDGE = 12;
+
+interface Opened {
+  day: number;
+  /** The day cell, to place the card next to it. */
+  anchor: DOMRect;
+}
 
 /**
  * Month grid of birthdays. Cells are too small for full names on a phone, so a
- * day with birthdays is a button: tapping (or clicking) it lists everyone below
- * the grid. On devices with a mouse, hovering also shows the names.
+ * day with birthdays is a button: tapping (or clicking) it opens a small card
+ * over the calendar, next to that day, like a calendar app. On devices with a
+ * mouse, hovering also shows the names.
  */
 export function BirthdayCalendar({
   monthKey,
@@ -36,9 +47,8 @@ export function BirthdayCalendar({
   days: Record<number, CalendarBirthday[]>;
   linkToProfiles: boolean;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
+  const [opened, setOpened] = useState<Opened | null>(null);
   const isoFor = (day: number) => `${monthKey}-${String(day).padStart(2, "0")}` as IsoDate;
-  const selectedPeople = selected ? (days[selected] ?? []) : [];
 
   return (
     <>
@@ -66,19 +76,21 @@ export function BirthdayCalendar({
               </div>
             );
           }
-          const names = people.map((person) => person.name).join(", ");
+          const isOpen = opened?.day === day;
           return (
             <button
               key={day}
               type="button"
-              onClick={() => setSelected((current) => (current === day ? null : day))}
-              aria-expanded={selected === day}
-              aria-controls="birthday-details"
-              aria-label={`${formatIsoDate(iso, { year: undefined })}: ${names}`}
+              onClick={(event) =>
+                setOpened(isOpen ? null : { day, anchor: event.currentTarget.getBoundingClientRect() })
+              }
+              aria-haspopup="dialog"
+              aria-expanded={isOpen}
+              aria-label={`${formatIsoDate(iso, { year: undefined })}: ${people.map((person) => person.name).join(", ")}`}
               className={cn(
                 cellClass,
                 "group cursor-pointer transition-colors hover:border-brand-300 focus-visible:outline-2 focus-visible:outline-brand-600",
-                selected === day && "border-brand-600 ring-2 ring-brand-200",
+                isOpen && "border-brand-600 ring-2 ring-brand-200",
               )}
             >
               <span className="font-medium text-slate-500">{day}</span>
@@ -88,55 +100,132 @@ export function BirthdayCalendar({
                 </span>
               ))}
               {/* Hover card (mouse only: Tailwind's hover variant doesn't apply on touch screens). */}
-              <span
-                role="tooltip"
-                className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-56 -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-left text-xs font-medium whitespace-normal text-white shadow-lg group-hover:block"
-              >
-                {people.map((person) => (
-                  <span key={person.id} className="block">
-                    🎂 {person.name}
-                  </span>
-                ))}
-              </span>
+              {isOpen ? null : (
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-56 -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-left text-xs font-medium whitespace-normal text-white shadow-lg group-hover:block"
+                >
+                  {people.map((person) => (
+                    <span key={person.id} className="block">
+                      🎂 {person.name}
+                    </span>
+                  ))}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
+      <p className="mt-3 text-xs text-slate-500">Tap a day with a 🎂 to see whose birthday it is.</p>
 
-      <div id="birthday-details" aria-live="polite">
-        {selected && selectedPeople.length > 0 ? (
-          <div className="mt-4 rounded-lg border border-brand-200 bg-brand-50 p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-ink">
-                {formatIsoDate(isoFor(selected), { weekday: "long", month: "long", year: undefined })}
-              </p>
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="rounded-md p-1 text-slate-500 hover:bg-white hover:text-ink"
-                aria-label="Close"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
-            </div>
-            <ul className="space-y-1.5 text-sm">
-              {selectedPeople.map((person) => (
-                <li key={person.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <span className="font-medium">🎂 {person.name}</span>
-                  {person.detail ? <span className="text-slate-600">{person.detail}</span> : null}
-                  {linkToProfiles ? (
-                    <Link href={`/members/${person.id}`} className="text-brand-700 hover:underline">
-                      Open profile
-                    </Link>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <p className="mt-3 text-xs text-slate-500">Tap a day with a 🎂 to see whose birthday it is.</p>
-        )}
-      </div>
+      {opened ? (
+        <BirthdayCard
+          date={isoFor(opened.day)}
+          anchor={opened.anchor}
+          people={days[opened.day] ?? []}
+          linkToProfiles={linkToProfiles}
+          onClose={() => setOpened(null)}
+        />
+      ) : null}
     </>
+  );
+}
+
+/** The card that opens over the calendar, next to the tapped day. */
+function BirthdayCard({
+  date,
+  anchor,
+  people,
+  linkToProfiles,
+  onClose,
+}: {
+  date: IsoDate;
+  anchor: DOMRect;
+  people: CalendarBirthday[];
+  linkToProfiles: boolean;
+  onClose: () => void;
+}) {
+  const card = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // Below the day if it fits, otherwise above; always fully on screen.
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (!element) return;
+    // offsetWidth/Height: the real size, unaffected by the pop-in animation's scale.
+    const width = element.offsetWidth;
+    const height = element.offsetHeight;
+    const fitsBelow = anchor.bottom + GAP + height <= window.innerHeight - EDGE;
+    const top = fitsBelow ? anchor.bottom + GAP : Math.max(EDGE, anchor.top - GAP - height);
+    const centred = anchor.left + anchor.width / 2 - width / 2;
+    const left = Math.min(Math.max(EDGE, centred), window.innerWidth - width - EDGE);
+    setPosition({ top, left });
+  }, [anchor]);
+
+  // Close on Escape, and when the page scrolls or resizes (the day moves away from the card).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onClose, { passive: true });
+    window.addEventListener("resize", onClose);
+    card.current?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onClose);
+      window.removeEventListener("resize", onClose);
+    };
+  }, [onClose]);
+
+  // Rendered into <body>: an animated (transformed) parent would otherwise shift a fixed card.
+  return createPortal(
+    <>
+      {/* Tapping anywhere else closes the card. */}
+      <button
+        type="button"
+        aria-label="Close"
+        tabIndex={-1}
+        className="fixed inset-0 z-40 cursor-default"
+        onClick={onClose}
+      />
+      <div
+        ref={card}
+        role="dialog"
+        aria-label={`Birthdays on ${formatIsoDate(date, { weekday: "long", month: "long", year: undefined })}`}
+        tabIndex={-1}
+        style={position ?? { top: anchor.bottom + GAP, left: EDGE, visibility: "hidden" }}
+        className="fixed z-50 w-[min(18rem,calc(100vw-1.5rem))] animate-pop rounded-xl border border-slate-200 bg-white p-3 shadow-2xl outline-none"
+      >
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold text-ink">
+            {formatIsoDate(date, { weekday: "long", month: "long", year: undefined })}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="-m-1 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-ink"
+            aria-label="Close"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        <ul className="space-y-2">
+          {people.map((person) => (
+            <li key={person.id} className="rounded-lg bg-brand-50 px-2.5 py-2">
+              <p className="text-sm font-semibold text-ink">🎂 {person.name}</p>
+              {person.detail ? <p className="text-xs text-slate-600">{person.detail}</p> : null}
+              {linkToProfiles ? (
+                <Link
+                  href={`/members/${person.id}`}
+                  className="mt-0.5 inline-block text-xs font-medium text-brand-700 hover:underline"
+                >
+                  Open profile
+                </Link>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>,
+    document.body,
   );
 }

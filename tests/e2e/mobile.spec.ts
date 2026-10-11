@@ -45,11 +45,17 @@ test("tapping a birthday on the calendar shows who it is", async ({ page }) => {
   await page.goto("/birthdays");
   const day = page.getByRole("button", { name: /Mala Member$/ });
   await day.tap();
-  const details = page.locator("#birthday-details");
-  await expect(details.getByText("🎂 Mala Member")).toBeVisible();
-  await expect(details.getByRole("link", { name: "Open profile" })).toBeVisible();
-  await day.tap(); // tap again to close
-  await expect(details.getByText("🎂 Mala Member")).toHaveCount(0);
+  // A card opens over the calendar next to the day, fully on screen.
+  const card = page.getByRole("dialog", { name: /^Birthdays on / });
+  await expect(card.getByText("🎂 Mala Member")).toBeVisible();
+  await expect(card.getByRole("link", { name: "Open profile" })).toBeVisible();
+  const box = await card.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+  // Tapping outside closes it.
+  await page.mouse.click(5, 5);
+  await expect(card).toHaveCount(0);
 
   // Put it back for other tests.
   await page.goto("/members?q=mala");
