@@ -2,7 +2,10 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 
 export function Card({ className, ...props }: ComponentProps<"section">) {
-  return <section className={cn("rounded-xl border border-slate-200 bg-white shadow-sm", className)} {...props} />;
+  // min-w-0: long unbreakable content (e.g. a file name) can't stretch a card wider than its grid column.
+  return (
+    <section className={cn("min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm", className)} {...props} />
+  );
 }
 
 export function CardHeader({

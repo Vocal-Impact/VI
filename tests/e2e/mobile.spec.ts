@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { confirmDialog, isoDaysAgo, openDashboard } from "./helpers";
 
 test("navigation works on a phone", async ({ page }) => {
@@ -67,4 +68,25 @@ test("tapping a birthday on the calendar shows who it is", async ({ page }) => {
   await page.getByRole("button", { name: "Save changes" }).click();
   await confirmDialog(page);
   await expect(page.getByRole("heading", { level: 1, name: "Mala Member" })).toBeVisible();
+});
+
+test("the dashboard fits a phone even with a long import file name", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/members/import");
+  await page.getByLabel("CSV file").setInputFiles({
+    name: "VI - Member Information Collection Form (Responses) - Form Responses 1 (1).csv",
+    mimeType: "text/csv",
+    buffer: readFileSync("tests/fixtures/registration-form-2026.csv"),
+  });
+  await page.getByRole("button", { name: "Preview import" }).click();
+  await page.getByRole("button", { name: /^Import \d+ row/ }).click();
+  await confirmDialog(page);
+  await expect(page.getByText("Import complete")).toBeVisible();
+
+  await page.goto("/");
+  await expect(page.getByText("VI - Member Information Collection Form", { exact: false })).toBeAttached();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
 });

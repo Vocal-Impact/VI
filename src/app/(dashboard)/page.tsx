@@ -130,9 +130,11 @@ export default async function DashboardPage() {
             ) : (
               <ul className="space-y-2 text-sm">
                 {imports.map((batch) => (
-                  <li key={batch.id} className="flex flex-wrap justify-between gap-2">
-                    <span className="truncate font-medium">{batch.fileName}</span>
-                    <span className="text-slate-500">
+                  <li key={batch.id} className="min-w-0">
+                    <span className="block truncate font-medium" title={batch.fileName}>
+                      {batch.fileName}
+                    </span>
+                    <span className="text-xs text-slate-500">
                       +{batch.createdCount} new · {batch.updatedCount} updated · {batch.skippedCount} skipped
                     </span>
                   </li>
