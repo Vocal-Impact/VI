@@ -10,6 +10,7 @@ import { Input, Select } from "@/shared/ui/form";
 import { Card, CardBody, CardHeader, EmptyState, PageHeader, Stat } from "@/shared/ui/layout";
 import { createUserAction, setMemberAccessAction, updateUserAction } from "./actions";
 import { AccountRow, MemberAccessForm, NewAccountForm } from "./access-forms";
+import { CappedList } from "@/shared/ui/capped-list";
 
 export const metadata = { title: "Access & roles" };
 
@@ -69,7 +70,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
               <EmptyState title="No members found">Add members first (Members → Add member or Import CSV).</EmptyState>
             </CardBody>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <CappedList visible={8} label="Members" className="divide-y divide-slate-100">
               {rows.map((row) => (
                 <MemberAccessForm
                   key={row.id}
@@ -87,7 +88,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
                   }}
                 />
               ))}
-            </div>
+            </CappedList>
           )}
         </Card>
 

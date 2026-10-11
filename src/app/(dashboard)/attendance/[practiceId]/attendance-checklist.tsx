@@ -11,6 +11,7 @@ import { cn } from "@/shared/lib/cn";
 import { Input } from "@/shared/ui/form";
 import { Badge, Card, EmptyState } from "@/shared/ui/layout";
 import { toggleAttendanceAction } from "../actions";
+import { CappedList } from "@/shared/ui/capped-list";
 
 export function AttendanceChecklist({
   practiceId,
@@ -99,51 +100,53 @@ export function AttendanceChecklist({
           </EmptyState>
         </div>
       ) : (
-        <ul className="divide-y divide-slate-100" aria-label="Members">
-          {filtered.map((entry) => (
-            <li key={entry.memberId}>
-              <button
-                type="button"
-                onClick={() => toggle(entry)}
-                disabled={readOnly}
-                aria-pressed={entry.present}
-                className={cn(
-                  "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors disabled:cursor-default",
-                  entry.present ? "bg-emerald-50" : "hover:bg-slate-50",
-                )}
-              >
-                <span
-                  key={entry.present ? "present" : "absent"}
+        <CappedList visible={10} items=":scope > ul > li" label="Attendance">
+          <ul className="divide-y divide-slate-100" aria-label="Members">
+            {filtered.map((entry) => (
+              <li key={entry.memberId}>
+                <button
+                  type="button"
+                  onClick={() => toggle(entry)}
+                  disabled={readOnly}
+                  aria-pressed={entry.present}
                   className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-full border-2",
-                    entry.present ? "animate-pop border-emerald-600 bg-emerald-600 text-white" : "border-slate-300",
+                    "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors disabled:cursor-default",
+                    entry.present ? "bg-emerald-50" : "hover:bg-slate-50",
                   )}
-                  aria-hidden="true"
                 >
-                  {entry.present ? <Check className="size-4" /> : <span className="text-xs text-slate-300">♪</span>}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{entry.name}</span>
-                  <span className="block text-xs text-slate-500">
-                    {VOICE_TYPE_LABELS[entry.voiceType as VoiceType]} · {entry.studentId}
+                  <span
+                    key={entry.present ? "present" : "absent"}
+                    className={cn(
+                      "flex size-7 shrink-0 items-center justify-center rounded-full border-2",
+                      entry.present ? "animate-pop border-emerald-600 bg-emerald-600 text-white" : "border-slate-300",
+                    )}
+                    aria-hidden="true"
+                  >
+                    {entry.present ? <Check className="size-4" /> : <span className="text-xs text-slate-300">♪</span>}
                   </span>
-                </span>
-                {entry.rsvp ? (
-                  <Badge tone={entry.rsvp === "GOING" ? "blue" : "neutral"}>
-                    {entry.rsvp === "GOING" ? "Said going" : "Said no"}
-                  </Badge>
-                ) : null}
-                {entry.status === "PROSPECTIVE" ? (
-                  <Badge tone={entry.attendedCount >= threshold ? "green" : "amber"}>
-                    New · {attendanceProgress(entry.attendedCount, threshold)}
-                  </Badge>
-                ) : entry.status === "INACTIVE" ? (
-                  <Badge>Inactive</Badge>
-                ) : null}
-              </button>
-            </li>
-          ))}
-        </ul>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{entry.name}</span>
+                    <span className="block text-xs text-slate-500">
+                      {VOICE_TYPE_LABELS[entry.voiceType as VoiceType]} · {entry.studentId}
+                    </span>
+                  </span>
+                  {entry.rsvp ? (
+                    <Badge tone={entry.rsvp === "GOING" ? "blue" : "neutral"}>
+                      {entry.rsvp === "GOING" ? "Said going" : "Said no"}
+                    </Badge>
+                  ) : null}
+                  {entry.status === "PROSPECTIVE" ? (
+                    <Badge tone={entry.attendedCount >= threshold ? "green" : "amber"}>
+                      New · {attendanceProgress(entry.attendedCount, threshold)}
+                    </Badge>
+                  ) : entry.status === "INACTIVE" ? (
+                    <Badge>Inactive</Badge>
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </CappedList>
       )}
     </Card>
   );

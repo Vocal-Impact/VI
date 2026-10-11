@@ -12,6 +12,7 @@ import { LinkButton } from "@/shared/ui/button";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Stat } from "@/shared/ui/layout";
 import { MemberDashboard } from "./member-dashboard";
 import { UpcomingPractices } from "./upcoming-practices";
+import { CappedList } from "@/shared/ui/capped-list";
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -45,14 +46,17 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="mb-6">
         <UpcomingPractices
           viewer={user}
           source={CHOIR_AUDIENCES}
           scheduleHref={hasPermission(user.role, "practices:manage") ? "/attendance?new=1" : null}
           showVenueBooking={hasPermission(user.role, "venues:book")}
+          take={10}
         />
+      </div>
 
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader
             title="🎂 Birthdays"
@@ -62,7 +66,7 @@ export default async function DashboardPage() {
               </Link>
             }
           />
-          <CardBody className="space-y-3">
+          <CappedList visible={6} label="Birthdays" className="space-y-3 px-4 py-4 sm:px-5">
             {birthdays.todays.length === 0 && birthdays.nextSevenDays.length === 0 ? (
               <p className="text-sm text-slate-600">No birthdays in the next 7 days.</p>
             ) : null}
@@ -79,7 +83,7 @@ export default async function DashboardPage() {
                 </span>
               </p>
             ))}
-          </CardBody>
+          </CappedList>
         </Card>
 
         <Card>

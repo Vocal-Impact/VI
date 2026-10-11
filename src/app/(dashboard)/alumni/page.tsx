@@ -9,6 +9,7 @@ import { FormDialog } from "@/shared/ui/client";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
 import { schedulePracticeAction } from "../attendance/actions";
 import { PracticeForm } from "../attendance/practice-form";
+import { CappedList } from "@/shared/ui/capped-list";
 
 export const metadata = { title: "Alumni practices" };
 
@@ -48,7 +49,7 @@ export default async function AlumniPracticesPage() {
       <div className="space-y-6">
         <Card>
           <CardHeader title="Upcoming" />
-          <CardBody className="space-y-3">
+          <CappedList visible={4} label="Upcoming alumni practices" className="space-y-3 px-4 py-4 sm:px-5">
             {upcoming.length === 0 ? <EmptyState title="Nothing scheduled" /> : null}
             {upcoming.map((practice) => (
               <div
@@ -70,7 +71,7 @@ export default async function AlumniPracticesPage() {
                 </div>
               </div>
             ))}
-          </CardBody>
+          </CappedList>
         </Card>
 
         <Card>
@@ -79,22 +80,24 @@ export default async function AlumniPracticesPage() {
             {past.length === 0 ? (
               <p className="text-sm text-slate-600">None yet.</p>
             ) : (
-              <ul className="divide-y divide-slate-100">
-                {past.map((practice) => (
-                  <li key={practice.id}>
-                    <Link
-                      href={`/attendance/${practice.id}`}
-                      className="flex items-center justify-between gap-3 py-2.5 hover:bg-slate-50"
-                    >
-                      <span>
-                        <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
-                        <span className="text-slate-500">· {practice.title}</span>
-                      </span>
-                      {practice.status === "CANCELLED" ? <Badge tone="red">Cancelled</Badge> : null}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <CappedList visible={8} items=":scope > ul > li" label="Past alumni practices">
+                <ul className="divide-y divide-slate-100">
+                  {past.map((practice) => (
+                    <li key={practice.id}>
+                      <Link
+                        href={`/attendance/${practice.id}`}
+                        className="flex items-center justify-between gap-3 py-2.5 hover:bg-slate-50"
+                      >
+                        <span>
+                          <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
+                          <span className="text-slate-500">· {practice.title}</span>
+                        </span>
+                        {practice.status === "CANCELLED" ? <Badge tone="red">Cancelled</Badge> : null}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </CappedList>
             )}
           </CardBody>
         </Card>

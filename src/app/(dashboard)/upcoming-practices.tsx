@@ -10,8 +10,9 @@ import { PracticeCardLink, PracticeDetails, RsvpCountBadges, VenueBookingBadge }
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { LinkButton } from "@/shared/ui/button";
-import { Card, CardBody, CardHeader, EmptyState } from "@/shared/ui/layout";
+import { Card, CardHeader, EmptyState } from "@/shared/ui/layout";
 import { RsvpButtons } from "./attendance/rsvp-buttons";
+import { CappedList } from "@/shared/ui/capped-list";
 
 /**
  * Upcoming practices on the dashboard. Each practice gets Going / Can't make
@@ -66,7 +67,7 @@ export async function UpcomingPractices({
           ) : null
         }
       />
-      <CardBody className="space-y-3">
+      <CappedList visible={4} label="Upcoming practices" className="space-y-3 px-4 py-4 sm:px-5">
         {practices.length === 0 ? (
           <EmptyState title="No practices scheduled yet">
             {scheduleHref ? "Schedule one with the button above." : "Check back soon!"}
@@ -118,7 +119,7 @@ export async function UpcomingPractices({
             </div>
           );
         })}
-      </CardBody>
+      </CappedList>
     </Card>
   );
 }

@@ -7,6 +7,7 @@ import { LinkButton } from "@/shared/ui/button";
 import { FormDialog } from "@/shared/ui/client";
 import { GroupForm } from "./group-form";
 import { GroupList } from "./group-list";
+import { CappedList } from "@/shared/ui/capped-list";
 
 export const metadata = { title: "WhatsApp groups" };
 
@@ -71,39 +72,44 @@ export default async function WhatsAppGroupsPage() {
               <p className="text-sm text-slate-600">No invites sent yet.</p>
             </CardBody>
           ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Member</Th>
-                  <Th>Group</Th>
-                  <Th>Via</Th>
-                  <Th>Status</Th>
-                  <Th className="hidden sm:table-cell">When</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((invite) => (
-                  <tr key={invite.id}>
-                    <Td>
-                      <Link href={`/members/${invite.member.id}`} className="hover:underline">
-                        {invite.member.firstName} {invite.member.lastName}
-                      </Link>
-                    </Td>
-                    <Td>{invite.group.name}</Td>
-                    <Td>{INVITE_CHANNEL_LABELS[invite.channel]}</Td>
-                    <Td>
-                      <Badge tone={invite.status === "JOINED" ? "green" : invite.status === "FAILED" ? "red" : "blue"}>
-                        {invite.status.toLowerCase()}
-                      </Badge>
-                    </Td>
-                    <Td className="hidden text-slate-500 sm:table-cell">
-                      {invite.sentAt.toLocaleDateString("en-GB")}
-                      {invite.sentBy ? ` · ${invite.sentBy.name}` : ""}
-                    </Td>
+            <CappedList visible={8} items="tbody > tr" label="Recent invites">
+              {" "}
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Member</Th>
+                    <Th>Group</Th>
+                    <Th>Via</Th>
+                    <Th>Status</Th>
+                    <Th className="hidden sm:table-cell">When</Th>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
+                </thead>
+                <tbody>
+                  {history.map((invite) => (
+                    <tr key={invite.id}>
+                      <Td>
+                        <Link href={`/members/${invite.member.id}`} className="hover:underline">
+                          {invite.member.firstName} {invite.member.lastName}
+                        </Link>
+                      </Td>
+                      <Td>{invite.group.name}</Td>
+                      <Td>{INVITE_CHANNEL_LABELS[invite.channel]}</Td>
+                      <Td>
+                        <Badge
+                          tone={invite.status === "JOINED" ? "green" : invite.status === "FAILED" ? "red" : "blue"}
+                        >
+                          {invite.status.toLowerCase()}
+                        </Badge>
+                      </Td>
+                      <Td className="hidden text-slate-500 sm:table-cell">
+                        {invite.sentAt.toLocaleDateString("en-GB")}
+                        {invite.sentBy ? ` · ${invite.sentBy.name}` : ""}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </CappedList>
           )}
         </Card>
       </div>

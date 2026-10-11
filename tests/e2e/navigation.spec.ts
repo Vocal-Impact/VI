@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openDashboard } from "./helpers";
+import { isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
 
 test("the birthdays notice links to the members missing a birthday", async ({ page }) => {
   await openDashboard(page);
@@ -37,4 +37,31 @@ test("access rows keep the controls compact, beside the name", async ({ page }) 
   expect(Math.abs((selectBox?.y ?? 0) + (selectBox?.height ?? 0) / 2 - ((nameBox?.y ?? 0) + 10))).toBeLessThan(30);
   expect(selectBox?.x ?? 0).toBeGreaterThan((nameBox?.x ?? 0) + 200);
   await page.screenshot({ path: "test-results/access-rows.png", fullPage: true });
+});
+
+test("upcoming practices show four and scroll the rest inside the card", async ({ page }) => {
+  await openDashboard(page);
+  const list = () => page.getByRole("region", { name: "Upcoming practices" });
+  // Make sure there are at least five upcoming practices.
+  for (let day = 20; (await list().count()) === 0 && day < 26; day++) {
+    await schedulePractice(page, { date: isoDaysAgo(-day), start: "18:00", title: `Extra practice ${day}` });
+    await page.goto("/");
+  }
+  const region = list();
+  await expect(region).toBeVisible();
+  const { clientHeight, scrollHeight, fourthBottom, fifthTop, top } = await region.evaluate((element) => {
+    const items = Array.from(element.children) as HTMLElement[];
+    const box = element.getBoundingClientRect();
+    return {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      top: box.top,
+      fourthBottom: items[3]!.getBoundingClientRect().bottom,
+      fifthTop: items[4]!.getBoundingClientRect().top,
+    };
+  });
+  expect(scrollHeight).toBeGreaterThan(clientHeight); // the rest scrolls
+  expect(fourthBottom).toBeLessThanOrEqual(top + clientHeight + 1); // four fully shown
+  expect(fifthTop).toBeGreaterThanOrEqual(top + clientHeight - 1); // the fifth starts below the fold
+  await page.screenshot({ path: "test-results/dashboard-capped.png", fullPage: true });
 });
