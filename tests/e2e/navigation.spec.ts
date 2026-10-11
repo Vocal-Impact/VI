@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
+import { confirmDialog, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
 
 test("the birthdays notice links to the members missing a birthday", async ({ page }) => {
   await openDashboard(page);
@@ -64,4 +64,33 @@ test("upcoming practices show four and scroll the rest inside the card", async (
   expect(fourthBottom).toBeLessThanOrEqual(top + clientHeight + 1); // four fully shown
   expect(fifthTop).toBeGreaterThanOrEqual(top + clientHeight - 1); // the fifth starts below the fold
   await page.screenshot({ path: "test-results/dashboard-capped.png", fullPage: true });
+});
+
+test("access changes show straight away, without a refresh", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/access?q=mala");
+  const row = page.locator("form").filter({ has: page.getByLabel("Access for Mala Member") });
+  const select = row.getByLabel("Access for Mala Member");
+
+  await select.selectOption("BATCH_LEAD");
+  await row.getByRole("button", { name: "Give access" }).click();
+  await confirmDialog(page);
+  await expect(page.getByText("Saved: Batch lead")).toBeVisible();
+  await expect(select).toHaveValue("BATCH_LEAD");
+  await expect(row.getByText("Batch lead", { exact: true }).first()).toBeVisible(); // the badge
+  await expect(page.getByRole("link", { name: /Batch leads/ })).toContainText("1"); // the count
+
+  // Saving again without changes keeps showing the same access.
+  await row.getByRole("button", { name: "Save" }).click();
+  await confirmDialog(page);
+  await page.waitForLoadState("networkidle"); // the save has finished
+  await expect(select).toHaveValue("BATCH_LEAD");
+
+  // And back to Member.
+  await select.selectOption("NONE");
+  await row.getByRole("button", { name: "Save" }).click();
+  await confirmDialog(page);
+  await expect(page.getByText("Access removed")).toBeVisible();
+  await expect(select).toHaveValue("NONE");
+  await expect(row.getByRole("button", { name: "Save" })).toBeVisible();
 });

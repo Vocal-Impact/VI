@@ -33,11 +33,17 @@ export interface MemberAccessRow {
   isSelf: boolean;
 }
 
-/** One member: choose Member / Committee / Admin and birthday emails. */
+type AccessFormState = ActionState & { submissions?: number };
+
+/** One member: choose Member / Batch lead / Committee / Admin and birthday emails. */
 export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action: Action }) {
-  const [state, formAction] = useActionState(action, idleState);
-  const [level, setLevel] = useState<AccessLevel>(row.level);
-  const changed = level !== row.level;
+  const [state, formAction] = useActionState(
+    async (prev: AccessFormState, formData: FormData): Promise<AccessFormState> => ({
+      ...(await action(prev, formData)),
+      submissions: (prev.submissions ?? 0) + 1,
+    }),
+    idleState as AccessFormState,
+  );
 
   return (
     <form action={formAction} className={cn("px-4 py-3 sm:px-5", row.level !== "NONE" && "bg-brand-50/40")}>
@@ -55,57 +61,68 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
             {row.level !== "NONE" ? ` · ${row.hasSignedIn ? "has signed in" : "not signed in yet"}` : ""}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <Select
-            name="level"
-            value={level}
-            onChange={(event) => setLevel(event.target.value as AccessLevel)}
-            disabled={row.isSelf}
-            aria-label={`Access for ${row.name}`}
-            className="h-9 w-40"
-          >
-            {ACCESS_LEVELS.map((option) => (
-              <option key={option} value={option}>
-                {ACCESS_LEVEL_LABELS[option]}
-              </option>
-            ))}
-          </Select>
-          {level === "ADMIN" || level === "COMMITTEE" ? (
-            <Checkbox
-              name="receivesBirthdayReminders"
-              defaultChecked={row.receivesBirthdayReminders}
-              label="Birthday emails"
-              className="whitespace-nowrap"
-              disabled={row.isSelf}
-            />
-          ) : null}
-          <SubmitButton
-            size="sm"
-            variant={changed ? "primary" : "outline"}
-            disabled={row.isSelf}
-            confirm={{
-              title: changed
-                ? `Change ${row.name}'s access to ${ACCESS_LEVEL_LABELS[level]}?`
-                : `Save ${row.name}'s access settings?`,
-              description:
-                level === "ADMIN"
-                  ? "Admins can do everything, including managing access, settings and erasing members."
-                  : level === "COMMITTEE"
-                    ? "Committee can manage members, practices, attendance and invites."
-                    : level === "BATCH_LEAD"
-                      ? "Batch leads can schedule practices for their own level and see who's coming."
-                      : "They can still sign in to see practices and reply.",
-              confirmLabel: changed ? "Change access" : "Save",
-              tone: changed && (row.level === "ADMIN" || level === "NONE") ? "danger" : "primary",
-            }}
-          >
-            {row.level === "NONE" && level !== "NONE" ? "Give access" : "Save"}
-          </SubmitButton>
-        </div>
+        {/* A new key after every save rebuilds the controls from what was saved. */}
+        <AccessControls key={`${row.level}-${row.receivesBirthdayReminders}-${state.submissions ?? 0}`} row={row} />
       </div>
       {row.isSelf ? <p className="mt-1 text-xs text-slate-500">Ask another admin to change your own access.</p> : null}
       <ActionFeedback state={state} />
     </form>
+  );
+}
+
+function AccessControls({ row }: { row: MemberAccessRow }) {
+  const [level, setLevel] = useState<AccessLevel>(row.level);
+  const changed = level !== row.level;
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-3">
+      {/* defaultValue, not value: the form's reset after saving then goes back to the saved access. */}
+      <Select
+        name="level"
+        defaultValue={row.level}
+        onChange={(event) => setLevel(event.target.value as AccessLevel)}
+        disabled={row.isSelf}
+        aria-label={`Access for ${row.name}`}
+        className="h-9 w-40"
+      >
+        {ACCESS_LEVELS.map((option) => (
+          <option key={option} value={option}>
+            {ACCESS_LEVEL_LABELS[option]}
+          </option>
+        ))}
+      </Select>
+      {level === "ADMIN" || level === "COMMITTEE" ? (
+        <Checkbox
+          name="receivesBirthdayReminders"
+          defaultChecked={row.receivesBirthdayReminders}
+          label="Birthday emails"
+          className="whitespace-nowrap"
+          disabled={row.isSelf}
+        />
+      ) : null}
+      <SubmitButton
+        size="sm"
+        variant={changed ? "primary" : "outline"}
+        disabled={row.isSelf}
+        confirm={{
+          title: changed
+            ? `Change ${row.name}'s access to ${ACCESS_LEVEL_LABELS[level]}?`
+            : `Save ${row.name}'s access settings?`,
+          description:
+            level === "ADMIN"
+              ? "Admins can do everything, including managing access, settings and erasing members."
+              : level === "COMMITTEE"
+                ? "Committee can manage members, practices, attendance and invites."
+                : level === "BATCH_LEAD"
+                  ? "Batch leads can schedule practices for their own level and see who's coming."
+                  : "They can still sign in to see practices and reply.",
+          confirmLabel: changed ? "Change access" : "Save",
+          tone: changed && (row.level === "ADMIN" || level === "NONE") ? "danger" : "primary",
+        }}
+      >
+        {row.level === "NONE" && level !== "NONE" ? "Give access" : "Save"}
+      </SubmitButton>
+    </div>
   );
 }
 
