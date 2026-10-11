@@ -92,7 +92,7 @@ export function AttendanceChecklist({
         <div className="p-4">
           <EmptyState title="No one matches">
             New face?{" "}
-            <Link href="/members/new" className="text-brand-700 underline">
+            <Link href="/members?new=1" className="text-brand-700 underline">
               Add them as a member
             </Link>{" "}
             first.

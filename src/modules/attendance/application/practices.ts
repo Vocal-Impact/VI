@@ -165,10 +165,18 @@ export async function listInvitableMembers() {
   return [...members.filter((m) => m.status !== "ALUMNI"), ...members.filter((m) => m.status === "ALUMNI")];
 }
 
-/** Past practices, most recent first, with attendance counts. */
-export async function listPastPractices(take = 30, audiences: readonly PracticeAudience[] = CHOIR_AUDIENCES) {
+/** Past practices, most recent first, with attendance counts. `levels`: only practices for exactly these levels. */
+export async function listPastPractices(
+  take = 30,
+  audiences: readonly PracticeAudience[] = CHOIR_AUDIENCES,
+  levels?: StudyLevel[],
+) {
   const practices = await prisma.practice.findMany({
-    where: { date: { lt: fromIsoDate(todayLocal()) }, audience: { in: [...audiences] } },
+    where: {
+      date: { lt: fromIsoDate(todayLocal()) },
+      audience: { in: [...audiences] },
+      ...(levels ? { levels: { equals: levels } } : {}),
+    },
     orderBy: [{ date: "desc" }, { startTime: "desc" }],
     take,
     include: { ...withInvitees, _count: { select: { attendances: true } } },

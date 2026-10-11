@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { E2E_MEMBER, MEMBER_STORAGE_STATE } from "./constants";
-import { confirmDialog, formatShort, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
+import { confirmDialog, formatShort, openFormDialog, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -42,7 +42,7 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
 
   // Admin sets up the WhatsApp groups.
   await page.getByRole("link", { name: "WhatsApp" }).first().click();
-  const addGroup = page.locator("form").filter({ has: page.getByRole("button", { name: "Add group" }) });
+  const addGroup = await openFormDialog(page, "Add group");
   await addGroup.getByLabel("Group name").fill("VI Main");
   await addGroup.getByLabel("Invite link").fill("https://chat.whatsapp.com/E2eMainGroupLink123");
   await addGroup.getByLabel("Main group").check();
@@ -52,28 +52,29 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await expect(page.getByRole("link", { name: /VI Main/ })).toBeVisible();
 
   // Add a member by hand; a bad email is caught first.
-  await page.goto("/members/new");
-  await page.getByLabel("First name").fill("nethmi");
-  await page.getByLabel("Last name").fill("perera");
-  await page.getByLabel("IIT student ID").fill("w2026500");
-  await page.getByLabel("WhatsApp number").fill("077 555 0000");
-  await page.getByLabel("IIT email address").fill("nethmi@gmail.com");
-  await page.getByLabel("Voice type").selectOption("ALTO");
-  await page.getByLabel("Current year of study").selectOption("L4");
-  await page.getByLabel("Dietary preferences (optional)").fill("Vegetarian");
-  await page.getByLabel("Location (nearest landmark)").fill("Kohuwala junction");
-  await page.getByLabel("Coordinates (optional)").fill("6.8664, 79.8774");
-  await page.getByLabel("Member agreed to share their approximate location").check();
-  await expect(page.getByLabel("Status")).toHaveValue("PROSPECTIVE");
-  await expect(page.getByRole("button", { name: /send group invites/i })).toHaveCount(0);
-  await page.getByRole("button", { name: "Save member" }).click();
+  await page.goto("/members");
+  const add = await openFormDialog(page, "Add member");
+  await add.getByLabel("First name").fill("nethmi");
+  await add.getByLabel("Last name").fill("perera");
+  await add.getByLabel("IIT student ID").fill("w2026500");
+  await add.getByLabel("WhatsApp number").fill("077 555 0000");
+  await add.getByLabel("IIT email address").fill("nethmi@gmail.com");
+  await add.getByLabel("Voice type").selectOption("ALTO");
+  await add.getByLabel("Current year of study").selectOption("L4");
+  await add.getByLabel("Dietary preferences (optional)").fill("Vegetarian");
+  await add.getByLabel("Location (nearest landmark)").fill("Kohuwala junction");
+  await add.getByLabel("Coordinates (optional)").fill("6.8664, 79.8774");
+  await add.getByLabel("Member agreed to share their approximate location").check();
+  await expect(add.getByLabel("Status")).toHaveValue("PROSPECTIVE");
+  await expect(add.getByRole("button", { name: /send group invites/i })).toHaveCount(0);
+  await add.getByRole("button", { name: "Save member" }).click();
   await confirmDialog(page, { title: "Add Nethmi Perera?", cancel: true });
-  await expect(page).toHaveURL(/\/members\/new$/); // nothing saved
-  await page.getByRole("button", { name: "Save member" }).click();
+  await expect(add).toBeVisible(); // nothing saved, still open
+  await add.getByRole("button", { name: "Save member" }).click();
   await confirmDialog(page);
-  await expect(page.getByText("Must be an @iit.ac.lk address")).toBeVisible();
-  await page.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");
-  await page.getByRole("button", { name: "Save member" }).click();
+  await expect(add.getByText("Must be an @iit.ac.lk address")).toBeVisible();
+  await add.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");
+  await add.getByRole("button", { name: "Save member" }).click();
   await confirmDialog(page);
   await expect(page.getByRole("heading", { level: 1, name: "Nethmi Perera" })).toBeVisible();
   await expect(page.getByText("0/3 practices")).toBeVisible();
@@ -83,17 +84,19 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await expect(page.getByLabel("Location (nearest landmark)")).toHaveValue("Kohuwala junction");
 
   // Adding the same person again is blocked with a link to the profile.
-  await page.goto("/members/new");
-  await page.getByLabel("First name").fill("Nethmi");
-  await page.getByLabel("Last name").fill("Perera");
-  await page.getByLabel("IIT student ID").fill("W2026500");
-  await page.getByLabel("WhatsApp number").fill("0775550000");
-  await page.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");
-  await page.getByLabel("Current year of study").selectOption("L4");
-  await page.getByRole("button", { name: "Save member" }).click();
+  await page.goto("/members/new"); // old link: opens the form over the members list
+  const again = page.locator("dialog[open]:not([data-confirm])");
+  await expect(again).toBeVisible();
+  await again.getByLabel("First name").fill("Nethmi");
+  await again.getByLabel("Last name").fill("Perera");
+  await again.getByLabel("IIT student ID").fill("W2026500");
+  await again.getByLabel("WhatsApp number").fill("0775550000");
+  await again.getByLabel("IIT email address").fill("nethmi.w2026500@iit.ac.lk");
+  await again.getByLabel("Current year of study").selectOption("L4");
+  await again.getByRole("button", { name: "Save member" }).click();
   await confirmDialog(page);
-  await expect(page.getByText("This person already exists")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open their profile" })).toBeVisible();
+  await expect(again.getByText("This person already exists")).toBeVisible();
+  await expect(again.getByRole("link", { name: "Open their profile" })).toBeVisible();
 
   // No practice scheduled today → no way to take attendance yet.
   await page.goto("/attendance");
@@ -170,7 +173,7 @@ test("a group page lists who to invite, sends bulk email invites and tracks who'
 
   // A Tenors-only group: other parts are greyed out with the reason.
   await page.goto("/whatsapp-groups");
-  const addGroup = page.locator("form").filter({ has: page.getByRole("button", { name: "Add group" }) });
+  const addGroup = await openFormDialog(page, "Add group");
   await addGroup.getByLabel("Group name").fill("VI Tenors");
   await addGroup.getByLabel("Invite link").fill("https://chat.whatsapp.com/E2eTenorsGroupLink1");
   await addGroup.getByLabel("Only some parts (e.g. a Tenors group)").check();

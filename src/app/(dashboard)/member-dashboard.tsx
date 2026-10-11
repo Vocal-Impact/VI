@@ -5,9 +5,6 @@ import { getBirthdayDashboard } from "@/modules/birthdays";
 import { getMembersByIds } from "@/modules/members";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { Alert, Card, CardBody, CardHeader, PageHeader, Stat } from "@/shared/ui/layout";
-import { STUDY_LEVEL_LABELS } from "@/modules/members/domain";
-import { schedulePracticeAction } from "./attendance/actions";
-import { PracticeForm } from "./attendance/practice-form";
 import { UpcomingPractices } from "./upcoming-practices";
 
 /** What a choir member sees: upcoming practices to reply to, their progress, today's birthdays. */
@@ -32,8 +29,6 @@ export async function MemberDashboard({ user }: { user: SessionUser }) {
   ]);
   const attended = counts.get(user.memberId) ?? 0;
   const alumni = user.role === "ALUMNI" || user.role === "ALUMNI_COMMITTEE";
-  // Batch leads schedule practices for their own level.
-  const leadsLevel = hasPermission(user.role, "practices:level-manage") ? user.studyLevel : null;
 
   return (
     <>
@@ -59,7 +54,7 @@ export async function MemberDashboard({ user }: { user: SessionUser }) {
               <UpcomingPractices
                 viewer={user}
                 source="mine"
-                scheduleHref={hasPermission(user.role, "practices:alumni-manage") ? "/alumni" : null}
+                scheduleHref={hasPermission(user.role, "practices:alumni-manage") ? "/alumni?new=1" : null}
                 title="🎓 Alumni practices"
                 take={6}
               />
@@ -72,36 +67,17 @@ export async function MemberDashboard({ user }: { user: SessionUser }) {
               />
             </>
           ) : (
-            <UpcomingPractices viewer={user} source="mine" take={6} />
+            <UpcomingPractices
+              viewer={user}
+              source="mine"
+              take={6}
+              // Batch leads schedule from their Practices tab.
+              scheduleHref={hasPermission(user.role, "practices:level-manage") ? "/attendance?new=1" : null}
+            />
           )}
         </div>
         <div className="space-y-6">
           {alumni ? null : <Stat label="Practices you've attended" value={attended} />}
-          {leadsLevel ? (
-            <Card>
-              <CardHeader
-                title={`Schedule a practice for ${STUDY_LEVEL_LABELS[leadsLevel]}`}
-                description="As batch lead you can schedule practices for your level."
-              />
-              <CardBody>
-                <PracticeForm
-                  action={schedulePracticeAction}
-                  mode="schedule"
-                  audience="LEVELS"
-                  levelChoices={[leadsLevel]}
-                  minDate={birthdays.today}
-                  initial={{
-                    date: birthdays.today,
-                    startTime: "",
-                    endTime: "",
-                    title: `${STUDY_LEVEL_LABELS[leadsLevel]} practice`,
-                    venue: "",
-                    notes: "",
-                  }}
-                />
-              </CardBody>
-            </Card>
-          ) : null}
           <Card>
             <CardHeader title="🎂 Birthdays today" />
             <CardBody>

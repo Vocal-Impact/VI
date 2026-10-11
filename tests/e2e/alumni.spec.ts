@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { ALUMNA_STORAGE_STATE, MEMBER_STORAGE_STATE } from "./constants";
-import { confirmDialog, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
+import { confirmDialog, openFormDialog, isoDaysAgo, openDashboard, schedulePractice } from "./helpers";
 
 test("alumni see choir practices read-only and organise and reply to their own practices", async ({
   page,
@@ -29,7 +29,7 @@ test("alumni see choir practices read-only and organise and reply to their own p
 
   // An alumna on the committee schedules an alumni practice…
   await alumna.goto("/alumni");
-  const form = alumna.locator("form").filter({ has: alumna.getByRole("button", { name: "Schedule practice" }) });
+  const form = await openFormDialog(alumna, "Schedule practice");
   await form.getByLabel("Date").fill(isoDaysAgo(-6));
   await form.getByLabel("Starts").fill("18:00");
   await form.getByLabel("Title").fill("Guest performance");
@@ -66,7 +66,7 @@ test("member search filters as you type", async ({ page }) => {
   await expect(page).toHaveURL(/[?&]q=mala/);
   await expect(page.getByRole("link", { name: "Mala Member" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Asha Alumna" })).toHaveCount(0);
-  await page.getByLabel("Status").selectOption("ALUMNI");
+  await page.getByRole("search").getByLabel("Status").selectOption("ALUMNI");
   await expect(page).toHaveURL(/status=ALUMNI/);
   await expect(page.getByText("No members found")).toBeVisible();
 });

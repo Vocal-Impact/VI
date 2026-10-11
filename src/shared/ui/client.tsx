@@ -4,12 +4,14 @@ import { useEffect, useRef, useState, type ComponentProps, type MouseEvent, type
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 import type { ActionState } from "@/shared/lib/action-state";
-import { Button } from "./button";
+import { Button, LinkButton } from "./button";
 import { Alert } from "./layout";
 import { Equalizer } from "./music";
 import { ConfirmDialog, resolveConfirm, type ConfirmContent, type FormConfirmOptions } from "./confirm";
+import { useFormDialog } from "./form-dialog";
 
 export { useConfirm, type ConfirmContent, type FormConfirmOptions } from "./confirm";
+export { FormDialog, useFormDialog } from "./form-dialog";
 
 /**
  * Submit button that disables itself and shows progress while the form's
@@ -79,14 +81,20 @@ export function SubmitButton({
   );
 }
 
-/** Shows a toast on success and an inline alert on error for a `useActionState` form. */
+/**
+ * Shows a toast on success and an inline alert on error for a `useActionState`
+ * form. In a FormDialog, a successful save also closes the dialog.
+ */
 export function ActionFeedback({ state, inline = true }: { state: ActionState; inline?: boolean }) {
   const lastShown = useRef<ActionState | null>(null);
+  const dialog = useFormDialog();
   useEffect(() => {
     if (state === lastShown.current) return;
     lastShown.current = state;
-    if (state.status === "success" && state.message) toast.success(state.message);
-  }, [state]);
+    if (state.status !== "success") return;
+    if (state.message) toast.success(state.message);
+    dialog?.close();
+  }, [state, dialog]);
 
   if (state.status === "error" && state.message && inline) {
     return <Alert tone="error">{state.message.replace(/\s*\(memberId:[^)]+\)/, "")}</Alert>;
@@ -121,4 +129,21 @@ export function CopyButton({ text, label = "Copy", className }: { text: string; 
       {label}
     </Button>
   );
+}
+
+/** Cancel for a form: closes the FormDialog it's in, otherwise goes back to `href`. */
+export function CancelButton({ href, label = "Cancel" }: { href?: string; label?: string }) {
+  const dialog = useFormDialog();
+  if (dialog) {
+    return (
+      <Button variant="ghost" onClick={dialog.close}>
+        {label}
+      </Button>
+    );
+  }
+  return href ? (
+    <LinkButton href={href} variant="ghost">
+      {label}
+    </LinkButton>
+  ) : null;
 }

@@ -6,8 +6,7 @@ import { PRACTICE_AUDIENCE_LABELS, type PracticeAudience } from "@/modules/atten
 import { STUDY_LEVEL_LABELS, type StudyLevel } from "@/modules/members/domain";
 import { cn } from "@/shared/lib/cn";
 import { idleState, type ActionState } from "@/shared/lib/action-state";
-import { ActionFeedback, SubmitButton } from "@/shared/ui/client";
-import { LinkButton } from "@/shared/ui/button";
+import { ActionFeedback, CancelButton, SubmitButton } from "@/shared/ui/client";
 import { Checkbox, Field, Input, Textarea } from "@/shared/ui/form";
 
 export interface PracticeFormValues {
@@ -182,7 +181,6 @@ export function PracticeForm({
       </Field>
       <div className="flex flex-wrap gap-2">
         <SubmitButton
-          className={mode === "schedule" ? "w-full" : undefined}
           confirm={{
             title: (data) =>
               `${mode === "schedule" ? "Schedule" : "Save"} ${String(data.get("title") ?? "").trim() || "practice"} on ${describeDate(String(data.get("date") ?? ""))}?`,
@@ -195,11 +193,7 @@ export function PracticeForm({
         >
           {mode === "schedule" ? "Schedule practice" : "Save changes"}
         </SubmitButton>
-        {cancelHref ? (
-          <LinkButton href={cancelHref} variant="ghost">
-            Cancel
-          </LinkButton>
-        ) : null}
+        <CancelButton href={cancelHref} />
       </div>
     </form>
   );

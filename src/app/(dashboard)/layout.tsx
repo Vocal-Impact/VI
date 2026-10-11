@@ -2,10 +2,12 @@ import { requireUser, hasPermission, type Permission } from "@/modules/auth";
 import { isFeatureEnabled, type Feature } from "@/shared/config/features";
 import { AppShell, type NavItem } from "./app-shell";
 
-const NAV: Array<NavItem & { permission?: Permission; feature?: Feature }> = [
+/** `permission`: shown to anyone with one of these. */
+const NAV: Array<NavItem & { permission?: Permission | Permission[]; feature?: Feature }> = [
   { href: "/", label: "Dashboard", icon: "home" },
   { href: "/members", label: "Members", icon: "users", permission: "members:read" },
-  { href: "/attendance", label: "Practices", icon: "check", permission: "attendance:read" },
+  // Committee: every practice. Batch leads: their own level's practices.
+  { href: "/attendance", label: "Practices", icon: "check", permission: ["attendance:read", "practices:level-manage"] },
   { href: "/alumni", label: "Alumni practices", icon: "alumni", permission: "practices:alumni-manage" },
   { href: "/whatsapp-groups", label: "WhatsApp", icon: "chat", permission: "groups:read" },
   { href: "/birthdays", label: "Birthdays", icon: "cake", permission: "birthdays:read" },
@@ -16,7 +18,9 @@ const NAV: Array<NavItem & { permission?: Permission; feature?: Feature }> = [
 
 export default async function DashboardLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const items = NAV.filter((item) => !item.permission || hasPermission(user.role, item.permission))
+  const items = NAV.filter(
+    (item) => !item.permission || [item.permission].flat().some((permission) => hasPermission(user.role, permission)),
+  )
     .filter((item) => !item.feature || isFeatureEnabled(item.feature))
     .map(({ permission: _permission, feature: _feature, ...item }) => item);
   return (

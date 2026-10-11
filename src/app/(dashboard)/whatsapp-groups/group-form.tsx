@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { idleState, type ActionState } from "@/shared/lib/action-state";
 import { cn } from "@/shared/lib/cn";
-import { ActionFeedback, SubmitButton } from "@/shared/ui/client";
+import { ActionFeedback, CancelButton, SubmitButton } from "@/shared/ui/client";
 import { Checkbox, Field, Input } from "@/shared/ui/form";
 import { createGroupAction, updateGroupAction } from "./actions";
 
@@ -81,20 +81,23 @@ export function GroupForm({ group }: { group?: GroupValues }) {
         defaultChecked={values ? values.isMainGroup === "on" : (group?.isMainGroup ?? false)}
         label="Main group"
       />
-      <SubmitButton
-        variant={group ? "outline" : "primary"}
-        className="w-full"
-        confirm={{
-          title: (data) =>
-            `${group ? "Save" : "Add"} the group “${String(data.get("name") ?? "").trim() || "untitled"}”?`,
-          description: group
-            ? "Invites sent from now on use these details."
-            : "It becomes available for invites straight away.",
-          confirmLabel: group ? "Save group" : "Add group",
-        }}
-      >
-        {group ? "Save group" : "Add group"}
-      </SubmitButton>
+      <div className="flex flex-wrap gap-2">
+        <SubmitButton
+          variant={group ? "outline" : "primary"}
+          className={group ? "w-full" : undefined}
+          confirm={{
+            title: (data) =>
+              `${group ? "Save" : "Add"} the group “${String(data.get("name") ?? "").trim() || "untitled"}”?`,
+            description: group
+              ? "Invites sent from now on use these details."
+              : "It becomes available for invites straight away.",
+            confirmLabel: group ? "Save group" : "Add group",
+          }}
+        >
+          {group ? "Save group" : "Add group"}
+        </SubmitButton>
+        <CancelButton />
+      </div>
     </form>
   );
 }

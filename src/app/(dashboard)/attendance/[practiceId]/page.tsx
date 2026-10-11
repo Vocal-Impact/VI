@@ -44,10 +44,10 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   const today = todayLocal();
   const practiceLabel = `${practice.title} on ${formatIsoDate(practice.date, { weekday: "long", month: "long", year: undefined })}`;
   const canOpenProfiles = hasPermission(user.role, "members:read");
-  // Batch leads don't have the Practices page; they come from their dashboard.
+  // Batch leads have their own level's Practices page; others reaching here manage it from the dashboard.
   const back = alumni
     ? { href: "/alumni", label: "Alumni practices" }
-    : canSeeAttendance
+    : canSeeAttendance || hasPermission(user.role, "practices:level-manage")
       ? { href: "/attendance", label: "Practices" }
       : { href: "/", label: "Dashboard" };
   const attendanceOpen = !alumni && canTakeAttendance(user.role, practice, today);

@@ -13,11 +13,14 @@ import { StatusBadge, VoiceBadge } from "@/modules/members/ui";
 import { buttonClasses, LinkButton } from "@/shared/ui/button";
 import { Input, Select } from "@/shared/ui/form";
 import { Alert, Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
-import { SubmitButton } from "@/shared/ui/client";
+import { FormDialog, SubmitButton } from "@/shared/ui/client";
 import { FilterForm } from "@/shared/ui/filter-form";
-import { restoreMemberAction } from "./actions";
+import { createMemberAction, restoreMemberAction } from "./actions";
+import { MemberForm } from "./member-form";
 
 export const metadata = { title: "Members" };
+// Adding a member here leaves time for looking up their coordinates in the background.
+export const maxDuration = 60;
 
 export default async function MembersPage(props: PageProps<"/members">) {
   const user = await requirePermission("members:read");
@@ -50,7 +53,11 @@ export default async function MembersPage(props: PageProps<"/members">) {
         }
         actions={
           <>
-            {canWrite ? <LinkButton href="/members/new">Add member</LinkButton> : null}
+            {canWrite ? (
+              <FormDialog label="Add member" title="Add member" size="lg">
+                <MemberForm action={createMemberAction} mode="create" />
+              </FormDialog>
+            ) : null}
             {hasPermission(user.role, "imports:run") ? (
               <LinkButton href="/members/import" variant="outline">
                 Import CSV

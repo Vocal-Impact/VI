@@ -60,6 +60,8 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={ref}
+      // Tells it apart from a FormDialog it opens over.
+      data-confirm=""
       aria-labelledby={titleId}
       aria-describedby={content.description ? descriptionId : undefined}
       // Esc closes it as "cancel".
@@ -71,7 +73,7 @@ export function ConfirmDialog({
       onClick={(event) => {
         if (event.target === ref.current) onResult(false);
       }}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] animate-pop rounded-2xl border border-slate-200 bg-white p-0 text-left shadow-2xl backdrop:bg-ink/60 backdrop:backdrop-blur-[2px]"
+      className="m-auto w-[min(28rem,calc(100vw-2rem))] animate-dialog-in rounded-2xl border border-slate-200 bg-white p-0 text-left shadow-2xl backdrop:animate-fade-in backdrop:bg-ink/60 backdrop:backdrop-blur-[2px]"
     >
       <div className="flex gap-4 p-5 sm:p-6">
         <span

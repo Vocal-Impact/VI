@@ -5,6 +5,7 @@ import { PracticeCardLink, PracticeDetails, RsvpCountBadges } from "@/modules/at
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { LinkButton } from "@/shared/ui/button";
+import { FormDialog } from "@/shared/ui/client";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
 import { schedulePracticeAction } from "../attendance/actions";
 import { PracticeForm } from "../attendance/practice-form";
@@ -22,66 +23,11 @@ export default async function AlumniPracticesPage() {
 
   return (
     <>
-      <PageHeader title="Alumni practices" description="Only alumni see these on their dashboard and reply." />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader title="Upcoming" />
-            <CardBody className="space-y-3">
-              {upcoming.length === 0 ? <EmptyState title="Nothing scheduled" /> : null}
-              {upcoming.map((practice) => (
-                <div
-                  key={practice.id}
-                  className="group relative flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-3 pr-9 transition-colors hover:border-brand-300 hover:bg-slate-50/70"
-                >
-                  <PracticeCardLink
-                    practiceId={practice.id}
-                    label={`${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`}
-                  />
-                  <div className="space-y-2">
-                    <PracticeDetails practice={practice} today={today} />
-                    {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : null}
-                  </div>
-                  <div className="relative z-10 flex gap-2">
-                    <LinkButton href={`/attendance/${practice.id}/edit`} size="sm" variant="outline">
-                      Edit
-                    </LinkButton>
-                  </div>
-                </div>
-              ))}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Past alumni practices" />
-            <CardBody>
-              {past.length === 0 ? (
-                <p className="text-sm text-slate-600">None yet.</p>
-              ) : (
-                <ul className="divide-y divide-slate-100">
-                  {past.map((practice) => (
-                    <li key={practice.id}>
-                      <Link
-                        href={`/attendance/${practice.id}`}
-                        className="flex items-center justify-between gap-3 py-2.5 hover:bg-slate-50"
-                      >
-                        <span>
-                          <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
-                          <span className="text-slate-500">· {practice.title}</span>
-                        </span>
-                        {practice.status === "CANCELLED" ? <Badge tone="red">Cancelled</Badge> : null}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader title="Schedule an alumni practice" />
-          <CardBody>
+      <PageHeader
+        title="Alumni practices"
+        description="Only alumni see these on their dashboard and reply."
+        actions={
+          <FormDialog label="Schedule practice" title="Schedule an alumni practice">
             <PracticeForm
               action={schedulePracticeAction}
               mode="schedule"
@@ -89,6 +35,60 @@ export default async function AlumniPracticesPage() {
               minDate={today}
               initial={{ date: today, startTime: "", endTime: "", title: "Alumni practice", venue: "", notes: "" }}
             />
+          </FormDialog>
+        }
+      />
+      <div className="space-y-6">
+        <Card>
+          <CardHeader title="Upcoming" />
+          <CardBody className="space-y-3">
+            {upcoming.length === 0 ? <EmptyState title="Nothing scheduled" /> : null}
+            {upcoming.map((practice) => (
+              <div
+                key={practice.id}
+                className="group relative flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-3 pr-9 transition-colors hover:border-brand-300 hover:bg-slate-50/70"
+              >
+                <PracticeCardLink
+                  practiceId={practice.id}
+                  label={`${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`}
+                />
+                <div className="space-y-2">
+                  <PracticeDetails practice={practice} today={today} />
+                  {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : null}
+                </div>
+                <div className="relative z-10 flex gap-2">
+                  <LinkButton href={`/attendance/${practice.id}/edit`} size="sm" variant="outline">
+                    Edit
+                  </LinkButton>
+                </div>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader title="Past alumni practices" />
+          <CardBody>
+            {past.length === 0 ? (
+              <p className="text-sm text-slate-600">None yet.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {past.map((practice) => (
+                  <li key={practice.id}>
+                    <Link
+                      href={`/attendance/${practice.id}`}
+                      className="flex items-center justify-between gap-3 py-2.5 hover:bg-slate-50"
+                    >
+                      <span>
+                        <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
+                        <span className="text-slate-500">· {practice.title}</span>
+                      </span>
+                      {practice.status === "CANCELLED" ? <Badge tone="red">Cancelled</Badge> : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardBody>
         </Card>
       </div>

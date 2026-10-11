@@ -3,8 +3,8 @@ import { requirePermission, hasPermission } from "@/modules/auth";
 import { listGroups, listInviteHistory, listWhatsAppQueue } from "@/modules/whatsapp-groups";
 import { INVITE_CHANNEL_LABELS } from "@/modules/whatsapp-groups/domain";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
-import { cn } from "@/shared/lib/cn";
 import { LinkButton } from "@/shared/ui/button";
+import { FormDialog } from "@/shared/ui/client";
 import { GroupForm } from "./group-form";
 import { GroupList } from "./group-list";
 
@@ -27,92 +27,85 @@ export default async function WhatsAppGroupsPage() {
         title="WhatsApp groups"
         description="Open a group to see who's in it and send invites."
         actions={
-          <LinkButton href="/whatsapp-groups/ready" variant="secondary">
-            Ready for WhatsApp{readyCount > 0 ? ` (${readyCount})` : ""}
-          </LinkButton>
+          <>
+            {canManage ? (
+              <FormDialog label="Add group" title="Add a WhatsApp group">
+                <GroupForm />
+              </FormDialog>
+            ) : null}
+            <LinkButton href="/whatsapp-groups/ready" variant="secondary">
+              Ready for WhatsApp{readyCount > 0 ? ` (${readyCount})` : ""}
+            </LinkButton>
+          </>
         }
       />
 
-      {/* The right-hand column only holds "Add a group" (admins); without it the lists use the full width. */}
-      <div className={cn("grid gap-6", canManage && "lg:grid-cols-3")}>
-        <div className={cn("space-y-6", canManage && "lg:col-span-2")}>
-          <Card>
-            <CardHeader title="Groups" />
-            <CardBody className="space-y-3">
-              {groups.length === 0 ? (
-                <EmptyState title="No groups yet">
-                  {canManage ? "Add your first group on the right." : "Ask an admin to add the groups."}
-                </EmptyState>
-              ) : null}
-              <GroupList
-                canManage={canManage}
-                groups={groups.map((group) => ({
-                  id: group.id,
-                  name: group.name,
-                  isMainGroup: group.isMainGroup,
-                  allowedVoiceTypes: group.allowedVoiceTypes,
-                  requiresEligibility: group.requiresEligibility,
-                  archived: group.archived,
-                  stats: group.stats,
-                }))}
-              />
-            </CardBody>
-          </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader title="Groups" />
+          <CardBody className="space-y-3">
+            {groups.length === 0 ? (
+              <EmptyState title="No groups yet">
+                {canManage ? "Use Add group above to add your first one." : "Ask an admin to add the groups."}
+              </EmptyState>
+            ) : null}
+            <GroupList
+              canManage={canManage}
+              groups={groups.map((group) => ({
+                id: group.id,
+                name: group.name,
+                isMainGroup: group.isMainGroup,
+                allowedVoiceTypes: group.allowedVoiceTypes,
+                requiresEligibility: group.requiresEligibility,
+                archived: group.archived,
+                stats: group.stats,
+              }))}
+            />
+          </CardBody>
+        </Card>
 
-          <Card>
-            <CardHeader title="Recent invites" />
-            {history.length === 0 ? (
-              <CardBody>
-                <p className="text-sm text-slate-600">No invites sent yet.</p>
-              </CardBody>
-            ) : (
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Member</Th>
-                    <Th>Group</Th>
-                    <Th>Via</Th>
-                    <Th>Status</Th>
-                    <Th className="hidden sm:table-cell">When</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((invite) => (
-                    <tr key={invite.id}>
-                      <Td>
-                        <Link href={`/members/${invite.member.id}`} className="hover:underline">
-                          {invite.member.firstName} {invite.member.lastName}
-                        </Link>
-                      </Td>
-                      <Td>{invite.group.name}</Td>
-                      <Td>{INVITE_CHANNEL_LABELS[invite.channel]}</Td>
-                      <Td>
-                        <Badge
-                          tone={invite.status === "JOINED" ? "green" : invite.status === "FAILED" ? "red" : "blue"}
-                        >
-                          {invite.status.toLowerCase()}
-                        </Badge>
-                      </Td>
-                      <Td className="hidden text-slate-500 sm:table-cell">
-                        {invite.sentAt.toLocaleDateString("en-GB")}
-                        {invite.sentBy ? ` · ${invite.sentBy.name}` : ""}
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </Card>
-        </div>
-
-        {canManage ? (
-          <Card className="h-fit">
-            <CardHeader title="Add a group" description="" />
+        <Card>
+          <CardHeader title="Recent invites" />
+          {history.length === 0 ? (
             <CardBody>
-              <GroupForm />
+              <p className="text-sm text-slate-600">No invites sent yet.</p>
             </CardBody>
-          </Card>
-        ) : null}
+          ) : (
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Member</Th>
+                  <Th>Group</Th>
+                  <Th>Via</Th>
+                  <Th>Status</Th>
+                  <Th className="hidden sm:table-cell">When</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((invite) => (
+                  <tr key={invite.id}>
+                    <Td>
+                      <Link href={`/members/${invite.member.id}`} className="hover:underline">
+                        {invite.member.firstName} {invite.member.lastName}
+                      </Link>
+                    </Td>
+                    <Td>{invite.group.name}</Td>
+                    <Td>{INVITE_CHANNEL_LABELS[invite.channel]}</Td>
+                    <Td>
+                      <Badge tone={invite.status === "JOINED" ? "green" : invite.status === "FAILED" ? "red" : "blue"}>
+                        {invite.status.toLowerCase()}
+                      </Badge>
+                    </Td>
+                    <Td className="hidden text-slate-500 sm:table-cell">
+                      {invite.sentAt.toLocaleDateString("en-GB")}
+                      {invite.sentBy ? ` · ${invite.sentBy.name}` : ""}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Card>
       </div>
     </>
   );

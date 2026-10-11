@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requirePermission, hasPermission } from "@/modules/auth";
+import { redirect } from "next/navigation";
+import { hasPermission, requireUser } from "@/modules/auth";
 import {
   getTodaysPractice,
   listPastPractices,
@@ -16,17 +17,27 @@ import {
   VenueBookingBadge,
 } from "@/modules/attendance/ui";
 import { STUDY_LEVEL_LABELS, STUDY_LEVELS, VOICE_TYPE_LABELS } from "@/modules/members/domain";
+import { cn } from "@/shared/lib/cn";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { LinkButton } from "@/shared/ui/button";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
+import { FormDialog } from "@/shared/ui/client";
 import { schedulePracticeAction } from "./actions";
+import { BatchLeadPractices } from "./batch-lead-practices";
 import { PracticeForm } from "./practice-form";
 
 export const metadata = { title: "Practices" };
 
 export default async function PracticesPage() {
-  const user = await requirePermission("attendance:read");
+  const user = await requireUser();
+  // Batch leads get a page of their own level's practices; everyone else here is committee.
+  if (!hasPermission(user.role, "attendance:read")) {
+    if (hasPermission(user.role, "practices:level-manage") && user.studyLevel) {
+      return <BatchLeadPractices level={user.studyLevel} />;
+    }
+    redirect("/forbidden");
+  }
   const canManage = hasPermission(user.role, "practices:manage");
   const canBookVenues = hasPermission(user.role, "venues:book");
   const today = todayLocal();
@@ -38,14 +49,35 @@ export default async function PracticesPage() {
     listProspectiveProgress(),
     canInvite ? listInvitableMembers() : Promise.resolve([]),
   ]);
+  const showProgress = progress.members.length > 0;
 
   return (
     <>
       <PageHeader
         title="Practices"
-        description={`Schedule practices, see who's coming and take attendance. New members join the main WhatsApp groups after ${progress.threshold} practices.`}
+        description={`Schedule practices, see who's coming and take attendance.`}
         actions={
           <>
+            {canManage ? (
+              <FormDialog label="Schedule practice" title="Schedule a practice">
+                <PracticeForm
+                  action={schedulePracticeAction}
+                  mode="schedule"
+                  audienceChoices={canInvite ? ["MEMBERS", "LEVELS", "SELECTED"] : ["MEMBERS", "LEVELS"]}
+                  levelChoices={STUDY_LEVELS}
+                  members={invitable.map((member) => ({
+                    id: member.id,
+                    name: `${member.firstName} ${member.lastName}`,
+                    detail:
+                      member.status === "ALUMNI"
+                        ? "Alumni"
+                        : `${STUDY_LEVEL_LABELS[member.yearOfStudy]} · ${VOICE_TYPE_LABELS[member.voiceType]}`,
+                  }))}
+                  minDate={user.role === "ADMIN" ? undefined : today}
+                  initial={{ date: today, startTime: "", endTime: "", title: "Practice", venue: "", notes: "" }}
+                />
+              </FormDialog>
+            ) : null}
             <LinkButton href="/attendance/reports" variant="outline">
               Reports
             </LinkButton>
@@ -53,8 +85,8 @@ export default async function PracticesPage() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className={cn("grid gap-6", showProgress && "lg:grid-cols-3")}>
+        <div className={cn("space-y-6", showProgress && "lg:col-span-2")}>
           <Card className={todays ? "border-brand-200 bg-brand-50" : undefined}>
             <CardBody className="flex flex-wrap items-center justify-between gap-3">
               {todays ? (
@@ -84,7 +116,9 @@ export default async function PracticesPage() {
             <CardHeader title="Upcoming" />
             <CardBody className="space-y-3">
               {upcoming.length === 0 ? (
-                <EmptyState title="Nothing scheduled">Schedule the next practice so members can reply.</EmptyState>
+                <EmptyState title="Nothing scheduled">
+                  {canManage ? "Use Schedule practice above so members can reply." : "Nothing has been scheduled yet."}
+                </EmptyState>
               ) : null}
               {upcoming.map((practice) => (
                 <div
@@ -148,54 +182,27 @@ export default async function PracticesPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          {canManage ? (
-            <Card>
-              <CardHeader title="Schedule a practice" />
-              <CardBody>
-                <PracticeForm
-                  action={schedulePracticeAction}
-                  mode="schedule"
-                  audienceChoices={canInvite ? ["MEMBERS", "LEVELS", "SELECTED"] : ["MEMBERS", "LEVELS"]}
-                  levelChoices={STUDY_LEVELS}
-                  members={invitable.map((member) => ({
-                    id: member.id,
-                    name: `${member.firstName} ${member.lastName}`,
-                    detail:
-                      member.status === "ALUMNI"
-                        ? "Alumni"
-                        : `${STUDY_LEVEL_LABELS[member.yearOfStudy]} · ${VOICE_TYPE_LABELS[member.voiceType]}`,
-                  }))}
-                  minDate={user.role === "ADMIN" ? undefined : today}
-                  initial={{ date: today, startTime: "", endTime: "", title: "Practice", venue: "", notes: "" }}
-                />
-              </CardBody>
-            </Card>
-          ) : null}
-
-          <Card>
+        {/* Only while someone is working towards the threshold. */}
+        {showProgress ? (
+          <Card className="h-fit">
             <CardHeader
               title="New members' progress"
               description="Prospective members still working towards the threshold."
             />
             <CardBody>
-              {progress.members.length === 0 ? (
-                <p className="text-sm text-slate-600">Nobody in progress.</p>
-              ) : (
-                <ul className="space-y-2 text-sm">
-                  {progress.members.map((member) => (
-                    <li key={member.id} className="flex items-center justify-between gap-2">
-                      <Link href={`/members/${member.id}`} className="hover:underline">
-                        {member.firstName} {member.lastName}
-                      </Link>
-                      <Badge tone="amber">{attendanceProgress(member.attendedCount, progress.threshold)}</Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <ul className="space-y-2 text-sm">
+                {progress.members.map((member) => (
+                  <li key={member.id} className="flex items-center justify-between gap-2">
+                    <Link href={`/members/${member.id}`} className="hover:underline">
+                      {member.firstName} {member.lastName}
+                    </Link>
+                    <Badge tone="amber">{attendanceProgress(member.attendedCount, progress.threshold)}</Badge>
+                  </li>
+                ))}
+              </ul>
             </CardBody>
           </Card>
-        </div>
+        ) : null}
       </div>
     </>
   );

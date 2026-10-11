@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { confirmDialog, openDashboard } from "./helpers";
+import { confirmDialog, openDashboard, openFormDialog } from "./helpers";
 
 test("groups are reordered by dragging and archived from the edit form", async ({ page }) => {
   await openDashboard(page);
   await page.goto("/whatsapp-groups");
-  const addGroup = page.locator("form").filter({ has: page.getByRole("button", { name: "Add group" }) });
   for (const name of ["Order One", "Order Two"]) {
+    const addGroup = await openFormDialog(page, "Add group");
+    if (name === "Order One") await page.screenshot({ path: "test-results/add-group-dialog.png" });
     await addGroup.getByLabel("Group name").fill(name);
     await addGroup.getByLabel("Invite link").fill(`https://chat.whatsapp.com/${name.replace(" ", "")}Link12345`);
     await addGroup.getByRole("button", { name: "Add group" }).click();

@@ -49,7 +49,7 @@ export default async function DashboardPage() {
         <UpcomingPractices
           viewer={user}
           source={CHOIR_AUDIENCES}
-          scheduleHref={hasPermission(user.role, "practices:manage") ? "/attendance" : null}
+          scheduleHref={hasPermission(user.role, "practices:manage") ? "/attendance?new=1" : null}
           showVenueBooking={hasPermission(user.role, "venues:book")}
         />
 

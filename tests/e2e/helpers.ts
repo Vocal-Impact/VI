@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * Answers the app's confirmation dialog (shown before creates, updates and
@@ -8,7 +8,7 @@ export async function confirmDialog(
   page: Page,
   options: { title?: string | RegExp; cancel?: boolean } = {},
 ): Promise<void> {
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog[data-confirm]");
   await expect(dialog).toBeVisible();
   if (options.title) await expect(dialog.getByRole("heading", { name: options.title })).toBeVisible();
   await dialog
@@ -16,6 +16,14 @@ export async function confirmDialog(
     .nth(options.cancel ? 0 : 1)
     .click();
   await expect(dialog).toBeHidden();
+}
+
+/** Clicks an "Add …" / "Schedule practice" button and returns the form that opens over the page. */
+export async function openFormDialog(page: Page, button: string): Promise<Locator> {
+  await page.getByRole("button", { name: button, exact: true }).click();
+  const dialog = page.locator("dialog[open]:not([data-confirm])");
+  await expect(dialog).toBeVisible();
+  return dialog;
 }
 
 /** Opens the dashboard with the shared admin session (see auth.setup.ts). */
@@ -47,7 +55,7 @@ export async function schedulePractice(
   practice: { date: string; start: string; end?: string; venue?: string; title?: string },
 ): Promise<void> {
   await page.goto("/attendance");
-  const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Schedule practice" }) });
+  const form = await openFormDialog(page, "Schedule practice");
   await form.getByLabel("Date").fill(practice.date);
   await form.getByLabel("Starts").fill(practice.start);
   if (practice.end) await form.getByLabel("Ends (optional)").fill(practice.end);
@@ -56,4 +64,5 @@ export async function schedulePractice(
   await form.getByRole("button", { name: "Schedule practice" }).click();
   await confirmDialog(page, { title: /^Schedule .* on / });
   await expect(page.getByText("Practice scheduled").first()).toBeVisible();
+  await expect(form).toBeHidden(); // closes once saved
 }

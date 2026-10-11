@@ -15,8 +15,7 @@ import {
 import { idleState, type ActionState } from "@/shared/lib/action-state";
 import { Checkbox, Field, Input, Select } from "@/shared/ui/form";
 import { Alert } from "@/shared/ui/layout";
-import { SubmitButton } from "@/shared/ui/client";
-import { LinkButton } from "@/shared/ui/button";
+import { CancelButton, SubmitButton } from "@/shared/ui/client";
 
 function fullNameFrom(data: FormData): string {
   return (
@@ -62,7 +61,8 @@ export function MemberForm({
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   initial?: MemberFormValues;
   mode: "create" | "edit";
-  cancelHref: string;
+  /** Where Cancel goes when the form is on its own page (in a dialog it just closes). */
+  cancelHref?: string;
 }) {
   const [state, formAction] = useActionState(action, idleState);
   const values = { ...initial, ...(state.values ?? {}) } as MemberFormValues;
@@ -232,9 +232,7 @@ export function MemberForm({
         >
           {mode === "create" ? "Save member" : "Save changes"}
         </SubmitButton>
-        <LinkButton href={cancelHref} variant="ghost">
-          Cancel
-        </LinkButton>
+        <CancelButton href={cancelHref} />
       </div>
     </form>
   );

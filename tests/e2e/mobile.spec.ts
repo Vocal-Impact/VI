@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { confirmDialog, isoDaysAgo, openDashboard } from "./helpers";
+import { confirmDialog, isoDaysAgo, openDashboard, openFormDialog } from "./helpers";
 
 test("navigation works on a phone", async ({ page }) => {
   await openDashboard(page);
@@ -89,4 +89,22 @@ test("the dashboard fits a phone even with a long import file name", async ({ pa
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("on a phone, adding opens as a sheet that fits the screen", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/attendance");
+  const sheet = await openFormDialog(page, "Schedule practice");
+  // Measured once the slide-up has finished.
+  await sheet.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+  const box = await sheet.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box && viewport).toBeTruthy();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width + 1);
+  expect(Math.abs(box!.y + box!.height - viewport!.height)).toBeLessThanOrEqual(1); // sits on the bottom edge
+  await page.screenshot({ path: "test-results/schedule-sheet-phone.png" });
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toBeHidden();
 });
