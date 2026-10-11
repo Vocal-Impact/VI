@@ -11,7 +11,7 @@ import { listGroups } from "@/modules/whatsapp-groups";
 import { INVITE_CHANNEL_LABELS, membershipStatus } from "@/modules/whatsapp-groups/domain";
 import { listAuditLog } from "@/shared/audit/audit-log";
 import { formatIsoDate, toIsoDate } from "@/shared/lib/dates";
-import { ConfirmSubmit, SubmitButton } from "@/shared/ui/client";
+import { ConfirmSubmit, FormDialog, SubmitButton } from "@/shared/ui/client";
 import { LinkButton } from "@/shared/ui/button";
 import { Select } from "@/shared/ui/form";
 import { Alert, Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
@@ -24,7 +24,9 @@ import {
   removeMemberAction,
   restoreMemberAction,
   saveLocationAction,
+  updateMemberAction,
 } from "../actions";
+import { MemberForm } from "../member-form";
 import { LocationForm } from "./location-form";
 
 export const metadata = { title: "Member" };
@@ -78,9 +80,30 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
           canWrite && !member.deletedAt ? (
             <>
               <LinkButton href={`/whatsapp-groups/invite?members=${member.id}`}>Send group invites</LinkButton>
-              <LinkButton href={`/members/${member.id}/edit`} variant="outline">
-                Edit
-              </LinkButton>
+              <FormDialog
+                label="Edit"
+                title="Edit member"
+                openParam="edit"
+                icon="edit"
+                buttonVariant="outline"
+                size="lg"
+              >
+                <MemberForm
+                  action={updateMemberAction.bind(null, member.id)}
+                  mode="edit"
+                  initial={{
+                    firstName: member.firstName,
+                    lastName: member.lastName,
+                    studentId: member.studentId,
+                    yearOfStudy: member.yearOfStudy,
+                    whatsappNumber: member.whatsappNumber,
+                    email: member.email,
+                    voiceType: member.voiceType,
+                    dateOfBirth: member.dateOfBirth ? toIsoDate(member.dateOfBirth) : "",
+                    dietaryPreference: member.dietaryPreference ?? "",
+                  }}
+                />
+              </FormDialog>
             </>
           ) : null
         }

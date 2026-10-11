@@ -358,10 +358,12 @@ test("members see scheduled practices and reply; committee sees who's coming", a
   await expect(page.getByText("Attendance opens on the practice day.")).toBeVisible();
 
   // Committee edits the venue → the member sees the change.
-  await page.getByRole("link", { name: "Edit details" }).click();
-  await page.getByLabel("Venue").fill("Studio 2");
-  await page.getByRole("button", { name: "Save changes" }).click();
+  const editForm = await openFormDialog(page, "Edit details");
+  await editForm.getByLabel("Venue").fill("Studio 2");
+  await editForm.getByRole("button", { name: "Save changes" }).click();
   await confirmDialog(page);
+  await expect(page.getByText("Practice updated")).toBeVisible();
+  await expect(editForm).toBeHidden();
   await expect(page.getByText("Studio 2").first()).toBeVisible();
   await member.goto("/");
   await expect(member.getByText("Studio 2")).toBeVisible();

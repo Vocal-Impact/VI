@@ -147,7 +147,7 @@ export default async function PracticesPage() {
                   </div>
                   {canManagePractice(user, practice) ? (
                     <div className="relative z-10 flex gap-2">
-                      <LinkButton href={`/attendance/${practice.id}/edit`} size="sm" variant="outline">
+                      <LinkButton href={`/attendance/${practice.id}?edit=1`} size="sm" variant="outline">
                         Edit
                       </LinkButton>
                     </div>

@@ -118,7 +118,8 @@ export async function updateMemberAction(
   const result = await updateMember(memberId, memberPayload(values), user.id);
   if (!result.ok) return toActionState(result, "", values);
   revalidatePath(`/members/${memberId}`);
-  redirect(`/members/${memberId}`);
+  revalidatePath("/members");
+  return { status: "success", message: "Changes saved" };
 }
 
 export async function changeStatusAction(memberId: string, formData: FormData): Promise<void> {

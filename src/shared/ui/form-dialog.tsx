@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "./button";
 
@@ -18,14 +18,15 @@ export function useFormDialog(): FormDialogContext | null {
 }
 
 /**
- * The one way to add things (a member, a practice, a WhatsApp group): a button
- * that opens the form over the page. Saving shows a toast and closes it (see
+ * The one way to add or edit things (a member, a practice, a WhatsApp group): a
+ * button that opens the form over the page. Saving shows a toast and closes it (see
  * ActionFeedback); Esc, the X or the dimmed backdrop close it without saving.
  * The form is added to the page when first opened and then kept, so closing
  * it by accident doesn't lose what was typed.
  *
  * `openParam` opens it straight away when the URL has `?<openParam>=1`, so
- * other pages can link to it (e.g. the dashboard's "Schedule" button).
+ * other pages can link to it (e.g. the dashboard's "Schedule" button, or a
+ * list's "Edit" linking to `?edit=1` on the item's page).
  */
 export function FormDialog({
   label,
@@ -36,6 +37,7 @@ export function FormDialog({
   size = "md",
   buttonVariant = "primary",
   buttonSize = "md",
+  icon = "add",
 }: {
   /** The button's text, e.g. "Add member". */
   label: string;
@@ -45,8 +47,10 @@ export function FormDialog({
   openParam?: string;
   /** "lg" for long forms (adding a member). */
   size?: "md" | "lg";
-  buttonVariant?: "primary" | "outline" | "secondary";
+  buttonVariant?: "primary" | "outline" | "secondary" | "ghost";
   buttonSize?: "sm" | "md";
+  /** "add" (+) for creating, "edit" (pencil) for changing something. */
+  icon?: "add" | "edit";
 }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -78,7 +82,11 @@ export function FormDialog({
   return (
     <>
       <Button variant={buttonVariant} size={buttonSize} onClick={() => setOpen(true)} aria-haspopup="dialog">
-        <Plus className="size-4" aria-hidden="true" />
+        {icon === "edit" ? (
+          <Pencil className="size-3.5" aria-hidden="true" />
+        ) : (
+          <Plus className="size-4" aria-hidden="true" />
+        )}
         {label}
       </Button>
       <dialog

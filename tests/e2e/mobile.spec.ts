@@ -37,11 +37,11 @@ test("tapping a birthday on the calendar shows who it is", async ({ page }) => {
   const today = isoDaysAgo(0);
   await page.goto("/members?q=mala");
   await page.getByRole("link", { name: "Mala Member" }).click();
-  await page.getByRole("link", { name: "Edit" }).click();
-  await page.getByLabel("Date of birth (optional)").fill(`2004${today.slice(4)}`);
-  await page.getByRole("button", { name: "Save changes" }).click();
+  let form = await openFormDialog(page, "Edit");
+  await form.getByLabel("Date of birth (optional)").fill(`2004${today.slice(4)}`);
+  await form.getByRole("button", { name: "Save changes" }).click();
   await confirmDialog(page);
-  await expect(page.getByRole("heading", { level: 1, name: "Mala Member" })).toBeVisible();
+  await expect(form).toBeHidden();
 
   await page.goto("/birthdays");
   const day = page.getByRole("button", { name: /Mala Member$/ });
@@ -63,11 +63,11 @@ test("tapping a birthday on the calendar shows who it is", async ({ page }) => {
   // Put it back for other tests.
   await page.goto("/members?q=mala");
   await page.getByRole("link", { name: "Mala Member" }).click();
-  await page.getByRole("link", { name: "Edit" }).click();
-  await page.getByLabel("Date of birth (optional)").fill("");
-  await page.getByRole("button", { name: "Save changes" }).click();
+  form = await openFormDialog(page, "Edit");
+  await form.getByLabel("Date of birth (optional)").fill("");
+  await form.getByRole("button", { name: "Save changes" }).click();
   await confirmDialog(page);
-  await expect(page.getByRole("heading", { level: 1, name: "Mala Member" })).toBeVisible();
+  await expect(form).toBeHidden();
 });
 
 test("the dashboard fits a phone even with a long import file name", async ({ page }) => {

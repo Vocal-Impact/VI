@@ -3,7 +3,7 @@
 import { Archive, ArchiveRestore } from "lucide-react";
 import { SubmitButton } from "@/shared/ui/client";
 
-/** Small icon button in the corner of the group form: archive (or restore) the group, after confirming. */
+/** Small icon button in the Edit group dialog: archive (or restore) the group, after confirming. */
 export function ArchiveGroupButton({ name, archived }: { name: string; archived: boolean }) {
   const label = archived ? `Restore ${name}` : `Archive ${name}`;
   return (

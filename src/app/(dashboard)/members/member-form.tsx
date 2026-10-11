@@ -15,7 +15,7 @@ import {
 import { idleState, type ActionState } from "@/shared/lib/action-state";
 import { Checkbox, Field, Input, Select } from "@/shared/ui/form";
 import { Alert } from "@/shared/ui/layout";
-import { CancelButton, SubmitButton } from "@/shared/ui/client";
+import { ActionFeedback, CancelButton, SubmitButton } from "@/shared/ui/client";
 
 function fullNameFrom(data: FormData): string {
   return (
@@ -73,6 +73,8 @@ export function MemberForm({
 
   return (
     <form action={formAction} className="space-y-5" key={formKey} noValidate>
+      {/* Toast when saved (and closes the dialog it's in); errors are shown below. */}
+      <ActionFeedback state={state} inline={false} />
       {state.status === "error" ? (
         <Alert tone="error" title={duplicateId ? "This person already exists" : "Could not save"}>
           {duplicateId ? (

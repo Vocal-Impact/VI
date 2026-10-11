@@ -44,9 +44,10 @@ test("groups are reordered by dragging and archived from the edit form", async (
   await page.mouse.up();
   await expect.poll(names).toEqual(before);
 
-  // Archive from the icon in the edit form's corner, then restore.
+  // Archive from the icon in the Edit group dialog (the list's Edit opens it), then restore.
   const href = await page.getByRole("link", { name: /^Order One/ }).getAttribute("href");
-  await page.goto(`${href}/edit`);
+  await page.goto(`${href}/edit`); // old link: opens the dialog on the group page
+  await expect(page.locator("dialog[open]:not([data-confirm])")).toBeVisible();
   await page.getByRole("button", { name: "Archive Order One" }).click();
   await confirmDialog(page, { title: "Archive “Order One”?" });
   await expect(page.getByRole("button", { name: "Restore Order One" })).toBeVisible();

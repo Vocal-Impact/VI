@@ -76,7 +76,7 @@ test("practices for chosen members and for a level; a batch lead schedules for t
   await mala.getByRole("link", { name: /^Open L5 sectional/ }).click();
   await expect(mala.getByRole("heading", { level: 1, name: "L5 sectional" })).toBeVisible();
   await expect(mala.getByRole("heading", { name: /^No reply yet/ })).toBeVisible();
-  await expect(mala.getByRole("link", { name: "Edit details" })).toBeVisible();
+  await expect(mala.getByRole("button", { name: "Edit details" })).toBeVisible();
   await expect(mala.getByText("Attendance opens on the practice day")).toHaveCount(0);
   await expect(mala.getByRole("link", { name: "← Practices" })).toBeVisible();
   await context.close();

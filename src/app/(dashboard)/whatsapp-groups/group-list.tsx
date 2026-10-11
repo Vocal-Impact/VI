@@ -174,7 +174,7 @@ function GroupRow({
         </span>
       </Link>
       {canManage ? (
-        <LinkButton href={`/whatsapp-groups/${group.id}/edit`} size="sm" variant="ghost">
+        <LinkButton href={`/whatsapp-groups/${group.id}?edit=1`} size="sm" variant="ghost">
           Edit
         </LinkButton>
       ) : null}

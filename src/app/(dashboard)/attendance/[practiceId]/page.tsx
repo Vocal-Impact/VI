@@ -27,6 +27,7 @@ import { Input } from "@/shared/ui/form";
 import { Alert, Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layout";
 import { deletePracticeAction, setPracticeCancelledAction, setVenueBookingAction } from "../actions";
 import { AttendanceChecklist } from "./attendance-checklist";
+import { EditPracticeDialog } from "./edit-practice-dialog";
 import { VenueConfirmButton } from "./venue-confirm-button";
 
 export const metadata = { title: "Practice" };
@@ -74,9 +75,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
         actions={
           canManage ? (
             <>
-              <LinkButton href={`/attendance/${practice.id}/edit`} variant="outline" size="sm">
-                Edit details
-              </LinkButton>
+              <EditPracticeDialog practice={practice} user={user} />
               {!alumni &&
               hasPermission(user.role, "carpool:read") &&
               isFeatureEnabled("liftsHome") &&

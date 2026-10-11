@@ -72,7 +72,7 @@ export async function BatchLeadPractices({ level }: { level: StudyLevel }) {
                   {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : null}
                 </div>
                 <div className="relative z-10">
-                  <LinkButton href={`/attendance/${practice.id}/edit`} size="sm" variant="outline">
+                  <LinkButton href={`/attendance/${practice.id}?edit=1`} size="sm" variant="outline">
                     Edit
                   </LinkButton>
                 </div>

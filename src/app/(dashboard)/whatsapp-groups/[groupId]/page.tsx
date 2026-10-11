@@ -6,8 +6,11 @@ import { describeAllowedParts } from "@/modules/whatsapp-groups/domain";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { isEmailDeliveryEnabled } from "@/modules/notifications";
 import { cn } from "@/shared/lib/cn";
-import { LinkButton } from "@/shared/ui/button";
 import { Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
+import { FormDialog } from "@/shared/ui/client";
+import { setGroupArchivedAction } from "../actions";
+import { GroupForm } from "../group-form";
+import { ArchiveGroupButton } from "./archive-group-button";
 import { GroupRoster } from "./group-roster";
 
 export const metadata = { title: "WhatsApp group" };
@@ -52,9 +55,25 @@ export default async function GroupPage(props: PageProps<"/whatsapp-groups/[grou
         }
         actions={
           hasPermission(user.role, "groups:manage") ? (
-            <LinkButton href={`/whatsapp-groups/${group.id}/edit`} variant="outline" size="sm">
-              Edit group
-            </LinkButton>
+            <FormDialog
+              label="Edit group"
+              title="Edit group"
+              description="Change the name, invite link (e.g. after resetting it in WhatsApp), parts or rules."
+              openParam="edit"
+              icon="edit"
+              buttonVariant="outline"
+              buttonSize="sm"
+            >
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm text-slate-600">
+                  {group.archived ? <Badge>Archived</Badge> : "Not used any more?"}
+                </span>
+                <form action={setGroupArchivedAction.bind(null, group.id, !group.archived)}>
+                  <ArchiveGroupButton name={group.name} archived={group.archived} />
+                </form>
+              </div>
+              <GroupForm group={group} />
+            </FormDialog>
           ) : null
         }
       />

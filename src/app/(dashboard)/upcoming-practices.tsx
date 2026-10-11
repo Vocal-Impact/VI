@@ -109,7 +109,7 @@ export async function UpcomingPractices({
                         Take attendance
                       </LinkButton>
                     ) : null}
-                    <LinkButton href={`/attendance/${practice.id}/edit`} size="sm" variant="outline">
+                    <LinkButton href={`/attendance/${practice.id}?edit=1`} size="sm" variant="outline">
                       Edit
                     </LinkButton>
                   </div>

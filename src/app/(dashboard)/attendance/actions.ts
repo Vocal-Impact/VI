@@ -148,7 +148,7 @@ export async function updatePracticeAction(
   // Moved closer (e.g. to tomorrow)? The reminder may be due now.
   remindAboutVenueSoon(practiceId);
   refreshPractices(practiceId);
-  redirect(`/attendance/${practiceId}`);
+  return { status: "success", message: "Practice updated. Everyone invited sees the changes." };
 }
 
 export async function setPracticeCancelledAction(practiceId: string, cancelled: boolean): Promise<void> {
