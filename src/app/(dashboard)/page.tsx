@@ -32,7 +32,7 @@ export default async function DashboardPage() {
         description={formatIsoDate(birthdays.today, { weekday: "long", month: "long" })}
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4">
         <Stat label="Active members" value={counts.ACTIVE} href="/members?status=ACTIVE" />
         <Stat label="Prospective" value={counts.PROSPECTIVE} href="/members?status=PROSPECTIVE" />
         <Stat label="Ready for WhatsApp" value={eligible.length} href="/whatsapp-groups/ready" />
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
           label="Missing details"
           value={missing.missingBirthday + missing.missingLocation}
           href="/members?missing=details"
-          hint={`${missing.missingBirthday} birthdays · ${missing.missingLocation} areas`}
+          hint={`${missing.missingBirthday} birthday${missing.missingBirthday === 1 ? "" : "s"} · ${missing.missingLocation} location${missing.missingLocation === 1 ? "" : "s"}`}
         />
       </div>
 

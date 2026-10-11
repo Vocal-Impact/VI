@@ -18,16 +18,13 @@ export function CardHeader({
 }) {
   return (
     <div
-      className={cn(
-        "flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5",
-        className,
-      )}
+      className={cn("flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5", className)}
     >
-      <div>
+      <div className="min-w-0">
         <h2 className="font-display text-base font-extrabold text-ink">{title}</h2>
         {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : null}
       </div>
-      {action}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
@@ -139,13 +136,13 @@ export function Stat({
 }) {
   const body = (
     <>
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 font-display text-3xl font-black text-ink tabular-nums">{value}</p>
-      {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
+      <p className="text-xs leading-snug text-slate-500 sm:text-sm">{label}</p>
+      <p className="mt-1 font-display text-2xl font-black text-ink tabular-nums sm:text-3xl">{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] leading-snug text-slate-500 sm:text-xs">{hint}</p> : null}
     </>
   );
   const className =
-    "block rounded-xl border-2 border-ink bg-white px-4 py-3 shadow-sticker transition-transform duration-150";
+    "mr-[3px] mb-[3px] block min-w-0 rounded-xl border-2 border-ink bg-white px-3 py-2.5 shadow-sticker transition-transform duration-150 sm:px-4 sm:py-3";
   return href ? (
     <a href={href} className={cn(className, "hover:-translate-y-0.5 hover:bg-brand-50 hover:shadow-sticker-brand")}>
       {body}
