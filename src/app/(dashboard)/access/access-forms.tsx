@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { ACCESS_LEVELS, ACCESS_LEVEL_LABELS, ROLES, type AccessLevel } from "@/modules/auth/domain";
+import { ACCESS_LEVELS, ACCESS_LEVEL_LABELS, type AccessLevel } from "@/modules/auth/domain";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { cn } from "@/shared/lib/cn";
 import { idleState, type ActionState } from "@/shared/lib/action-state";
@@ -12,7 +12,9 @@ import { Badge } from "@/shared/ui/layout";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
-const LEVEL_TONES = { ADMIN: "brand", COMMITTEE: "blue", NONE: "neutral" } as const;
+const LEVEL_TONES = { ADMIN: "brand", COMMITTEE: "blue", BATCH_LEAD: "green", NONE: "neutral" } as const;
+/** Accounts outside the member list have no level, so they can't be batch leads. */
+const ACCOUNT_ROLES = ["ADMIN", "COMMITTEE", "MEMBER"] as const;
 const ROLE_LABELS = { ADMIN: "Admin", COMMITTEE: "Committee", MEMBER: "Member" } as const;
 
 export function AccessBadge({ level }: { level: AccessLevel }) {
@@ -68,7 +70,7 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
               </option>
             ))}
           </Select>
-          {level !== "NONE" ? (
+          {level === "ADMIN" || level === "COMMITTEE" ? (
             <Checkbox
               name="receivesBirthdayReminders"
               defaultChecked={row.receivesBirthdayReminders}
@@ -90,9 +92,9 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
                   ? "Admins can do everything, including managing access, settings and erasing members."
                   : level === "COMMITTEE"
                     ? "Committee can manage members, practices, attendance and invites."
-                    : level === "NONE"
-                      ? "They won't be able to sign in."
-                      : "They can sign in to see practices and reply.",
+                    : level === "BATCH_LEAD"
+                      ? "Batch leads can schedule practices for their own level and see who's coming."
+                      : "They can still sign in to see practices and reply.",
               confirmLabel: changed ? "Change access" : "Save",
               tone: changed && (row.level === "ADMIN" || level === "NONE") ? "danger" : "primary",
             }}
@@ -145,7 +147,7 @@ export function AccountRow({
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           <Select name="role" defaultValue={account.role} aria-label={`Role for ${account.name}`} className="h-8 w-36">
-            {ROLES.map((role) => (
+            {ACCOUNT_ROLES.map((role) => (
               <option key={role} value={role}>
                 {ROLE_LABELS[role]}
               </option>

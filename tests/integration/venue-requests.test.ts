@@ -44,7 +44,7 @@ describe("venue booking reminder", () => {
 
     const scheduled = await schedulePractice(
       { date: addDays(todayLocal(), 7), startTime: "17:30", endTime: "19:30", title: "Practice", venue: "", notes: "" },
-      committee.id,
+      committee,
     );
     if (!scheduled.ok) throw new Error(scheduled.error.message);
 
@@ -86,7 +86,7 @@ describe("venue booking reminder", () => {
     const admin = await createUser({ role: "ADMIN" });
     const scheduled = await schedulePractice(
       { date: addDays(todayLocal(), 1), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
-      admin.id,
+      admin,
     );
     if (!scheduled.ok) throw new Error(scheduled.error.message);
     const outbox = new Outbox();
@@ -103,7 +103,7 @@ describe("venue booking reminder", () => {
     const schedule = async (days: number) => {
       const result = await schedulePractice(
         { date: addDays(todayLocal(), days), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
-        admin.id,
+        admin,
       );
       if (!result.ok) throw new Error(result.error.message);
       return result.value.id;
@@ -126,7 +126,7 @@ describe("venue booking reminder", () => {
     const admin = await createUser({ role: "ADMIN" });
     const scheduled = await schedulePractice(
       { date: addDays(todayLocal(), 10), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
-      admin.id,
+      admin,
     );
     if (!scheduled.ok) throw new Error(scheduled.error.message);
     const id = scheduled.value.id;
@@ -137,7 +137,7 @@ describe("venue booking reminder", () => {
     await updatePractice(
       id,
       { date: addDays(todayLocal(), 1), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
-      admin.id,
+      admin,
     );
     const failing: EmailSender = {
       send: async () => {
@@ -158,7 +158,7 @@ describe("venue booking progress", () => {
     const admin = await createUser({ role: "ADMIN" });
     const scheduled = await schedulePractice(
       { date: addDays(todayLocal(), 5), startTime: "18:00", endTime: "", title: "Practice", venue: "", notes: "" },
-      admin.id,
+      admin,
     );
     if (!scheduled.ok) throw new Error(scheduled.error.message);
     const id = scheduled.value.id;

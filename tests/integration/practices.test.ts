@@ -25,7 +25,7 @@ describe("practice scheduling", () => {
 
     const scheduled = await schedulePractice(
       { date, startTime: "17:30", endTime: "19:30", title: "Sectionals", venue: "", notes: "Bring folders" },
-      committee.id,
+      committee,
     );
     expect(scheduled.ok).toBe(true);
     if (!scheduled.ok) return;
@@ -38,14 +38,14 @@ describe("practice scheduling", () => {
     });
     expect(practice.venue).toContain("IIT"); // blank venue → the usual venue from Settings
 
-    const bad = await schedulePractice({ date, startTime: "19:00", endTime: "18:00", title: "X" }, committee.id);
+    const bad = await schedulePractice({ date, startTime: "19:00", endTime: "18:00", title: "X" }, committee);
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.error.fieldErrors?.endTime?.[0]).toMatch(/after the start/);
 
     await updatePractice(
       scheduled.value.id,
       { date, startTime: "18:00", endTime: "", title: "Sectionals", venue: "Auditorium", notes: "" },
-      committee.id,
+      committee,
     );
     const [updated] = await listUpcomingPractices();
     expect(updated).toMatchObject({ startTime: "18:00", endTime: null, venue: "Auditorium", notes: null });

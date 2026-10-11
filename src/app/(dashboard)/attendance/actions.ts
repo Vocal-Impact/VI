@@ -18,8 +18,10 @@ import {
   type RsvpResponse,
 } from "@/modules/attendance";
 import {
+  canManagePractice,
+  describeAudience,
   isVenueReminderDue,
-  managePermissionFor,
+  PRACTICE_AUDIENCES,
   venueReminderDueDate,
   type PracticeAudience,
 } from "@/modules/attendance/domain";
@@ -28,7 +30,7 @@ import { formatIsoDate, isIsoDate } from "@/shared/lib/dates";
 import { errorMessage, logger } from "@/shared/lib/logger";
 import { formValues, toActionState, type ActionState } from "@/shared/lib/action-state";
 
-function practicePayload(values: Record<string, string>) {
+function practicePayload(values: Record<string, string>, formData: FormData) {
   return {
     date: values.date ?? "",
     startTime: values.startTime ?? "",
@@ -37,17 +39,43 @@ function practicePayload(values: Record<string, string>) {
     venue: values.venue ?? "",
     notes: values.notes ?? "",
     audience: audienceFrom(values.audience),
+    levels: formData.getAll("levels").map(String),
+    memberIds: formData.getAll("memberIds").map(String),
+  };
+}
+
+/** The form's values, with the chosen levels and members kept (comma-separated) so they survive an error. */
+function practiceFormValues(formData: FormData): Record<string, string> {
+  return {
+    ...formValues(formData),
+    levels: formData.getAll("levels").map(String).join(","),
+    memberIds: formData.getAll("memberIds").map(String).join(","),
   };
 }
 
 function audienceFrom(value: string | undefined): PracticeAudience {
-  return value === "ALUMNI" ? "ALUMNI" : "MEMBERS";
+  return (PRACTICE_AUDIENCES as readonly string[]).includes(value ?? "") ? (value as PracticeAudience) : "MEMBERS";
 }
 
-/** Choir practices need practices:manage; alumni practices practices:alumni-manage. */
+/** Anyone who organises some kind of practice. Which kinds is checked per practice. */
+const ORGANISER_PERMISSIONS = [
+  "practices:manage",
+  "practices:level-manage",
+  "practices:invite-manage",
+  "practices:alumni-manage",
+] as const;
+
+async function requireOrganiser() {
+  const user = await requireUser();
+  if (!ORGANISER_PERMISSIONS.some((permission) => hasPermission(user.role, permission))) redirect("/forbidden");
+  return user;
+}
+
+/** Whoever may manage this particular practice (see canManagePractice). */
 async function requirePracticeManager(practiceId: string) {
+  const user = await requireUser();
   const practice = await getPractice(practiceId);
-  const user = await requirePermission(managePermissionFor(practice?.audience ?? "MEMBERS"));
+  if (!practice || !canManagePractice(user, practice)) redirect("/forbidden");
   return { user, practice };
 }
 
@@ -86,16 +114,25 @@ function refreshPractices(practiceId?: string): void {
 }
 
 export async function schedulePracticeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const values = formValues(formData);
-  const user = await requirePermission(managePermissionFor(audienceFrom(values.audience)));
-  const result = await schedulePractice(practicePayload(values), user.id);
+  const values = practiceFormValues(formData);
+  const user = await requireOrganiser();
+  const result = await schedulePractice(practicePayload(values, formData), user);
   if (!result.ok) return toActionState(result, "", values);
   const practiceId = result.value.id;
   remindAboutVenueSoon(practiceId);
   refreshPractices();
+  const practice = await getPractice(practiceId);
+  const who =
+    !practice || practice.audience === "MEMBERS"
+      ? "Members"
+      : practice.audience === "ALUMNI"
+        ? "Alumni"
+        : practice.audience === "LEVELS"
+          ? `Members in ${describeAudience(practice)}`
+          : `The ${describeAudience(practice)}`;
   return {
     status: "success",
-    message: `Practice scheduled. Members can now see it and reply. ${venueReminderNote(values.date)}`,
+    message: `Practice scheduled. ${who} can now see it and reply. ${venueReminderNote(values.date)}`,
   };
 }
 
@@ -105,8 +142,8 @@ export async function updatePracticeAction(
   formData: FormData,
 ): Promise<ActionState> {
   const { user } = await requirePracticeManager(practiceId);
-  const values = formValues(formData);
-  const result = await updatePractice(practiceId, practicePayload(values), user.id);
+  const values = practiceFormValues(formData);
+  const result = await updatePractice(practiceId, practicePayload(values, formData), user);
   if (!result.ok) return toActionState(result, "", values);
   // Moved closer (e.g. to tomorrow)? The reminder may be due now.
   remindAboutVenueSoon(practiceId);

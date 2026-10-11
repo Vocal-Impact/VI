@@ -1,5 +1,6 @@
 import "server-only";
 import type { Practice } from "@/generated/prisma/client";
+import type { StudyLevel } from "@/modules/members/domain";
 import { prisma } from "@/shared/db/prisma";
 import { writeAuditLog } from "@/shared/audit/audit-log";
 import { todayLocal } from "@/shared/lib/clock";
@@ -8,11 +9,16 @@ import { err, ok, type Result } from "@/shared/lib/result";
 import { validationError } from "@/shared/lib/validation";
 import { getSettings } from "@/shared/settings/settings";
 import {
-  canReplyAs,
+  canManagePractice,
+  canReplyTo,
   canRsvp,
+  CHOIR_AUDIENCES,
   countRsvps,
-  expectedStatusesFor,
+  isInvited,
+  type MemberLike,
   type PracticeAudience,
+  type PracticeOrganiser,
+  type PracticeTarget,
   type RsvpCounts,
   type RsvpResponse,
 } from "../domain/practice";
@@ -27,8 +33,12 @@ export interface PracticeView {
   venue: string | null;
   notes: string | null;
   status: "SCHEDULED" | "CANCELLED";
-  /** The current choir, or alumni. */
+  /** Everyone, some levels, chosen members, or alumni. */
   audience: PracticeAudience;
+  /** LEVELS: the levels invited. */
+  levels: StudyLevel[];
+  /** SELECTED: the members invited. */
+  inviteeIds: string[];
   /** ISO timestamps: request to the IIT administration sent / venue confirmed. */
   venueRequestedAt: string | null;
   venueConfirmedAt: string | null;
@@ -36,7 +46,12 @@ export interface PracticeView {
   venueReminderSentAt: string | null;
 }
 
-function toView(practice: Practice): PracticeView {
+type PracticeRow = Practice & { invitees: Array<{ memberId: string }> };
+
+/** Load with every practice, so we know who it's for. */
+const withInvitees = { invitees: { select: { memberId: true } } } as const;
+
+function toView(practice: PracticeRow): PracticeView {
   return {
     id: practice.id,
     date: toIsoDate(practice.date),
@@ -47,66 +62,131 @@ function toView(practice: Practice): PracticeView {
     notes: practice.notes,
     status: practice.status,
     audience: practice.audience,
+    levels: practice.levels,
+    inviteeIds: practice.invitees.map((invitee) => invitee.memberId),
     venueRequestedAt: practice.venueRequestedAt?.toISOString() ?? null,
     venueConfirmedAt: practice.venueConfirmedAt?.toISOString() ?? null,
     venueReminderSentAt: practice.venueReminderSentAt?.toISOString() ?? null,
   };
 }
 
-/** Who is asked to reply: the current choir, or alumni. */
-async function expectedMemberIds(audience: PracticeAudience): Promise<Set<string>> {
-  const members = await prisma.member.findMany({
-    where: { deletedAt: null, status: { in: expectedStatusesFor(audience) } },
-    select: { id: true },
+/** Everyone who could be invited to something (not removed), to work out each practice's invitees. */
+async function loadMembers(): Promise<MemberLike[]> {
+  return prisma.member.findMany({
+    where: { deletedAt: null },
+    select: { id: true, status: true, yearOfStudy: true },
   });
-  return new Set(members.map((member) => member.id));
+}
+
+function invitedIds(members: readonly MemberLike[], practice: PracticeTarget): Set<string> {
+  return new Set(members.filter((member) => isInvited(member, practice)).map((member) => member.id));
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────
 
-/** Practices from today onwards, soonest first, with RSVP counts. Choir practices unless `audience` says alumni. */
-export async function listUpcomingPractices(
-  options: { take?: number; includeCancelled?: boolean; audience?: PracticeAudience } = {},
-) {
-  const audience = options.audience ?? "MEMBERS";
-  const [practices, expected] = await Promise.all([
+interface ListOptions {
+  take?: number;
+  includeCancelled?: boolean;
+  /** Which practices: choir practices of every kind (default), or e.g. ["ALUMNI"]. */
+  audiences?: readonly PracticeAudience[];
+  /** Only practices for exactly these levels (a batch lead's own practices). */
+  levels?: StudyLevel[];
+}
+
+/** Practices from today onwards, soonest first, with RSVP counts among the people invited. */
+export async function listUpcomingPractices(options: ListOptions = {}) {
+  const [practices, members] = await Promise.all([
     prisma.practice.findMany({
       where: {
         date: { gte: fromIsoDate(todayLocal()) },
         status: options.includeCancelled ? undefined : "SCHEDULED",
-        audience,
+        audience: { in: [...(options.audiences ?? CHOIR_AUDIENCES)] },
+        ...(options.levels ? { levels: { equals: options.levels } } : {}),
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
       take: options.take ?? 10,
-      include: { rsvps: { select: { memberId: true, response: true } } },
+      include: { ...withInvitees, rsvps: { select: { memberId: true, response: true } } },
     }),
-    expectedMemberIds(audience),
+    loadMembers(),
   ]);
-  return practices.map((practice) => ({ ...toView(practice), counts: countRsvps(practice.rsvps, expected) }));
+  return practices.map((practice) => {
+    const view = toView(practice);
+    return { ...view, counts: countRsvps(practice.rsvps, invitedIds(members, view)) };
+  });
+}
+
+/**
+ * The upcoming practices one member is asked to: whole-choir practices, their
+ * level's, ones they were picked for, and alumni practices for alumni.
+ */
+export async function listUpcomingPracticesFor(memberId: string, options: { take?: number } = {}) {
+  const member = await getInviteProfile(memberId);
+  if (!member) return [];
+  const [practices, members] = await Promise.all([
+    prisma.practice.findMany({
+      where: {
+        date: { gte: fromIsoDate(todayLocal()) },
+        OR: [
+          { audience: "MEMBERS" },
+          { audience: "ALUMNI" },
+          { audience: "LEVELS", levels: { has: member.yearOfStudy as StudyLevel } },
+          { audience: "SELECTED", invitees: { some: { memberId } } },
+        ],
+      },
+      orderBy: [{ date: "asc" }, { startTime: "asc" }],
+      include: { ...withInvitees, rsvps: { select: { memberId: true, response: true } } },
+    }),
+    loadMembers(),
+  ]);
+  return practices
+    .map((practice) => {
+      const view = toView(practice);
+      return { ...view, counts: countRsvps(practice.rsvps, invitedIds(members, view)) };
+    })
+    .filter((practice) => canReplyTo(member, practice))
+    .slice(0, options.take ?? 10);
+}
+
+/** What decides which practices a member is invited to. */
+export async function getInviteProfile(memberId: string): Promise<MemberLike | null> {
+  return prisma.member.findUnique({
+    where: { id: memberId, deletedAt: null },
+    select: { id: true, status: true, yearOfStudy: true },
+  });
+}
+
+/** Everyone an admin can pick for a chosen-members practice: current members first, then alumni. */
+export async function listInvitableMembers() {
+  const members = await prisma.member.findMany({
+    where: { deletedAt: null },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    select: { id: true, firstName: true, lastName: true, yearOfStudy: true, voiceType: true, status: true },
+  });
+  return [...members.filter((m) => m.status !== "ALUMNI"), ...members.filter((m) => m.status === "ALUMNI")];
 }
 
 /** Past practices, most recent first, with attendance counts. */
-export async function listPastPractices(take = 30, audience: PracticeAudience = "MEMBERS") {
+export async function listPastPractices(take = 30, audiences: readonly PracticeAudience[] = CHOIR_AUDIENCES) {
   const practices = await prisma.practice.findMany({
-    where: { date: { lt: fromIsoDate(todayLocal()) }, audience },
+    where: { date: { lt: fromIsoDate(todayLocal()) }, audience: { in: [...audiences] } },
     orderBy: [{ date: "desc" }, { startTime: "desc" }],
     take,
-    include: { _count: { select: { attendances: true } } },
+    include: { ...withInvitees, _count: { select: { attendances: true } } },
   });
   return practices.map((practice) => ({ ...toView(practice), attended: practice._count.attendances }));
 }
 
 export async function getPractice(id: string): Promise<PracticeView | null> {
-  const practice = await prisma.practice.findUnique({ where: { id } });
+  const practice = await prisma.practice.findUnique({ where: { id }, include: withInvitees });
   return practice ? toView(practice) : null;
 }
 
-/** Today's scheduled (not cancelled) practice, if any — the only one attendance can be started for. */
+/** Today's scheduled (not cancelled) choir practice, if any — the only one attendance can be started for. */
 export async function getTodaysPractice() {
   const practice = await prisma.practice.findFirst({
-    where: { date: fromIsoDate(todayLocal()), status: "SCHEDULED", audience: "MEMBERS" },
+    where: { date: fromIsoDate(todayLocal()), status: "SCHEDULED", audience: { in: [...CHOIR_AUDIENCES] } },
     orderBy: { startTime: "asc" },
-    include: { _count: { select: { attendances: true } } },
+    include: { ...withInvitees, _count: { select: { attendances: true } } },
   });
   return practice ? { ...toView(practice), attended: practice._count.attendances } : null;
 }
@@ -125,18 +205,18 @@ export interface RsvpSummary {
   noResponse: RsvpPerson[];
 }
 
-/** Who said they're coming, who can't, and who hasn't answered. */
+/** Who said they're coming, who can't, and who hasn't answered (among the people invited). */
 export async function getRsvpSummary(practiceId: string): Promise<RsvpSummary> {
-  const practice = await prisma.practice.findUnique({ where: { id: practiceId }, select: { audience: true } });
-  const audience = practice?.audience ?? "MEMBERS";
-  const [members, rsvps] = await Promise.all([
+  const [practice, allMembers, rsvps] = await Promise.all([
+    getPractice(practiceId),
     prisma.member.findMany({
-      where: { deletedAt: null, status: { in: expectedStatusesFor(audience) } },
+      where: { deletedAt: null },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-      select: { id: true, firstName: true, lastName: true, voiceType: true },
+      select: { id: true, firstName: true, lastName: true, voiceType: true, status: true, yearOfStudy: true },
     }),
     prisma.practiceRsvp.findMany({ where: { practiceId }, orderBy: { updatedAt: "asc" } }),
   ]);
+  const members = practice ? allMembers.filter((member) => isInvited(member, practice)) : [];
   const byMember = new Map(rsvps.map((rsvp) => [rsvp.memberId, rsvp]));
   const summary: RsvpSummary = {
     counts: countRsvps(rsvps, new Set(members.map((member) => member.id))),
@@ -167,19 +247,50 @@ export async function getMemberRsvps(memberId: string, practiceIds: string[]): P
 
 // ─── Commands ────────────────────────────────────────────────────────────
 
-/** Admins and committee schedule practices; members see them on their dashboard. */
-export async function schedulePractice(raw: unknown, actorId: string): Promise<Result<{ id: string }>> {
+/** The person scheduling: their login id, role and (for batch leads) their level. */
+export type PracticeActor = PracticeOrganiser & { id: string };
+
+const NOT_ALLOWED: Record<PracticeAudience, string> = {
+  MEMBERS: "Only the committee can schedule practices for everyone",
+  LEVELS: "Batch leads can only schedule practices for their own level",
+  SELECTED: "Only admins can schedule practices for chosen members",
+  ALUMNI: "Only alumni organisers can schedule alumni practices",
+};
+
+/** Chosen members must exist (and not be removed). */
+async function checkInvitees(memberIds: readonly string[]): Promise<Result<null>> {
+  if (memberIds.length === 0) return ok(null);
+  const found = await prisma.member.count({ where: { id: { in: [...memberIds] }, deletedAt: null } });
+  return found === memberIds.length ? ok(null) : err("VALIDATION", "Some of the chosen members no longer exist");
+}
+
+/**
+ * Committee and admins schedule practices for everyone or for some levels,
+ * batch leads for their own level, admins for chosen members. The people
+ * invited see it on their dashboard.
+ */
+export async function schedulePractice(raw: unknown, actor: PracticeActor): Promise<Result<{ id: string }>> {
   const parsed = practiceInputSchema.safeParse(raw);
   if (!parsed.success) return validationError(parsed.error);
-  const venue = parsed.data.venue ?? (await getSettings()).practiceVenue.name;
+  const { memberIds, ...input } = parsed.data;
+  if (!canManagePractice(actor, input)) return err("FORBIDDEN", NOT_ALLOWED[input.audience]);
+  const invitees = await checkInvitees(memberIds);
+  if (!invitees.ok) return invitees;
+  const venue = input.venue ?? (await getSettings()).practiceVenue.name;
 
   const practice = await prisma.$transaction(async (tx) => {
     const created = await tx.practice.create({
-      data: { ...parsed.data, date: fromIsoDate(parsed.data.date), venue, createdById: actorId },
+      data: {
+        ...input,
+        date: fromIsoDate(input.date),
+        venue,
+        createdById: actor.id,
+        invitees: { create: memberIds.map((memberId) => ({ memberId })) },
+      },
     });
     await writeAuditLog(
       {
-        actorId,
+        actorId: actor.id,
         action: "practice.schedule",
         entity: "practice",
         entityId: created.id,
@@ -192,19 +303,32 @@ export async function schedulePractice(raw: unknown, actorId: string): Promise<R
   return ok({ id: practice.id });
 }
 
-export async function updatePractice(id: string, raw: unknown, actorId: string): Promise<Result<null>> {
-  const parsed = practiceInputSchema.safeParse(raw);
-  if (!parsed.success) return validationError(parsed.error);
-  const current = await prisma.practice.findUnique({ where: { id } });
+/** Changes the details, and who's invited (levels or chosen members). The kind of audience stays. */
+export async function updatePractice(id: string, raw: unknown, actor: PracticeActor): Promise<Result<null>> {
+  const current = await prisma.practice.findUnique({ where: { id }, include: withInvitees });
   if (!current) return err("NOT_FOUND", "Practice not found");
+  // The audience is fixed when the practice is scheduled.
+  const parsed = practiceInputSchema.safeParse({ ...(raw as object), audience: current.audience });
+  if (!parsed.success) return validationError(parsed.error);
+  const { memberIds, audience: _audience, ...changes } = parsed.data;
+  if (!canManagePractice(actor, current) || !canManagePractice(actor, parsed.data)) {
+    return err("FORBIDDEN", NOT_ALLOWED[current.audience]);
+  }
+  const invitees = await checkInvitees(memberIds);
+  if (!invitees.ok) return invitees;
 
   await prisma.$transaction(async (tx) => {
-    // The audience is fixed when the practice is scheduled.
-    const { audience: _audience, ...changes } = parsed.data;
     await tx.practice.update({ where: { id }, data: { ...changes, date: fromIsoDate(changes.date) } });
+    if (current.audience === "SELECTED") {
+      await tx.practiceInvitee.deleteMany({ where: { practiceId: id, memberId: { notIn: memberIds } } });
+      await tx.practiceInvitee.createMany({
+        data: memberIds.map((memberId) => ({ practiceId: id, memberId })),
+        skipDuplicates: true,
+      });
+    }
     await writeAuditLog(
       {
-        actorId,
+        actorId: actor.id,
         action: "practice.update",
         entity: "practice",
         entityId: id,
@@ -308,18 +432,25 @@ export async function setRsvp(raw: unknown): Promise<Result<{ response: RsvpResp
   const { practiceId, memberId, response } = parsed.data;
 
   const [practice, member] = await Promise.all([
-    prisma.practice.findUnique({ where: { id: practiceId } }),
-    prisma.member.findUnique({ where: { id: memberId }, select: { status: true, deletedAt: true } }),
+    getPractice(practiceId),
+    prisma.member.findUnique({
+      where: { id: memberId },
+      select: { id: true, status: true, yearOfStudy: true, deletedAt: true },
+    }),
   ]);
   if (!practice) return err("NOT_FOUND", "Practice not found");
   if (!member || member.deletedAt) return err("NOT_FOUND", "Member not found");
-  if (!canReplyAs(member.status, practice.audience)) {
+  if (!canReplyTo(member, practice)) {
     return err(
       "FORBIDDEN",
-      practice.audience === "ALUMNI" ? "This practice is for alumni" : "Alumni can't reply to choir practices",
+      practice.audience === "ALUMNI"
+        ? "This practice is for alumni"
+        : member.status === "ALUMNI" && practice.audience === "MEMBERS"
+          ? "Alumni can't reply to choir practices"
+          : "You aren't invited to this practice",
     );
   }
-  if (!canRsvp({ date: toIsoDate(practice.date), status: practice.status }, todayLocal())) {
+  if (!canRsvp(practice, todayLocal())) {
     return err(
       "FORBIDDEN",
       practice.status === "CANCELLED" ? "This practice was cancelled" : "This practice has passed",

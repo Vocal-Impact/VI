@@ -8,7 +8,7 @@ const next = () => (sequence += 1);
 
 export async function createUser(
   overrides: Partial<{
-    role: "ADMIN" | "COMMITTEE" | "MEMBER";
+    role: "ADMIN" | "COMMITTEE" | "MEMBER" | "BATCH_LEAD";
     email: string;
     receivesBirthdayReminders: boolean;
   }> = {},
@@ -34,6 +34,7 @@ export async function createMember(
     studentId: string;
     email: string;
     voiceType: "SOPRANO" | "ALTO" | "TENOR" | "BASS" | "UNASSIGNED";
+    yearOfStudy: "FOUNDATION" | "L4" | "L5" | "PLACEMENT" | "L6";
   }> = {},
 ) {
   const n = next();
@@ -42,7 +43,7 @@ export async function createMember(
       firstName: overrides.firstName ?? `Member${n}`,
       lastName: "Test",
       studentId: overrides.studentId ?? `TST${100000 + n}`,
-      yearOfStudy: "L4",
+      yearOfStudy: overrides.yearOfStudy ?? "L4",
       ...sealedPhone(`+9477${String(1000000 + n).slice(0, 7)}`),
       email: overrides.email ?? `member${n}@iit.ac.lk`,
       voiceType: overrides.voiceType ?? "ALTO",

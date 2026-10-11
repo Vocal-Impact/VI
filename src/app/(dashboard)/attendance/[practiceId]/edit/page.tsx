@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requirePermission } from "@/modules/auth";
-import { managePermissionFor } from "@/modules/attendance/domain";
-import { getPractice } from "@/modules/attendance";
+import { notFound, redirect } from "next/navigation";
+import { hasPermission, requireUser } from "@/modules/auth";
+import { canManagePractice } from "@/modules/attendance/domain";
+import { getPractice, listInvitableMembers } from "@/modules/attendance";
+import { STUDY_LEVEL_LABELS, STUDY_LEVELS, VOICE_TYPE_LABELS } from "@/modules/members/domain";
 import { Card, CardBody, PageHeader } from "@/shared/ui/layout";
 import { updatePracticeAction } from "../../actions";
 import { PracticeForm } from "../../practice-form";
@@ -10,10 +11,12 @@ import { PracticeForm } from "../../practice-form";
 export const metadata = { title: "Edit practice" };
 
 export default async function EditPracticePage(props: PageProps<"/attendance/[practiceId]/edit">) {
+  const user = await requireUser();
   const { practiceId } = await props.params;
   const practice = await getPractice(practiceId);
   if (!practice) notFound();
-  await requirePermission(managePermissionFor(practice.audience));
+  if (!canManagePractice(user, practice)) redirect("/forbidden");
+  const members = practice.audience === "SELECTED" ? await listInvitableMembers() : [];
 
   return (
     <>
@@ -32,6 +35,18 @@ export default async function EditPracticePage(props: PageProps<"/attendance/[pr
             action={updatePracticeAction.bind(null, practice.id)}
             mode="edit"
             audience={practice.audience}
+            // Batch leads keep their own level; the committee can change the levels.
+            levelChoices={
+              hasPermission(user.role, "practices:manage") || !user.studyLevel ? STUDY_LEVELS : [user.studyLevel]
+            }
+            members={members.map((member) => ({
+              id: member.id,
+              name: `${member.firstName} ${member.lastName}`,
+              detail:
+                member.status === "ALUMNI"
+                  ? "Alumni"
+                  : `${STUDY_LEVEL_LABELS[member.yearOfStudy]} · ${VOICE_TYPE_LABELS[member.voiceType]}`,
+            }))}
             cancelHref={`/attendance/${practice.id}`}
             initial={{
               date: practice.date,
@@ -40,6 +55,8 @@ export default async function EditPracticePage(props: PageProps<"/attendance/[pr
               title: practice.title,
               venue: practice.venue ?? "",
               notes: practice.notes ?? "",
+              levels: practice.levels,
+              memberIds: practice.inviteeIds,
             }}
           />
         </CardBody>

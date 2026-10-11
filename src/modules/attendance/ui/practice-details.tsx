@@ -3,7 +3,7 @@ import { CalendarDays, ChevronRight, Clock, MapPin } from "lucide-react";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { cn } from "@/shared/lib/cn";
 import { Badge } from "@/shared/ui/layout";
-import { formatTimeRange, type RsvpCounts } from "../domain/practice";
+import { describeAudience, formatTimeRange, type PracticeTarget, type RsvpCounts } from "../domain/practice";
 
 interface PracticeLike {
   date: string;
@@ -13,6 +13,10 @@ interface PracticeLike {
   venue: string | null;
   notes: string | null;
   status: string;
+  /** Shown as a badge when the practice isn't for the whole choir. */
+  audience?: PracticeTarget["audience"];
+  levels?: PracticeTarget["levels"];
+  inviteeIds?: PracticeTarget["inviteeIds"];
 }
 
 /** Date, time and venue of a practice, as shown on dashboards. */
@@ -32,6 +36,7 @@ export function PracticeDetails({
         <span className={cn(cancelled && "line-through")}>{practice.title}</span>
         {practice.date === today && !cancelled ? <Badge tone="green">Today</Badge> : null}
         {cancelled ? <Badge tone="red">Cancelled</Badge> : null}
+        <AudienceBadge practice={practice} />
       </p>
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
         <span className="inline-flex items-center gap-1.5">
@@ -93,5 +98,16 @@ export function PracticeCardLink({ practiceId, label }: { practiceId: string; la
         aria-hidden="true"
       />
     </>
+  );
+}
+
+/** "For L4 and L5" or "3 chosen members", for practices that aren't for the whole choir. */
+export function AudienceBadge({ practice }: { practice: Partial<PracticeTarget> }) {
+  if (practice.audience !== "LEVELS" && practice.audience !== "SELECTED") return null;
+  const target = { audience: practice.audience, levels: practice.levels ?? [], inviteeIds: practice.inviteeIds ?? [] };
+  return (
+    <Badge tone="blue">
+      {practice.audience === "LEVELS" ? `For ${describeAudience(target)}` : describeAudience(target)}
+    </Badge>
   );
 }

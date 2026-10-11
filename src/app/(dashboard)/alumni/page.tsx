@@ -16,8 +16,8 @@ export default async function AlumniPracticesPage() {
   await requirePermission("practices:alumni-manage");
   const today = todayLocal();
   const [upcoming, past] = await Promise.all([
-    listUpcomingPractices({ includeCancelled: true, audience: "ALUMNI" }),
-    listPastPractices(20, "ALUMNI"),
+    listUpcomingPractices({ includeCancelled: true, audiences: ["ALUMNI"] }),
+    listPastPractices(20, ["ALUMNI"]),
   ]);
 
   return (

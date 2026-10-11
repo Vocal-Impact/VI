@@ -33,9 +33,15 @@ export default async function AccessPage(props: PageProps<"/access">) {
     <>
       <PageHeader title="Access & roles" description="Manage access and roles of all members" />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Admins" value={counts.ADMIN} href="/access?level=ADMIN" />
         <Stat label="Committee" value={counts.COMMITTEE} href="/access?level=COMMITTEE" />
+        <Stat
+          label="Batch leads"
+          value={counts.BATCH_LEAD}
+          href="/access?level=BATCH_LEAD"
+          hint="Schedule practices for their level"
+        />
         <Stat label="Accounts outside the member list" value={others.length} hint="Advisors, local admin…" />
       </div>
 
@@ -54,6 +60,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
               <option value="WITH_ACCESS">With access</option>
               <option value="ADMIN">Admins</option>
               <option value="COMMITTEE">Committee</option>
+              <option value="BATCH_LEAD">Batch leads</option>
               <option value="NONE">Members only</option>
             </Select>
           </FilterForm>

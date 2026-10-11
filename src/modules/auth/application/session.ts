@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/shared/db/prisma";
 import { getAuth } from "../infrastructure/better-auth";
 import { effectiveRole, hasPermission, type AccessRole, type Permission } from "../domain/permissions";
-import { canMemberSignIn } from "../domain/access";
+import type { StudyLevel } from "@/modules/members/domain";
+import { canMemberSignIn, isMemberLogin } from "../domain/access";
 
 export interface SessionUser {
   id: string;
@@ -15,6 +16,8 @@ export interface SessionUser {
   role: AccessRole;
   /** The choir member this login belongs to, if any (needed to RSVP). */
   memberId: string | null;
+  /** That member's level (batch leads organise practices for it). */
+  studyLevel: StudyLevel | null;
 }
 
 /**
@@ -34,18 +37,19 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       role: true,
       active: true,
       memberId: true,
-      member: { select: { status: true, deletedAt: true } },
+      member: { select: { status: true, deletedAt: true, yearOfStudy: true } },
     },
   });
   if (!user || !user.active) return null;
   // Member logins stop working as soon as the member is removed.
-  if (user.role === "MEMBER" && !canMemberSignIn(user.member)) return null;
+  if (isMemberLogin(user.role) && !canMemberSignIn(user.member)) return null;
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: effectiveRole(user.role, user.member?.status),
     memberId: user.memberId,
+    studyLevel: user.member?.yearOfStudy ?? null,
   };
 });
 

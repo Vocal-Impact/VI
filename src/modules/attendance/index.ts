@@ -1,6 +1,10 @@
 // Public API of the attendance module.
 export {
   listUpcomingPractices,
+  listUpcomingPracticesFor,
+  listInvitableMembers,
+  getInviteProfile,
+  type PracticeActor,
   listPastPractices,
   getPractice,
   getTodaysPractice,

@@ -1,3 +1,5 @@
+import { hasPermission, type AccessRole } from "@/modules/auth/domain";
+import { STUDY_LEVELS, STUDY_LEVEL_LABELS, type StudyLevel } from "@/modules/members/domain";
 import type { IsoDate } from "@/shared/lib/dates";
 
 /**
@@ -80,21 +82,120 @@ export function countRsvps(
   return { going, notGoing, noResponse: expectedMemberIds.size - answered.size };
 }
 
-/** Who a practice is for: the current choir, or alumni (guest performances). */
-export const PRACTICE_AUDIENCES = ["MEMBERS", "ALUMNI"] as const;
+/**
+ * Who a practice is for: the whole choir, some levels (batches), members
+ * picked by an admin, or alumni (guest performances).
+ */
+export const PRACTICE_AUDIENCES = ["MEMBERS", "LEVELS", "SELECTED", "ALUMNI"] as const;
 export type PracticeAudience = (typeof PRACTICE_AUDIENCES)[number];
 
-/** Member statuses that are asked to reply to a practice for this audience. */
-export function expectedStatusesFor(audience: PracticeAudience): Array<"PROSPECTIVE" | "ACTIVE" | "ALUMNI"> {
-  return audience === "ALUMNI" ? ["ALUMNI"] : ["PROSPECTIVE", "ACTIVE"];
+/** Audiences of the current choir (everything but alumni practices). */
+export const CHOIR_AUDIENCES = ["MEMBERS", "LEVELS", "SELECTED"] as const satisfies readonly PracticeAudience[];
+
+export const PRACTICE_AUDIENCE_LABELS: Record<PracticeAudience, string> = {
+  MEMBERS: "Everyone",
+  LEVELS: "Particular levels",
+  SELECTED: "Chosen members",
+  ALUMNI: "Alumni",
+};
+
+/** What decides who is invited to a practice. */
+export interface PracticeTarget {
+  audience: PracticeAudience;
+  /** LEVELS: the levels invited. */
+  levels: readonly StudyLevel[];
+  /** SELECTED: the members picked. */
+  inviteeIds: readonly string[];
 }
 
-/** Whether someone with this member status may reply to a practice for this audience. */
-export function canReplyAs(memberStatus: string, audience: PracticeAudience): boolean {
-  return audience === "ALUMNI" ? memberStatus === "ALUMNI" : memberStatus !== "ALUMNI";
+export interface MemberLike {
+  id: string;
+  status: string;
+  yearOfStudy: StudyLevel | string;
 }
 
-/** The permission needed to schedule, edit or cancel a practice for this audience. */
-export function managePermissionFor(audience: PracticeAudience): "practices:manage" | "practices:alumni-manage" {
-  return audience === "ALUMNI" ? "practices:alumni-manage" : "practices:manage";
+/**
+ * Whether this member is asked to a practice: sees it on their dashboard and
+ * can reply. Choir practices are for prospective and active members (alumni
+ * may look but don't reply); chosen-member practices only for those picked.
+ */
+export function isInvited(member: MemberLike, practice: PracticeTarget): boolean {
+  switch (practice.audience) {
+    case "ALUMNI":
+      return member.status === "ALUMNI";
+    case "SELECTED":
+      return practice.inviteeIds.includes(member.id);
+    case "LEVELS":
+      return isCurrentChoir(member.status) && (practice.levels as readonly string[]).includes(member.yearOfStudy);
+    case "MEMBERS":
+      return isCurrentChoir(member.status);
+  }
+}
+
+/** Whether a member may reply. Inactive members aren't expected but may still answer. */
+export function canReplyTo(member: MemberLike, practice: PracticeTarget): boolean {
+  if (practice.audience === "SELECTED") return practice.inviteeIds.includes(member.id);
+  const asChoir = { ...member, status: member.status === "INACTIVE" ? "ACTIVE" : member.status };
+  return isInvited(asChoir, practice);
+}
+
+function isCurrentChoir(status: string): boolean {
+  return status === "PROSPECTIVE" || status === "ACTIVE";
+}
+
+/** "Everyone", "L4 and L5", "3 chosen members", "Alumni". */
+export function describeAudience(practice: PracticeTarget): string {
+  switch (practice.audience) {
+    case "LEVELS":
+      return joinWithAnd(
+        STUDY_LEVELS.filter((level) => practice.levels.includes(level)).map((level) => STUDY_LEVEL_LABELS[level]),
+      );
+    case "SELECTED":
+      return `${practice.inviteeIds.length} chosen ${practice.inviteeIds.length === 1 ? "member" : "members"}`;
+    default:
+      return PRACTICE_AUDIENCE_LABELS[practice.audience];
+  }
+}
+
+function joinWithAnd(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
+/** The person scheduling or changing a practice. */
+export interface PracticeOrganiser {
+  role: string;
+  /** Their own level, if their login belongs to a member (batch leads organise for it). */
+  studyLevel?: StudyLevel | null;
+}
+
+/**
+ * Who may schedule, edit or cancel a practice for this audience:
+ * - everyone and particular levels: committee and admins;
+ * - their own level only: batch leads;
+ * - chosen members: admins;
+ * - alumni: the alumni organisers.
+ */
+export function canManagePractice(
+  organiser: PracticeOrganiser,
+  practice: Pick<PracticeTarget, "audience" | "levels">,
+): boolean {
+  const can = (permission: Parameters<typeof hasPermission>[1]) =>
+    hasPermission(organiser.role as AccessRole, permission);
+  switch (practice.audience) {
+    case "ALUMNI":
+      return can("practices:alumni-manage");
+    case "SELECTED":
+      return can("practices:invite-manage");
+    case "MEMBERS":
+      return can("practices:manage");
+    case "LEVELS":
+      return (
+        can("practices:manage") ||
+        (can("practices:level-manage") &&
+          organiser.studyLevel != null &&
+          practice.levels.length === 1 &&
+          practice.levels[0] === organiser.studyLevel)
+      );
+  }
 }

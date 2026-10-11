@@ -2,7 +2,7 @@
  * Role-based access control. The single source of truth for "who may do what"
  * (docs/PROJECT_BLUEPRINT.md §6.2). Pure — no I/O.
  */
-export const ROLES = ["ADMIN", "COMMITTEE", "MEMBER"] as const;
+export const ROLES = ["ADMIN", "COMMITTEE", "MEMBER", "BATCH_LEAD"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const PERMISSIONS = [
@@ -15,6 +15,10 @@ export const PERMISSIONS = [
   "practices:read",
   "practices:manage",
   "practices:rsvp",
+  /** Schedule and manage practices for your own level (batch leads), and see who's coming. */
+  "practices:level-manage",
+  /** Schedule practices for members picked one by one. Admins only. */
+  "practices:invite-manage",
   /** Reply to practices for alumni (guest performances). */
   "practices:alumni-rsvp",
   /** Schedule and manage practices for alumni, and see who's coming. */
@@ -53,11 +57,13 @@ const COMMITTEE_PERMISSIONS: readonly Permission[] = [
   "carpool:write",
 ];
 
+const MEMBER_PERMISSIONS: readonly Permission[] = ["birthdays:read", "practices:read", "practices:rsvp"];
+
 /** Alumni: the dashboard and birthdays, and replying to alumni practices. */
 const ALUMNI_PERMISSIONS: readonly Permission[] = ["birthdays:read", "practices:read", "practices:alumni-rsvp"];
 
 /**
- * What a signed-in person can do. The stored role (ADMIN / COMMITTEE / MEMBER)
+ * What a signed-in person can do. The stored role (ADMIN / COMMITTEE / MEMBER / BATCH_LEAD)
  * plus two that apply while the linked member is alumni: ALUMNI, and
  * ALUMNI_COMMITTEE for alumni who are on the committee (they organise alumni
  * practices, nothing else). Admins stay admins.
@@ -74,7 +80,9 @@ export const ROLE_PERMISSIONS: Readonly<Record<AccessRole, readonly Permission[]
   ADMIN: PERMISSIONS,
   COMMITTEE: COMMITTEE_PERMISSIONS,
   // Choir members: see practices and say whether they're coming. Nothing else.
-  MEMBER: ["birthdays:read", "practices:read", "practices:rsvp"],
+  MEMBER: MEMBER_PERMISSIONS,
+  // A member who also organises practices for their own level.
+  BATCH_LEAD: [...MEMBER_PERMISSIONS, "practices:level-manage"],
   ALUMNI: ALUMNI_PERMISSIONS,
   ALUMNI_COMMITTEE: [...ALUMNI_PERMISSIONS, "practices:alumni-manage"],
 };

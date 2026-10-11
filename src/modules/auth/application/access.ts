@@ -70,7 +70,7 @@ export async function listMemberAccess(filter: AccessFilter = {}) {
         : rows.filter((row) => row.level === level);
 
   // People with access first (admins, then committee), then everyone else.
-  const rank: Record<AccessLevel, number> = { ADMIN: 0, COMMITTEE: 1, NONE: 2 };
+  const rank: Record<AccessLevel, number> = { ADMIN: 0, COMMITTEE: 1, BATCH_LEAD: 2, NONE: 3 };
   return filtered.sort((a, b) => rank[a.level] - rank[b.level]);
 }
 
@@ -83,12 +83,13 @@ export async function listUnlinkedUsers() {
   });
 }
 
-export async function countAccessLevels(): Promise<Record<"ADMIN" | "COMMITTEE", number>> {
-  const [admins, committee] = await Promise.all([
+export async function countAccessLevels(): Promise<Record<"ADMIN" | "COMMITTEE" | "BATCH_LEAD", number>> {
+  const [admins, committee, batchLeads] = await Promise.all([
     prisma.user.count({ where: { active: true, role: "ADMIN" } }),
     prisma.user.count({ where: { active: true, role: "COMMITTEE" } }),
+    prisma.user.count({ where: { active: true, role: "BATCH_LEAD" } }),
   ]);
-  return { ADMIN: admins, COMMITTEE: committee };
+  return { ADMIN: admins, COMMITTEE: committee, BATCH_LEAD: batchLeads };
 }
 
 const setAccessSchema = z.object({

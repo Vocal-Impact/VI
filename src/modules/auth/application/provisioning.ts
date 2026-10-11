@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/shared/db/prisma";
 import { logger } from "@/shared/lib/logger";
-import { canMemberSignIn } from "../domain/access";
+import { canMemberSignIn, isMemberLogin } from "../domain/access";
 
 /**
  * Who may sign in:
@@ -44,6 +44,6 @@ export async function maySignIn(userId: string): Promise<boolean> {
     select: { active: true, role: true, member: { select: { status: true, deletedAt: true } } },
   });
   if (!user?.active) return false;
-  if (user.role === "MEMBER") return canMemberSignIn(user.member);
+  if (isMemberLogin(user.role)) return canMemberSignIn(user.member);
   return true;
 }

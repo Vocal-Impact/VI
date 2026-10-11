@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser, hasPermission } from "@/modules/auth";
 import { countMembersByStatus, countMissingData } from "@/modules/members";
 import { listEligibleMembers } from "@/modules/attendance";
+import { CHOIR_AUDIENCES } from "@/modules/attendance/domain";
 import { getBirthdayDashboard } from "@/modules/birthdays";
 import { countPendingInvites } from "@/modules/whatsapp-groups";
 import { listImportBatches } from "@/modules/imports";
@@ -46,8 +47,9 @@ export default async function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <UpcomingPractices
-          memberId={user.memberId}
-          manage={hasPermission(user.role, "practices:manage")}
+          viewer={user}
+          source={CHOIR_AUDIENCES}
+          scheduleHref={hasPermission(user.role, "practices:manage") ? "/attendance" : null}
           showVenueBooking={hasPermission(user.role, "venues:book")}
         />
 

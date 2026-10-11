@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { canRsvp, canTakeAttendance, countRsvps, formatTime, formatTimeRange, isValidTime } from "./practice";
+import {
+  canManagePractice,
+  canReplyTo,
+  canRsvp,
+  canTakeAttendance,
+  countRsvps,
+  describeAudience,
+  formatTime,
+  formatTimeRange,
+  isInvited,
+  isValidTime,
+  type PracticeTarget,
+} from "./practice";
 
 const today = "2026-10-04";
 
@@ -58,5 +70,59 @@ describe("countRsvps", () => {
       expected,
     );
     expect(counts).toEqual({ going: 2, notGoing: 1, noResponse: 1 });
+  });
+});
+
+describe("who a practice is for", () => {
+  const everyone: PracticeTarget = { audience: "MEMBERS", levels: [], inviteeIds: [] };
+  const l4AndL5: PracticeTarget = { audience: "LEVELS", levels: ["L4", "L5"], inviteeIds: [] };
+  const chosen: PracticeTarget = { audience: "SELECTED", levels: [], inviteeIds: ["picked", "old-friend"] };
+  const alumniOnly: PracticeTarget = { audience: "ALUMNI", levels: [], inviteeIds: [] };
+  const l4 = { id: "a", status: "ACTIVE", yearOfStudy: "L4" };
+  const newL6 = { id: "b", status: "PROSPECTIVE", yearOfStudy: "L6" };
+  const picked = { id: "picked", status: "ACTIVE", yearOfStudy: "L6" };
+  const oldFriend = { id: "old-friend", status: "ALUMNI", yearOfStudy: "L6" };
+  const resting = { id: "c", status: "INACTIVE", yearOfStudy: "L4" };
+
+  it("invites the whole choir, some levels, the people picked, or alumni", () => {
+    expect([l4, newL6, picked, oldFriend].map((m) => isInvited(m, everyone))).toEqual([true, true, true, false]);
+    expect([l4, newL6, picked].map((m) => isInvited(m, l4AndL5))).toEqual([true, false, false]);
+    expect([l4, picked, oldFriend].map((m) => isInvited(m, chosen))).toEqual([false, true, true]);
+    expect([l4, oldFriend].map((m) => isInvited(m, alumniOnly))).toEqual([false, true]);
+  });
+
+  it("lets inactive members reply to their practices without expecting them", () => {
+    expect(isInvited(resting, l4AndL5)).toBe(false);
+    expect(canReplyTo(resting, l4AndL5)).toBe(true);
+    expect(canReplyTo(resting, chosen)).toBe(false);
+    expect(canReplyTo(oldFriend, everyone)).toBe(false);
+  });
+
+  it("describes who it's for", () => {
+    expect(describeAudience(l4AndL5)).toBe("L4 and L5");
+    expect(describeAudience({ ...l4AndL5, levels: ["L6", "FOUNDATION", "L4"] })).toBe("Foundation, L4 and L6");
+    expect(describeAudience(chosen)).toBe("2 chosen members");
+    expect(describeAudience(everyone)).toBe("Everyone");
+  });
+});
+
+describe("canManagePractice", () => {
+  const forLevels = (...levels: Array<"L4" | "L5">) => ({ audience: "LEVELS" as const, levels });
+
+  it("lets batch leads organise practices for their own level only", () => {
+    const lead = { role: "BATCH_LEAD", studyLevel: "L4" as const };
+    expect(canManagePractice(lead, forLevels("L4"))).toBe(true);
+    expect(canManagePractice(lead, forLevels("L5"))).toBe(false);
+    expect(canManagePractice(lead, forLevels("L4", "L5"))).toBe(false);
+    expect(canManagePractice(lead, { audience: "MEMBERS", levels: [] })).toBe(false);
+    expect(canManagePractice({ role: "BATCH_LEAD", studyLevel: null }, forLevels("L4"))).toBe(false);
+    expect(canManagePractice({ role: "MEMBER", studyLevel: "L4" }, forLevels("L4"))).toBe(false);
+  });
+
+  it("keeps chosen-member practices to admins", () => {
+    const selected = { audience: "SELECTED" as const, levels: [] };
+    expect(canManagePractice({ role: "ADMIN" }, selected)).toBe(true);
+    expect(canManagePractice({ role: "COMMITTEE" }, selected)).toBe(false);
+    expect(canManagePractice({ role: "COMMITTEE" }, forLevels("L4", "L5"))).toBe(true);
   });
 });

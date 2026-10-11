@@ -27,13 +27,13 @@ describe("alumni practices", () => {
     const singer = await createMember({ firstName: "Singer", status: "ACTIVE" });
     const alumnus = await createMember({ firstName: "Alumnus", status: "ALUMNI" });
 
-    const choir = await schedulePractice(practice({ title: "Choir practice" }), organiser.id);
-    const guest = await schedulePractice(practice({ title: "Guest performance", audience: "ALUMNI" }), organiser.id);
+    const choir = await schedulePractice(practice({ title: "Choir practice" }), organiser);
+    const guest = await schedulePractice(practice({ title: "Guest performance", audience: "ALUMNI" }), organiser);
     if (!choir.ok || !guest.ok) throw new Error("scheduling failed");
 
     // Lists: choir practices by default, alumni practices only when asked.
     expect((await listUpcomingPractices()).map((p) => p.title)).toEqual(["Choir practice"]);
-    expect((await listUpcomingPractices({ audience: "ALUMNI" })).map((p) => p.title)).toEqual(["Guest performance"]);
+    expect((await listUpcomingPractices({ audiences: ["ALUMNI"] })).map((p) => p.title)).toEqual(["Guest performance"]);
 
     // Replies: each to their own kind of practice.
     expect((await setRsvp({ practiceId: guest.value.id, memberId: alumnus.id, response: "GOING" })).ok).toBe(true);
@@ -47,7 +47,7 @@ describe("alumni practices", () => {
     const summary = await getRsvpSummary(guest.value.id);
     expect(summary.going.map((p) => p.name)).toEqual(["Alumnus Test"]);
     expect(summary.noResponse).toEqual([]);
-    expect((await listUpcomingPractices({ audience: "ALUMNI" }))[0]?.counts).toMatchObject({ going: 1 });
+    expect((await listUpcomingPractices({ audiences: ["ALUMNI"] }))[0]?.counts).toMatchObject({ going: 1 });
   });
 
   it("keeps the audience when edited, and takes no attendance", async () => {
@@ -55,16 +55,16 @@ describe("alumni practices", () => {
     const member = await createMember({ status: "ACTIVE" });
     const guest = await schedulePractice(
       practice({ date: todayLocal(), title: "Guest performance", audience: "ALUMNI" }),
-      admin.id,
+      admin,
     );
     if (!guest.ok) throw new Error("scheduling failed");
 
     await updatePractice(
       guest.value.id,
       practice({ date: todayLocal(), title: "Renamed", audience: "MEMBERS" }),
-      admin.id,
+      admin,
     );
-    expect((await listUpcomingPractices({ audience: "ALUMNI" })).map((p) => p.title)).toEqual(["Renamed"]);
+    expect((await listUpcomingPractices({ audiences: ["ALUMNI"] })).map((p) => p.title)).toEqual(["Renamed"]);
 
     const marked = await setAttendance({ practiceId: guest.value.id, memberId: member.id, present: true }, admin);
     expect(!marked.ok && marked.error.message).toBe("Attendance isn't taken at alumni practices");

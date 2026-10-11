@@ -1,14 +1,15 @@
 import type { Role } from "./permissions";
 
 /**
- * What a choir member can do in the app. Members are promoted to Committee or
- * Admin from the Access page; "NONE" means no login (or a disabled one).
+ * What a choir member can do in the app. Members are promoted to Batch lead,
+ * Committee or Admin from the Access page; "NONE" means no login (or a disabled one).
  */
-export const ACCESS_LEVELS = ["NONE", "COMMITTEE", "ADMIN"] as const;
+export const ACCESS_LEVELS = ["NONE", "BATCH_LEAD", "COMMITTEE", "ADMIN"] as const;
 export type AccessLevel = (typeof ACCESS_LEVELS)[number];
 
 export const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
   NONE: "Member",
+  BATCH_LEAD: "Batch lead",
   COMMITTEE: "Committee",
   ADMIN: "Admin",
 };
@@ -17,6 +18,7 @@ export function accessLevelOf(user: { role: Role | string; active: boolean } | n
   if (!user || !user.active) return "NONE";
   if (user.role === "ADMIN") return "ADMIN";
   if (user.role === "COMMITTEE") return "COMMITTEE";
+  if (user.role === "BATCH_LEAD") return "BATCH_LEAD";
   // MEMBER logins can see practices and RSVP but have no committee access.
   return "NONE";
 }
@@ -28,4 +30,9 @@ export function canMemberSignIn(member: { status: string; deletedAt: Date | null
   return (
     !!member && member.deletedAt === null && (MEMBER_SIGN_IN_STATUSES as readonly string[]).includes(member.status)
   );
+}
+
+/** Roles that belong to a choir member's own login (so they stop working when the member is removed). */
+export function isMemberLogin(role: string): boolean {
+  return role === "MEMBER" || role === "BATCH_LEAD";
 }

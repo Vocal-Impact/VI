@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser, hasPermission } from "@/modules/auth";
 import {
+  canManagePractice,
   canTakeAttendance,
   canUnmarkAttendance,
-  managePermissionFor,
   venueReminderDueDate,
   type RsvpPerson,
 } from "@/modules/attendance";
@@ -35,21 +35,28 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   const { practiceId } = await props.params;
   const practice = await getPractice(practiceId);
   if (!practice) notFound();
-  // Choir practices are for the committee; alumni practices also for alumni organisers.
+  // The committee sees every choir practice; organisers (alumni organisers, batch leads) the ones they run.
   const alumni = practice.audience === "ALUMNI";
-  if (!hasPermission(user.role, alumni ? "practices:alumni-manage" : "attendance:read")) redirect("/forbidden");
+  const canManage = canManagePractice(user, practice);
+  const canSeeAttendance = !alumni && hasPermission(user.role, "attendance:read");
+  if (!canManage && !canSeeAttendance) redirect("/forbidden");
 
   const today = todayLocal();
   const practiceLabel = `${practice.title} on ${formatIsoDate(practice.date, { weekday: "long", month: "long", year: undefined })}`;
-  const canManage = hasPermission(user.role, managePermissionFor(practice.audience));
   const canOpenProfiles = hasPermission(user.role, "members:read");
+  // Batch leads don't have the Practices page; they come from their dashboard.
+  const back = alumni
+    ? { href: "/alumni", label: "Alumni practices" }
+    : canSeeAttendance
+      ? { href: "/attendance", label: "Practices" }
+      : { href: "/", label: "Dashboard" };
   const attendanceOpen = !alumni && canTakeAttendance(user.role, practice, today);
   const isFuture = practice.date > today;
   const canBookVenue =
     hasPermission(user.role, "venues:book") && practice.status === "SCHEDULED" && practice.date >= today;
   const [summary, entries, threshold, venueRequest] = await Promise.all([
     getRsvpSummary(practiceId),
-    practice.date <= today && !alumni ? getAttendanceChecklist(practiceId) : Promise.resolve([]),
+    practice.date <= today && canSeeAttendance ? getAttendanceChecklist(practiceId) : Promise.resolve([]),
     getAttendanceThreshold(),
     canBookVenue ? getVenueRequestLinks(practiceId, user) : Promise.resolve(null),
   ]);
@@ -58,8 +65,8 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
     <>
       <PageHeader
         back={
-          <Link href={alumni ? "/alumni" : "/attendance"} className="text-sm text-brand-700 hover:underline">
-            {alumni ? "← Alumni practices" : "← Practices"}
+          <Link href={back.href} className="text-sm text-brand-700 hover:underline">
+            ← {back.label}
           </Link>
         }
         title={practice.title}
@@ -246,7 +253,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
         </Card>
       ) : null}
 
-      {(alumni || hasPermission(user.role, "rsvps:read")) && practice.status === "SCHEDULED" ? (
+      {(canManage || hasPermission(user.role, "rsvps:read")) && practice.status === "SCHEDULED" ? (
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <RsvpList
             title="Going"
@@ -271,7 +278,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
         </div>
       ) : null}
 
-      {practice.status === "CANCELLED" ? (
+      {!canSeeAttendance ? null : practice.status === "CANCELLED" ? (
         <Alert tone="warning">This practice was cancelled, so there is no attendance to take.</Alert>
       ) : isFuture ? (
         <Alert tone="info">Attendance opens on the practice day.</Alert>

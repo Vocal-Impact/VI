@@ -40,6 +40,7 @@ const ROLE_NAMES: Record<string, string> = {
   MEMBER: "member",
   ALUMNI: "alumni",
   ALUMNI_COMMITTEE: "alumni committee",
+  BATCH_LEAD: "batch lead",
 };
 
 export interface NavItem {

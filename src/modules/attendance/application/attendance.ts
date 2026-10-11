@@ -26,11 +26,23 @@ export interface ChecklistEntry {
 /**
  * Everyone who could attend (prospective, active, inactive), with today's mark
  * and their total so far. Prospective members come first so new faces are
- * easy to find.
+ * easy to find. A practice for some levels or chosen members lists only them.
  */
 export async function getAttendanceChecklist(practiceId: string): Promise<ChecklistEntry[]> {
+  const practice = await prisma.practice.findUnique({
+    where: { id: practiceId },
+    select: { audience: true, levels: true, invitees: { select: { memberId: true } } },
+  });
   const members = await prisma.member.findMany({
-    where: { deletedAt: null, status: { in: ["PROSPECTIVE", "ACTIVE", "INACTIVE"] } },
+    where: {
+      deletedAt: null,
+      ...(practice?.audience === "SELECTED"
+        ? { id: { in: practice.invitees.map((invitee) => invitee.memberId) } }
+        : {
+            status: { in: ["PROSPECTIVE", "ACTIVE", "INACTIVE"] },
+            ...(practice?.audience === "LEVELS" ? { yearOfStudy: { in: practice.levels } } : {}),
+          }),
+    },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     select: {
       id: true,
