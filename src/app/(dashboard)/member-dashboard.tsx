@@ -4,7 +4,7 @@ import { attendanceProgress } from "@/modules/attendance/domain";
 import { getBirthdayDashboard } from "@/modules/birthdays";
 import { getMembersByIds } from "@/modules/members";
 import { formatIsoDate } from "@/shared/lib/dates";
-import { Alert, Card, CardBody, CardHeader, PageHeader, Stat } from "@/shared/ui/layout";
+import { Alert, Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layout";
 import { UpcomingPractices } from "./upcoming-practices";
 
 /** What a choir member sees: upcoming practices to reply to, their progress, today's birthdays. */
@@ -77,7 +77,6 @@ export async function MemberDashboard({ user }: { user: SessionUser }) {
           )}
         </div>
         <div className="space-y-6">
-          {alumni ? null : <Stat label="Practices you've attended" value={attended} />}
           <Card>
             <CardHeader title="🎂 Birthdays today" />
             <CardBody>
