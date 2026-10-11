@@ -47,7 +47,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="self-start lg:col-span-2">
           <CardHeader title="Members" description="" />
           <FilterForm className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_auto]">
             <Input
