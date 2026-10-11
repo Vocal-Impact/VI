@@ -39,7 +39,7 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
 
   return (
     <form action={formAction} className={cn("px-4 py-3 sm:px-5", row.level !== "NONE" && "bg-brand-50/40")}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 font-medium">
             <Link href={`/members/${row.memberId}`} className="hover:text-brand-700 hover:underline">
@@ -53,7 +53,7 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
             {row.level !== "NONE" ? ` · ${row.hasSignedIn ? "has signed in" : "not signed in yet"}` : ""}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
           <Select
             name="level"
             value={level}
@@ -73,6 +73,7 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
               name="receivesBirthdayReminders"
               defaultChecked={row.receivesBirthdayReminders}
               label="Birthday emails"
+              className="whitespace-nowrap"
               disabled={row.isSelf}
             />
           ) : null}
@@ -131,8 +132,9 @@ export function AccountRow({
       action={formAction}
       className="space-y-2 px-4 py-3 sm:px-5"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+      {/* Always stacked: this card sits in the narrow side column on wide screens. */}
+      <div className="flex flex-col gap-3">
+        <div className="min-w-0">
           <p className="font-medium">
             {account.name} {isSelf ? <Badge tone="brand">You</Badge> : null}{" "}
             {!account.active ? <Badge tone="red">Disabled</Badge> : null}
@@ -141,7 +143,7 @@ export function AccountRow({
             {account.email} · {account.hasSignedIn ? "has signed in" : "not signed in yet"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
           <Select name="role" defaultValue={account.role} aria-label={`Role for ${account.name}`} className="h-8 w-36">
             {ROLES.map((role) => (
               <option key={role} value={role}>
