@@ -6,6 +6,7 @@ import {
   venueReminderDueDate,
   type VenueRequestTemplate,
 } from "./venue-request";
+import { isTentativeVenue } from "./practice";
 
 const template: VenueRequestTemplate = {
   to: ["facilities@iit.ac.lk", "events@iit.ac.lk"],
@@ -91,5 +92,15 @@ describe("isVenueReminderDue", () => {
     expect(isVenueReminderDue(practice("2026-10-08", { venueReminderSentAt: new Date() }), today)).toBe(false);
     expect(isVenueReminderDue(practice("2026-10-08", { status: "CANCELLED" }), today)).toBe(false);
     expect(isVenueReminderDue(practice("2026-10-06"), today)).toBe(false);
+  });
+});
+
+describe("tentative venues", () => {
+  it("asks for any available hall while the venue is still tentative", () => {
+    const tentative = renderVenueRequest(template, { ...context, venue: "Tentative" });
+    expect(tentative.body).toContain("any available hall");
+    expect(isTentativeVenue(" tentative ")).toBe(true);
+    expect(isTentativeVenue(null)).toBe(true);
+    expect(isTentativeVenue("Auditorium")).toBe(false);
   });
 });

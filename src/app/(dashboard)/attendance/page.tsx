@@ -8,7 +8,7 @@ import {
   listInvitableMembers,
   listUpcomingPractices,
 } from "@/modules/attendance";
-import { attendanceProgress, canManagePractice } from "@/modules/attendance/domain";
+import { attendanceProgress, canManagePractice, TENTATIVE_VENUE } from "@/modules/attendance/domain";
 import {
   AudienceBadge,
   PracticeCardLink,
@@ -74,7 +74,14 @@ export default async function PracticesPage() {
                         : `${STUDY_LEVEL_LABELS[member.yearOfStudy]} · ${VOICE_TYPE_LABELS[member.voiceType]}`,
                   }))}
                   minDate={user.role === "ADMIN" ? undefined : today}
-                  initial={{ date: today, startTime: "", endTime: "", title: "Practice", venue: "", notes: "" }}
+                  initial={{
+                    date: today,
+                    startTime: "",
+                    endTime: "",
+                    title: "Practice",
+                    venue: TENTATIVE_VENUE,
+                    notes: "",
+                  }}
                 />
               </FormDialog>
             ) : null}

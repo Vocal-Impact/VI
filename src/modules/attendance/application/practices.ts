@@ -7,7 +7,6 @@ import { todayLocal } from "@/shared/lib/clock";
 import { fromIsoDate, toIsoDate } from "@/shared/lib/dates";
 import { err, ok, type Result } from "@/shared/lib/result";
 import { validationError } from "@/shared/lib/validation";
-import { getSettings } from "@/shared/settings/settings";
 import {
   canManagePractice,
   canReplyTo,
@@ -284,7 +283,7 @@ export async function schedulePractice(raw: unknown, actor: PracticeActor): Prom
   if (!canManagePractice(actor, input)) return err("FORBIDDEN", NOT_ALLOWED[input.audience]);
   const invitees = await checkInvitees(memberIds);
   if (!invitees.ok) return invitees;
-  const venue = input.venue ?? (await getSettings()).practiceVenue.name;
+  const venue = input.venue;
 
   const practice = await prisma.$transaction(async (tx) => {
     const created = await tx.practice.create({

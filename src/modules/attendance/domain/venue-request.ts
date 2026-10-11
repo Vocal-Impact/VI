@@ -1,5 +1,5 @@
 import { addDays, formatIsoDate, type IsoDate } from "@/shared/lib/dates";
-import { formatTimeRange } from "./practice";
+import { formatTimeRange, isTentativeVenue } from "./practice";
 
 /**
  * The email admins send to the IIT administration to book a practice venue.
@@ -46,7 +46,7 @@ export function renderVenueRequest(template: VenueRequestTemplate, context: Venu
     date: formatIsoDate(context.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
     time: context.startTime ? formatTimeRange(context.startTime, context.endTime) : "to be confirmed",
     title: context.title,
-    venue: context.venue?.trim() || "any available hall",
+    venue: isTentativeVenue(context.venue) ? "any available hall" : context.venue!.trim(),
     expected: String(context.expected),
     senderName: context.senderName,
   };

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listPastPractices, listUpcomingPractices } from "@/modules/attendance";
+import { listPastPractices, listUpcomingPractices, TENTATIVE_VENUE } from "@/modules/attendance";
 import { PracticeCardLink, PracticeDetails, RsvpCountBadges } from "@/modules/attendance/ui";
 import { STUDY_LEVEL_LABELS, type StudyLevel } from "@/modules/members/domain";
 import { todayLocal } from "@/shared/lib/clock";
@@ -36,7 +36,14 @@ export async function BatchLeadPractices({ level }: { level: StudyLevel }) {
               audience="LEVELS"
               levelChoices={[level]}
               minDate={today}
-              initial={{ date: today, startTime: "", endTime: "", title: `${label} practice`, venue: "", notes: "" }}
+              initial={{
+                date: today,
+                startTime: "",
+                endTime: "",
+                title: `${label} practice`,
+                venue: TENTATIVE_VENUE,
+                notes: "",
+              }}
             />
           </FormDialog>
         }

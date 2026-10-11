@@ -36,7 +36,7 @@ describe("practice scheduling", () => {
       status: "SCHEDULED",
       notes: "Bring folders",
     });
-    expect(practice.venue).toContain("IIT"); // blank venue → the usual venue from Settings
+    expect(practice.venue).toBe("Tentative"); // blank venue → not booked yet
 
     const bad = await schedulePractice({ date, startTime: "19:00", endTime: "18:00", title: "X" }, committee);
     expect(bad.ok).toBe(false);

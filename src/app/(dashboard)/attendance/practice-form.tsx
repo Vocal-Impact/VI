@@ -167,7 +167,12 @@ export function PracticeForm({
       <Field label="Title" htmlFor={`${prefix}-title`} errors={errors.title}>
         <Input id={`${prefix}-title`} name="title" defaultValue={values.title} required />
       </Field>
-      <Field label="Venue" htmlFor={`${prefix}-venue`} hint="Leave blank to use the usual venue" errors={errors.venue}>
+      <Field
+        label="Venue"
+        htmlFor={`${prefix}-venue`}
+        hint="Leave it as Tentative until the venue is booked"
+        errors={errors.venue}
+      >
         <Input id={`${prefix}-venue`} name="venue" defaultValue={values.venue} />
       </Field>
       <Field label="Notes for members (optional)" htmlFor={`${prefix}-notes`} errors={errors.notes}>

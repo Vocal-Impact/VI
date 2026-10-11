@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate } from "@/shared/lib/dates";
 import { STUDY_LEVELS } from "@/modules/members/domain";
-import { isValidTime, PRACTICE_AUDIENCES, RSVP_RESPONSES } from "./domain/practice";
+import { isValidTime, PRACTICE_AUDIENCES, RSVP_RESPONSES, TENTATIVE_VENUE } from "./domain/practice";
 
 const optionalText = (max: number) =>
   z
@@ -21,7 +21,8 @@ export const practiceInputSchema = z
       .transform((value) => value || null)
       .refine((value) => value === null || isValidTime(value), "Enter a valid end time"),
     title: z.string().trim().min(1, "Title is required").max(100),
-    venue: optionalText(120),
+    // Blank means not booked yet.
+    venue: optionalText(120).transform((value) => value ?? TENTATIVE_VENUE),
     notes: optionalText(500),
     audience: z.enum(PRACTICE_AUDIENCES).optional().default("MEMBERS"),
     /** LEVELS practices: the levels invited. */

@@ -5,6 +5,7 @@ import {
   canManagePractice,
   canTakeAttendance,
   canUnmarkAttendance,
+  isTentativeVenue,
   venueReminderDueDate,
   type RsvpPerson,
 } from "@/modules/attendance";
@@ -221,7 +222,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                 {practice.venueConfirmedAt ? (
                   <div className="flex flex-wrap items-center gap-3 text-sm text-emerald-700">
                     <span>
-                      ✓ {practice.venue ? <strong>{practice.venue}</strong> : "Confirmed"} on{" "}
+                      ✓ {isTentativeVenue(practice.venue) ? "Confirmed" : <strong>{practice.venue}</strong>} on{" "}
                       {formatTimestamp(practice.venueConfirmedAt)}
                     </span>
                     <form action={setVenueBookingAction.bind(null, practice.id, "confirmed", false)}>
@@ -242,7 +243,11 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
                   >
                     <label className="min-w-56 flex-1 text-sm">
                       <span className="mb-1 block text-slate-600">Venue they gave you</span>
-                      <Input name="venue" defaultValue={practice.venue ?? ""} maxLength={120} />
+                      <Input
+                        name="venue"
+                        defaultValue={isTentativeVenue(practice.venue) ? "" : (practice.venue ?? "")}
+                        maxLength={120}
+                      />
                     </label>
                     <VenueConfirmButton />
                   </form>

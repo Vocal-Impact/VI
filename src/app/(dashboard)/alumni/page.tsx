@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePermission } from "@/modules/auth";
-import { listPastPractices, listUpcomingPractices } from "@/modules/attendance";
+import { listPastPractices, listUpcomingPractices, TENTATIVE_VENUE } from "@/modules/attendance";
 import { PracticeCardLink, PracticeDetails, RsvpCountBadges } from "@/modules/attendance/ui";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
@@ -33,7 +33,14 @@ export default async function AlumniPracticesPage() {
               mode="schedule"
               audience="ALUMNI"
               minDate={today}
-              initial={{ date: today, startTime: "", endTime: "", title: "Alumni practice", venue: "", notes: "" }}
+              initial={{
+                date: today,
+                startTime: "",
+                endTime: "",
+                title: "Alumni practice",
+                venue: TENTATIVE_VENUE,
+                notes: "",
+              }}
             />
           </FormDialog>
         }

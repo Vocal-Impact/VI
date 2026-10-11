@@ -18,6 +18,15 @@ export const RSVP_LABELS: Record<RsvpResponse, string> = {
   NOT_GOING: "Can't make it",
 };
 
+/** The venue until one is booked (practices left without a venue get it). */
+export const TENTATIVE_VENUE = "Tentative";
+
+/** No real venue yet: blank or "Tentative". */
+export function isTentativeVenue(venue: string | null | undefined): boolean {
+  const value = venue?.trim().toLowerCase() ?? "";
+  return value === "" || value === TENTATIVE_VENUE.toLowerCase();
+}
+
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export function isValidTime(value: string): boolean {
