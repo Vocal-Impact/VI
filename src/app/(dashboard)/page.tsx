@@ -46,7 +46,11 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="mb-6">
+      {/*
+        Two flowing columns: each card keeps its own height (an empty one stays small) and
+        the next card fills in under whichever column is shorter, so there are no gaps.
+      */}
+      <div className="gap-6 lg:columns-2 [&>*]:mb-6 [&>*]:break-inside-avoid">
         <UpcomingPractices
           viewer={user}
           source={CHOIR_AUDIENCES}
@@ -54,9 +58,7 @@ export default async function DashboardPage() {
           showVenueBooking={hasPermission(user.role, "venues:book")}
           take={10}
         />
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader
             title="🎂 Birthdays"
