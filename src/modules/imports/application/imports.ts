@@ -8,7 +8,7 @@ import { writeAuditLog } from "@/shared/audit/audit-log";
 import { reveal, revealLocation } from "@/shared/crypto/sensitive";
 import { listMembersForImport, setDateOfBirth, upsertMemberFromImport } from "@/modules/members";
 import { saveLocationFromImport } from "@/modules/carpool";
-import { MAX_CSV_BYTES, parseCsv, type ParsedCsv } from "../domain/csv";
+import { MAX_CSV_BYTES, parseCsv, type DateOrderChoice, type ParsedCsv } from "../domain/csv";
 import type { ImportPreview } from "../domain/preview";
 import { buildRegistrationPreview, type RegistrationData } from "../domain/profiles/registration";
 import { buildSupplementaryPreview, type SupplementaryData } from "../domain/profiles/supplementary-details";
@@ -31,6 +31,8 @@ function readCsv(text: string): Result<ParsedCsv> {
 export interface ImportOptions {
   /** Registration only: take new members' status from the Status column (first load of existing members). */
   useStatusColumn?: boolean;
+  /** Day-first or month-first dates; AUTO (default) works it out from the file. */
+  dateOrder?: DateOrderChoice;
 }
 
 async function registrationPreview(csv: ParsedCsv, options: ImportOptions) {
@@ -61,11 +63,12 @@ async function registrationPreview(csv: ParsedCsv, options: ImportOptions) {
       allowedDomain: getEnv().ALLOWED_EMAIL_DOMAIN,
       today: todayLocal(),
       useStatusColumn: options.useStatusColumn ?? false,
+      dateOrder: options.dateOrder ?? "AUTO",
     },
   );
 }
 
-async function supplementaryPreview(csv: ParsedCsv) {
+async function supplementaryPreview(csv: ParsedCsv, options: ImportOptions) {
   const existing = await prisma.member.findMany({ where: { deletedAt: null }, include: { location: true } });
   return buildSupplementaryPreview(
     csv,
@@ -82,7 +85,7 @@ async function supplementaryPreview(csv: ParsedCsv) {
           }
         : null,
     })),
-    { today: todayLocal() },
+    { today: todayLocal(), dateOrder: options.dateOrder ?? "AUTO" },
   );
 }
 
@@ -95,7 +98,7 @@ export async function previewImport(
   const csv = readCsv(text);
   if (!csv.ok) return csv;
   if (profile === "REGISTRATION") return ok({ profile, preview: await registrationPreview(csv.value, options) });
-  return ok({ profile, preview: await supplementaryPreview(csv.value) });
+  return ok({ profile, preview: await supplementaryPreview(csv.value, options) });
 }
 
 export interface ImportSummary {

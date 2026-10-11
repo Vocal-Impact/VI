@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeHeader, parseCsv, parseYesNo, resolveColumns } from "./csv";
+import { detectDateOrder, normalizeHeader, parseCsv, parseYesNo, resolveColumns, resolveDateOrder } from "./csv";
 import { buildRegistrationPreview, type ExistingMemberSnapshot } from "./profiles/registration";
 import { buildSupplementaryPreview } from "./profiles/supplementary-details";
 
@@ -296,5 +296,49 @@ describe("buildSupplementaryPreview", () => {
       { today },
     );
     expect(preview.invalid).toHaveLength(2);
+  });
+});
+
+describe("date format (day-first or month-first)", () => {
+  it("works it out from dates that can only be read one way", () => {
+    expect(detectDateOrder(["9/11/2003", "9/25/2003"])).toBe("MDY");
+    expect(detectDateOrder(["9/11/2003", "25/9/2003"])).toBe("DMY");
+    expect(detectDateOrder(["9/11/2003", "1/2/2004", ""])).toBeNull();
+    expect(detectDateOrder(["2003-09-11"])).toBeNull(); // ISO dates are unambiguous anyway
+  });
+
+  it("uses the birth dates first, then Google's Timestamp column, else day-first", () => {
+    const file = (rows: string[]) => parseCsv(["Timestamp,Date of Birth", ...rows].join("\n"));
+    expect(resolveDateOrder(file(["10/14/2026 9:00:00,9/11/2003"]), "Date of Birth")).toEqual({
+      order: "MDY",
+      source: "timestamps",
+    });
+    expect(resolveDateOrder(file(["10/14/2026 9:00:00,25/9/2003"]), "Date of Birth")).toEqual({
+      order: "DMY",
+      source: "birth dates",
+    });
+    expect(resolveDateOrder(file(["1/2/2026 9:00:00,9/11/2003"]), "Date of Birth")).toEqual({
+      order: "DMY",
+      source: "default",
+    });
+    expect(resolveDateOrder(file(["10/14/2026 9:00:00,9/11/2003"]), "Date of Birth", "DMY")).toEqual({
+      order: "DMY",
+      source: "chosen",
+    });
+  });
+
+  it("reads 9/11/2003 as 11 September in a month-first Google Form export", () => {
+    const preview = buildRegistrationPreview(
+      parseCsv(
+        [
+          "Timestamp,Email Address,First Name,Last Name,IIT Student ID,WhatsApp Number,Voice Type (Section in choir),Current Year of Study,Date of Birth",
+          "10/14/2026 9:00:00,ravi@iit.ac.lk,Ravi,Silva,W2026900,0771234500,Bass,L5,9/11/2003",
+        ].join("\n"),
+      ),
+      [],
+      options,
+    );
+    expect(preview.dateFormat).toEqual({ order: "MDY", source: "timestamps" });
+    expect(preview.created[0]?.data.dateOfBirth).toBe("2003-09-11");
   });
 });

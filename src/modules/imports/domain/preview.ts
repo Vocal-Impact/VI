@@ -24,6 +24,8 @@ export interface RowIssue {
 export interface ImportPreview<T> {
   totalRows: number;
   missingColumns: string[];
+  /** How dates like 9/11/2003 were read (only when the file has a date column). */
+  dateFormat?: { order: "DMY" | "MDY"; source: "chosen" | "birth dates" | "timestamps" | "default" };
   created: PreviewItem<T>[];
   updated: PreviewItem<T>[];
   unchanged: PreviewItem<T>[];

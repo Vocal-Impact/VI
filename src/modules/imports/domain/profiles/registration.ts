@@ -16,7 +16,14 @@ import {
 } from "@/modules/members/domain";
 import { formatCoordinates, parseCoordinates, type Coordinates } from "@/shared/lib/coordinates";
 import type { IsoDate } from "@/shared/lib/dates";
-import { resolveColumns, type ColumnSpec, type ParsedCsv } from "../csv";
+import {
+  resolveColumns,
+  resolveDateOrder,
+  type ColumnSpec,
+  type DateOrder,
+  type DateOrderChoice,
+  type ParsedCsv,
+} from "../csv";
 import { csvLine, diffFields, emptyPreview, splitDuplicateRows, type ImportPreview, type RowIssue } from "../preview";
 
 /**
@@ -166,6 +173,10 @@ export interface RegistrationOptions {
    * first load of existing members.
    */
   useStatusColumn?: boolean;
+  /** Day-first or month-first dates; AUTO (default) works it out from the file. */
+  dateOrder?: DateOrderChoice;
+  /** Set by buildRegistrationPreview once the file's order is known. */
+  resolvedDateOrder?: DateOrder;
 }
 
 export function parseRegistrationRow(
@@ -187,7 +198,10 @@ export function parseRegistrationRow(
   const email = take("Email", normalizeEmail(cells.email ?? "", options.allowedDomain));
   const voiceType = parseVoiceType(cells.voiceType ?? "");
   const dobCell = cells.dateOfBirth?.trim() ?? "";
-  const dateOfBirth = dobCell === "" ? null : (take("Date of birth", parseDateOfBirth(dobCell, options.today)) ?? null);
+  const dateOfBirth =
+    dobCell === ""
+      ? null
+      : (take("Date of birth", parseDateOfBirth(dobCell, options.today, options.resolvedDateOrder ?? "DMY")) ?? null);
   const status = options.useStatusColumn ? (take("Status", parseMemberStatus(cells.status ?? "")) ?? null) : null;
   const dietaryPreference =
     take("Dietary preferences", normalizeDietaryPreference(cells.dietaryPreference ?? "")) ?? null;
@@ -255,13 +269,18 @@ function forDiff(data: Omit<RegistrationData, "status">) {
 export function buildRegistrationPreview(
   csv: ParsedCsv,
   existingMembers: readonly ExistingMemberSnapshot[],
-  options: RegistrationOptions,
+  initialOptions: RegistrationOptions,
 ): ImportPreview<RegistrationData> {
   const { columns, missing } = resolveColumns(csv.headers, REGISTRATION_COLUMNS);
   if (missing.length > 0) return emptyPreview(csv.rows.length, missing);
+  let options = initialOptions;
 
   const preview = emptyPreview<RegistrationData>(csv.rows.length);
   const valid: Array<{ index: number; value: RegistrationData }> = [];
+  if (columns.dateOfBirth) {
+    preview.dateFormat = resolveDateOrder(csv, columns.dateOfBirth, options.dateOrder);
+    options = { ...options, resolvedDateOrder: preview.dateFormat.order };
+  }
 
   csv.rows.forEach((row, index) => {
     const cells = Object.fromEntries(

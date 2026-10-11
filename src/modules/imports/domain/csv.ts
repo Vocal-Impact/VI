@@ -91,3 +91,52 @@ export function parseYesNo(raw: string | undefined): boolean | null {
     return false;
   return null;
 }
+
+export type DateOrder = "DMY" | "MDY";
+/** How the user asked dates to be read: worked out from the file, or set by hand. */
+export type DateOrderChoice = "AUTO" | DateOrder;
+
+/**
+ * Day-first (15/03/2004) or month-first (03/15/2004)? Counts dates that can
+ * only be read one way (a first part over 12 means day-first, a second part
+ * over 12 means month-first). Null when nothing settles it.
+ */
+export function detectDateOrder(values: readonly string[]): DateOrder | null {
+  let dayFirst = 0;
+  let monthFirst = 0;
+  for (const value of values) {
+    const match = /^\s*(\d{1,2})[/.-](\d{1,2})[/.-]\d{2,4}/.exec(value);
+    if (!match) continue;
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    if (first > 12 && second <= 12) dayFirst += 1;
+    else if (second > 12 && first <= 12) monthFirst += 1;
+  }
+  if (dayFirst === monthFirst) return null;
+  return dayFirst > monthFirst ? "DMY" : "MDY";
+}
+
+export interface DateFormatUsed {
+  order: DateOrder;
+  /** Why: chosen on the import page, worked out from the birth dates or Google's Timestamp column, or the default. */
+  source: "chosen" | "birth dates" | "timestamps" | "default";
+}
+
+/**
+ * The date order for a file: the user's choice, else the birth dates
+ * themselves, else Google Forms' Timestamp column (written in the same
+ * format as date answers), else day-first.
+ */
+export function resolveDateOrder(
+  csv: ParsedCsv,
+  dateHeader: string | undefined,
+  choice: DateOrderChoice = "AUTO",
+): DateFormatUsed {
+  if (choice !== "AUTO") return { order: choice, source: "chosen" };
+  const fromDates = dateHeader ? detectDateOrder(csv.rows.map((row) => row[dateHeader] ?? "")) : null;
+  if (fromDates) return { order: fromDates, source: "birth dates" };
+  const timestampHeader = csv.headers.find((header) => normalizeHeader(header) === "timestamp");
+  const fromTimestamps = timestampHeader ? detectDateOrder(csv.rows.map((row) => row[timestampHeader] ?? "")) : null;
+  if (fromTimestamps) return { order: fromTimestamps, source: "timestamps" };
+  return { order: "DMY", source: "default" };
+}

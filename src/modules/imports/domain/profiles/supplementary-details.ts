@@ -1,6 +1,13 @@
 import { normalizeStudentId, parseDateOfBirth } from "@/modules/members/domain";
 import type { IsoDate } from "@/shared/lib/dates";
-import { parseYesNo, resolveColumns, type ColumnSpec, type ParsedCsv } from "../csv";
+import {
+  parseYesNo,
+  resolveColumns,
+  resolveDateOrder,
+  type ColumnSpec,
+  type DateOrderChoice,
+  type ParsedCsv,
+} from "../csv";
 import { csvLine, diffFields, emptyPreview, splitDuplicateRows, type ImportPreview } from "../preview";
 
 /** Profile for the follow-up Google Form (birthday, area, carpool details). */
@@ -50,7 +57,7 @@ const MAX_SEATS = 6;
 export function buildSupplementaryPreview(
   csv: ParsedCsv,
   existingMembers: readonly ExistingSupplementarySnapshot[],
-  options: { today: IsoDate },
+  options: { today: IsoDate; dateOrder?: DateOrderChoice },
 ): ImportPreview<SupplementaryData> {
   const { columns, missing } = resolveColumns(csv.headers, SUPPLEMENTARY_COLUMNS);
   if (missing.length > 0) return emptyPreview(csv.rows.length, missing);
@@ -59,6 +66,8 @@ export function buildSupplementaryPreview(
   }
 
   const preview = emptyPreview<SupplementaryData>(csv.rows.length);
+  if (columns.dateOfBirth) preview.dateFormat = resolveDateOrder(csv, columns.dateOfBirth, options.dateOrder);
+  const dateOrder = preview.dateFormat?.order ?? "DMY";
   const valid: Array<{ index: number; value: SupplementaryData }> = [];
   const cell = (row: Record<string, string>, field: Field) =>
     columns[field] ? (row[columns[field]] ?? "").trim() : "";
@@ -71,7 +80,7 @@ export function buildSupplementaryPreview(
     let dateOfBirth: IsoDate | null = null;
     const dobCell = cell(row, "dateOfBirth");
     if (dobCell) {
-      const parsed = parseDateOfBirth(dobCell, options.today);
+      const parsed = parseDateOfBirth(dobCell, options.today, dateOrder);
       if (parsed.ok) dateOfBirth = parsed.value;
       else messages.push(`Date of birth: ${parsed.message}`);
     }

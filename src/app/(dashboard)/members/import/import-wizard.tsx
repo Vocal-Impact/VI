@@ -25,6 +25,13 @@ const PROFILES = {
 
 const initial: ImportActionState = { status: "idle" };
 
+const DATE_SOURCE_LABELS = {
+  chosen: "as you chose",
+  "birth dates": "worked out from the birth dates",
+  timestamps: "worked out from Google's Timestamp column",
+  default: "the file didn't say, so day-first was assumed",
+} as const;
+
 export function ImportWizard() {
   const [state, formAction] = useActionState(importAction, initial);
   const [profile, setProfile] = useState<keyof typeof PROFILES>(state.profile ?? "REGISTRATION");
@@ -71,6 +78,21 @@ export function ImportWizard() {
             from {preview.totalRows} rows in {state.fileName}
           </span>
         </div>
+        {preview.dateFormat ? (
+          <p className="text-sm text-slate-600">
+            📅 Dates read as <b>{preview.dateFormat.order === "MDY" ? "month/day/year" : "day/month/year"}</b> (
+            {DATE_SOURCE_LABELS[preview.dateFormat.source]}), so 9/11/2003 is{" "}
+            {preview.dateFormat.order === "MDY" ? "11 September" : "9 November"}. Wrong?{" "}
+            <button
+              type="button"
+              className="font-medium text-brand-700 underline"
+              onClick={() => window.location.reload()}
+            >
+              Choose the date format and preview again
+            </button>
+            .
+          </p>
+        ) : null}
 
         {preview.created.length > 0 && state.profile === "REGISTRATION" ? (
           state.useStatusColumn ? (
@@ -113,6 +135,7 @@ export function ImportWizard() {
           <input type="hidden" name="fileName" value={state.fileName} />
           <input type="hidden" name="csvText" value={state.csvText} />
           {state.useStatusColumn ? <input type="hidden" name="useStatusColumn" value="on" /> : null}
+          <input type="hidden" name="dateOrder" value={state.dateOrder ?? "AUTO"} />
           <SubmitButton
             disabled={!canCommit}
             pendingText="Importing…"
@@ -154,6 +177,17 @@ export function ImportWizard() {
           </Field>
           <Field label="CSV file" htmlFor="file" hint="Max 1 MB">
             <Input id="file" name="file" type="file" accept=".csv,text/csv" required className="py-1.5" />
+          </Field>
+          <Field
+            label="Date format"
+            htmlFor="dateOrder"
+            hint="Google Forms writes dates in the sheet's format. Automatic works it out from the file."
+          >
+            <Select id="dateOrder" name="dateOrder" defaultValue="AUTO">
+              <option value="AUTO">Work it out automatically</option>
+              <option value="MDY">Month first: MM/DD/YYYY (9/11/2003 = 11 September)</option>
+              <option value="DMY">Day first: DD/MM/YYYY (9/11/2003 = 9 November)</option>
+            </Select>
           </Field>
           {profile === "REGISTRATION" ? (
             <Checkbox

@@ -19,6 +19,7 @@ import {
   previewImport,
   IMPORT_PROFILES,
   type AnyPreview,
+  type DateOrderChoice,
   type ImportProfileName,
   type ImportSummary,
 } from "@/modules/imports";
@@ -211,6 +212,8 @@ export interface ImportActionState {
   summary?: ImportSummary;
   /** First-time load of existing members: take new members' status from the file. */
   useStatusColumn?: boolean;
+  /** How dates were asked to be read: AUTO, DMY or MDY. */
+  dateOrder?: DateOrderChoice;
 }
 
 function readProfile(value: FormDataEntryValue | null): ImportProfileName {
@@ -222,11 +225,13 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   const profile = readProfile(formData.get("profile"));
   const step = formData.get("step");
   const useStatusColumn = profile === "REGISTRATION" && formData.get("useStatusColumn") === "on";
+  const dateOrderValue = formData.get("dateOrder");
+  const dateOrder: DateOrderChoice = dateOrderValue === "DMY" || dateOrderValue === "MDY" ? dateOrderValue : "AUTO";
 
   if (step === "commit") {
     const csvText = String(formData.get("csvText") ?? "");
     const fileName = String(formData.get("fileName") ?? "import.csv");
-    const result = await commitImport(profile, csvText, fileName, user.id, { useStatusColumn });
+    const result = await commitImport(profile, csvText, fileName, user.id, { useStatusColumn, dateOrder });
     if (!result.ok) return { status: "error", message: result.error.message, profile };
     geocodeSoon(result.value.locationsToGeocode);
     revalidatePath("/members");
@@ -240,7 +245,15 @@ export async function importAction(_prev: ImportActionState, formData: FormData)
   if (!file.name.toLowerCase().endsWith(".csv"))
     return { status: "error", message: "The file must be a .csv export", profile };
   const csvText = await file.text();
-  const result = await previewImport(profile, csvText, { useStatusColumn });
+  const result = await previewImport(profile, csvText, { useStatusColumn, dateOrder });
   if (!result.ok) return { status: "error", message: result.error.message, profile };
-  return { status: "preview", profile, fileName: file.name, csvText, preview: result.value, useStatusColumn };
+  return {
+    status: "preview",
+    profile,
+    fileName: file.name,
+    csvText,
+    preview: result.value,
+    useStatusColumn,
+    dateOrder,
+  };
 }

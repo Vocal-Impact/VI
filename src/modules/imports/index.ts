@@ -9,4 +9,5 @@ export {
   type ImportSummary,
   type ImportOptions,
 } from "./application/imports";
+export type { DateOrderChoice } from "./domain/csv";
 export type { ImportPreview, PreviewItem, RowIssue, FieldChange } from "./domain/preview";
