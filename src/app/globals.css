@@ -164,3 +164,24 @@ h2 {
     transition-duration: 1ms !important;
   }
 }
+
+/*
+ * iPhone and iPad only (-webkit-touch-callout exists only there): Safari draws date and time
+ * fields itself, with the value sitting high in the box. Lay them out like the other fields,
+ * with the value vertically centred and left-aligned.
+ */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: flex;
+    align-items: center;
+    line-height: normal;
+  }
+  input::-webkit-date-and-time-value {
+    margin: 0;
+    text-align: left;
+  }
+}

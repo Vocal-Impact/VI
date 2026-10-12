@@ -16,6 +16,17 @@ async function expectUsable(dialog: Locator, saveButton: string) {
   });
   expect(body.height).toBeGreaterThan(150);
   expect(body.dialogHeight).toBeLessThanOrEqual(body.viewport);
+  // On phones every field has at least 16px text, or iPhone Safari zooms in when it's tapped.
+  const smallestText = await dialog.evaluate((element) =>
+    window.innerWidth >= 640
+      ? 16
+      : Math.min(
+          ...Array.from(element.querySelectorAll("input:not([type=checkbox]):not([type=radio]), select, textarea")).map(
+            (field) => parseFloat(getComputedStyle(field).fontSize),
+          ),
+        ),
+  );
+  expect(smallestText).toBeGreaterThanOrEqual(16);
   const save = dialog.getByRole("button", { name: saveButton });
   await save.scrollIntoViewIfNeeded();
   await expect(save).toBeInViewport();

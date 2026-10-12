@@ -1,8 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 
+// 16px text on phones (text-base): iPhone Safari zooms into any field with smaller text when it's tapped.
 const control =
-  "block w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 " +
+  "block w-full rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-900 shadow-sm placeholder:text-slate-400 sm:text-sm " +
   "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100 aria-invalid:border-red-500";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
