@@ -176,12 +176,12 @@ h2 {
   input[type="datetime-local"] {
     -webkit-appearance: none;
     appearance: none;
-    display: flex;
-    align-items: center;
-    line-height: normal;
   }
+  /* Centred by giving the value line the field's inner height (h-10 minus the 1px borders).
+     Not flexbox on the field: in some WebKit builds that keeps relaying out a filled time field. */
   input::-webkit-date-and-time-value {
     margin: 0;
     text-align: left;
+    line-height: calc(2.5rem - 2px);
   }
 }

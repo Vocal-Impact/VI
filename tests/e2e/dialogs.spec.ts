@@ -33,7 +33,8 @@ async function expectUsable(dialog: Locator, saveButton: string) {
 }
 
 test("add and edit forms open fully, in every browser", async ({ page }, testInfo) => {
-  const tag = testInfo.project.name;
+  // Unique per run and retry: a retry must not trip over the group a failed attempt already added.
+  const tag = `${testInfo.project.name} ${Date.now().toString(36)}`;
   await openDashboard(page);
 
   // Add a member.
@@ -48,7 +49,7 @@ test("add and edit forms open fully, in every browser", async ({ page }, testInf
   dialog = await openFormDialog(page, "Add group");
   await expectUsable(dialog, "Add group");
   await dialog.getByLabel("Group name").fill(`Dialog check ${tag}`);
-  await dialog.getByLabel("Invite link").fill(`https://chat.whatsapp.com/DialogCheck${tag.replace(/\W/g, "")}1234`);
+  await dialog.getByLabel("Invite link").fill(`https://chat.whatsapp.com/DialogCheck${tag.replace(/\W/g, "")}`);
   await dialog.getByRole("button", { name: "Add group" }).click();
   await confirmDialog(page);
   await expect(dialog).toBeHidden();
@@ -78,5 +79,5 @@ test("add and edit forms open fully, in every browser", async ({ page }, testInf
   await page.getByRole("link", { name: "Mala Member" }).click();
   dialog = await openFormDialog(page, "Edit");
   await expectUsable(dialog, "Save changes");
-  await page.screenshot({ path: `test-results/edit-member-${tag}.png` });
+  await page.screenshot({ path: `test-results/edit-member-${testInfo.project.name}.png` });
 });
