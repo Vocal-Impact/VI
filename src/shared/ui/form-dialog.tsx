@@ -111,7 +111,7 @@ export function FormDialog({
           size === "lg" ? "[--dialog-width:48rem]" : "[--dialog-width:32rem]",
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
           <div className="min-w-0">
             <h2 id={titleId} className="font-display text-lg leading-snug font-black text-ink">
               {title}
@@ -127,7 +127,12 @@ export function FormDialog({
             <X className="size-5" aria-hidden="true" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+        {/*
+          flex-auto (grow and shrink from the content's own height), not flex-1: older Safari
+          (iPhone, Mac) sizes a flex-1 body inside a dialog without a set height as 0 tall, which
+          collapsed the form. With max-h on the dialog, a long form still shrinks and scrolls here.
+        */}
+        <div className="min-h-0 flex-auto overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5">
           <Context.Provider value={{ close }}>{opened ? children : null}</Context.Provider>
         </div>
       </dialog>

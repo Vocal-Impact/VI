@@ -81,9 +81,11 @@ test("access changes show straight away, without a refresh", async ({ page }) =>
   await expect(page.getByRole("link", { name: /Batch leads/ })).toContainText("1"); // the count
 
   // Saving again without changes keeps showing the same access.
+  // Mark the dropdown: once saved, the row's controls are rebuilt, so a fresh one replaces it.
+  await select.evaluate((element) => element.setAttribute("data-before-save", ""));
   await row.getByRole("button", { name: "Save" }).click();
   await confirmDialog(page);
-  await page.waitForLoadState("networkidle"); // the save has finished
+  await expect(row.locator("select[data-before-save]")).toHaveCount(0);
   await expect(select).toHaveValue("BATCH_LEAD");
 
   // And back to Member.

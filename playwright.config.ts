@@ -37,6 +37,19 @@ export default defineConfig({
       dependencies: ["setup"],
       testMatch: /mobile\.spec\.ts/,
     },
+    // Safari's engine (Mac and iPhone) lays some things out differently: check the forms there too.
+    {
+      name: "safari",
+      use: { ...devices["Desktop Safari"], storageState: STORAGE_STATE },
+      dependencies: ["setup"],
+      testMatch: /dialogs\.spec\.ts/,
+    },
+    {
+      name: "iphone",
+      use: { ...devices["iPhone 13"], storageState: STORAGE_STATE },
+      dependencies: ["setup"],
+      testMatch: /dialogs\.spec\.ts/,
+    },
   ],
   webServer: {
     command: `npx next start -p ${E2E_PORT}`,
