@@ -29,13 +29,17 @@ enum VoiceType {
   UNASSIGNED
 }
 
-/// IIT levels, in order. Every 1 September members move up one; after L6 they become alumni.
+/// IIT levels. Every 1 September members move up one (Foundation → L6); after L6 they become alumni.
 enum StudyLevel {
   FOUNDATION
   L4
   L5
   PLACEMENT
   L6
+  /// Finished their studies (set by the September rollover after L6).
+  ALUMNI
+  /// Anyone outside the usual levels (e.g. Infoschol or part-time students). Never moved up.
+  OTHER
 }
 
 enum MemberStatus {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isIsoDate } from "@/shared/lib/dates";
-import { STUDY_LEVELS } from "@/modules/members/domain";
+import { CURRENT_STUDY_LEVELS } from "@/modules/members/domain";
 import { isValidTime, PRACTICE_AUDIENCES, RSVP_RESPONSES, TENTATIVE_VENUE } from "./domain/practice";
 
 const optionalText = (max: number) =>
@@ -26,7 +26,7 @@ export const practiceInputSchema = z
     notes: optionalText(500),
     audience: z.enum(PRACTICE_AUDIENCES).optional().default("MEMBERS"),
     /** LEVELS practices: the levels invited. */
-    levels: z.array(z.enum(STUDY_LEVELS)).optional().default([]),
+    levels: z.array(z.enum(CURRENT_STUDY_LEVELS)).optional().default([]),
     /** SELECTED practices: the members invited. */
     memberIds: z.array(z.uuid()).max(500).optional().default([]),
   })

@@ -52,8 +52,14 @@ describe("parseStudyLevel", () => {
     ["Year 3", "PLACEMENT"],
     ["Final year", "L6"],
     ["PLACEMENT", "PLACEMENT"],
-    ["Done", "L6"],
-    ["Graduated", "L6"],
+    ["Done", "ALUMNI"],
+    ["Graduated", "ALUMNI"],
+    ["Alumni", "ALUMNI"],
+    ["Other", "OTHER"],
+    ["Infoschol", "OTHER"],
+    ["Part time", "OTHER"],
+    ["Part-time student", "OTHER"],
+    ["OTHER", "OTHER"],
   ])("parses %s", (input, expected) => {
     expect(value(parseStudyLevel(input))).toBe(expected);
   });
@@ -87,7 +93,9 @@ describe("nextStudyLevel", () => {
     expect(nextStudyLevel("FOUNDATION")).toBe("L4");
     expect(nextStudyLevel("L5")).toBe("PLACEMENT");
     expect(nextStudyLevel("PLACEMENT")).toBe("L6");
-    expect(nextStudyLevel("L6")).toBe("GRADUATED");
+    expect(nextStudyLevel("L6")).toBe("ALUMNI");
+    expect(nextStudyLevel("ALUMNI")).toBe("ALUMNI");
+    expect(nextStudyLevel("OTHER")).toBe("OTHER");
   });
 });
 

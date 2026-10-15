@@ -16,7 +16,7 @@ import {
   RsvpCountBadges,
   VenueBookingBadge,
 } from "@/modules/attendance/ui";
-import { STUDY_LEVEL_LABELS, STUDY_LEVELS, VOICE_TYPE_LABELS } from "@/modules/members/domain";
+import { CURRENT_STUDY_LEVELS, STUDY_LEVEL_LABELS, VOICE_TYPE_LABELS } from "@/modules/members/domain";
 import { cn } from "@/shared/lib/cn";
 import { todayLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
@@ -65,7 +65,7 @@ export default async function PracticesPage() {
                   action={schedulePracticeAction}
                   mode="schedule"
                   audienceChoices={canInvite ? ["MEMBERS", "LEVELS", "SELECTED"] : ["MEMBERS", "LEVELS"]}
-                  levelChoices={STUDY_LEVELS}
+                  levelChoices={CURRENT_STUDY_LEVELS}
                   members={invitable.map((member) => ({
                     id: member.id,
                     name: `${member.firstName} ${member.lastName}`,

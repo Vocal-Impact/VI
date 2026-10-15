@@ -123,6 +123,7 @@ describe("encrypted personal data", () => {
 
 describe("September study-year rollover", () => {
   it("moves everyone up a level once per academic year and makes L6 finishers alumni", async () => {
+    await createMember({ firstName: "Infoschol", status: "ACTIVE", yearOfStudy: "OTHER" });
     const foundation = await createMember({ firstName: "Foundation" });
     const l5 = await createMember({ firstName: "L5", status: "ACTIVE" });
     const finalYear = await createMember({ firstName: "Final", status: "ACTIVE" });
@@ -130,7 +131,7 @@ describe("September study-year rollover", () => {
     await prisma.member.update({ where: { id: foundation.id }, data: { yearOfStudy: "FOUNDATION" } });
     await prisma.member.update({ where: { id: l5.id }, data: { yearOfStudy: "L5" } });
     await prisma.member.update({ where: { id: finalYear.id }, data: { yearOfStudy: "L6" } });
-    await prisma.member.update({ where: { id: alumnus.id }, data: { yearOfStudy: "L6" } });
+    await prisma.member.update({ where: { id: alumnus.id }, data: { yearOfStudy: "ALUMNI" } });
 
     // First run only records the year the typed-in levels describe.
     expect(await runStudyYearRollover("2026-10-04")).toMatchObject({ academicYear: 2026, rollovers: 0 });
@@ -147,8 +148,9 @@ describe("September study-year rollover", () => {
     expect(await levels()).toEqual({
       Foundation: "L4 PROSPECTIVE",
       L5: "PLACEMENT ACTIVE",
-      Final: "L6 ALUMNI",
-      Alumnus: "L6 ALUMNI",
+      Final: "ALUMNI ALUMNI",
+      Alumnus: "ALUMNI ALUMNI",
+      Infoschol: "OTHER ACTIVE", // Other never moves up
     });
 
     // Daily cron calls on the following days do nothing more.

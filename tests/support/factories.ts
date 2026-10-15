@@ -34,7 +34,7 @@ export async function createMember(
     studentId: string;
     email: string;
     voiceType: "SOPRANO" | "ALTO" | "TENOR" | "BASS" | "UNASSIGNED";
-    yearOfStudy: "FOUNDATION" | "L4" | "L5" | "PLACEMENT" | "L6";
+    yearOfStudy: "FOUNDATION" | "L4" | "L5" | "PLACEMENT" | "L6" | "ALUMNI" | "OTHER";
   }> = {},
 ) {
   const n = next();

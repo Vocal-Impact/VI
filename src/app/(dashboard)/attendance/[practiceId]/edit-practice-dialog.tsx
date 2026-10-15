@@ -1,6 +1,6 @@
 import { hasPermission, type SessionUser } from "@/modules/auth";
 import { listInvitableMembers, type PracticeView } from "@/modules/attendance";
-import { STUDY_LEVEL_LABELS, STUDY_LEVELS, VOICE_TYPE_LABELS } from "@/modules/members/domain";
+import { CURRENT_STUDY_LEVELS, STUDY_LEVEL_LABELS, VOICE_TYPE_LABELS } from "@/modules/members/domain";
 import { FormDialog } from "@/shared/ui/client";
 import { updatePracticeAction } from "../actions";
 import { PracticeForm } from "../practice-form";
@@ -24,7 +24,7 @@ export async function EditPracticeDialog({ practice, user }: { practice: Practic
         audience={practice.audience}
         // Batch leads keep their own level; the committee can change the levels.
         levelChoices={
-          hasPermission(user.role, "practices:manage") || !user.studyLevel ? STUDY_LEVELS : [user.studyLevel]
+          hasPermission(user.role, "practices:manage") || !user.studyLevel ? CURRENT_STUDY_LEVELS : [user.studyLevel]
         }
         members={members.map((member) => ({
           id: member.id,

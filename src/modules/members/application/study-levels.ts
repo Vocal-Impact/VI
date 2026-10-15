@@ -3,7 +3,7 @@ import { prisma } from "@/shared/db/prisma";
 import { writeAuditLog } from "@/shared/audit/audit-log";
 import { todayLocal } from "@/shared/lib/clock";
 import type { IsoDate } from "@/shared/lib/dates";
-import { STUDY_LEVELS } from "../domain/member";
+import { STUDY_PROGRESSION } from "../domain/member";
 import { academicYearOf, nextRolloverDate } from "../domain/study-year";
 
 /** Internal setting: the academic year members' levels currently describe. */
@@ -30,7 +30,7 @@ export async function getStudyYearStatus(today: IsoDate = todayLocal()) {
 
 /**
  * Moves everyone up a level when a new academic year has started (1 September):
- * Foundation → L4 → L5 → Placement Year → L6 → alumni. Alumni are left alone.
+ * Foundation → L4 → L5 → Placement Year → L6 → alumni. Alumni and Other are left alone.
  * Safe to call every day: it only acts once per academic year. The first call
  * just records the current academic year (the levels typed in are current).
  */
@@ -50,17 +50,18 @@ export async function runStudyYearRollover(today: IsoDate = todayLocal()): Promi
   const summary: RolloverSummary = { academicYear: current, rollovers: current - stored, promoted: 0, graduated: 0 };
   await prisma.$transaction(async (tx) => {
     for (let run = 0; run < summary.rollovers; run += 1) {
-      // Finishing L6 → alumni (they keep L6 as their last level).
+      // Finishing L6 → alumni, both their status and their year of study.
       const graduated = await tx.member.updateMany({
-        where: { yearOfStudy: "L6", status: { not: "ALUMNI" } },
-        data: { status: "ALUMNI" },
+        where: { yearOfStudy: "L6" },
+        data: { status: "ALUMNI", yearOfStudy: "ALUMNI" },
       });
       summary.graduated += graduated.count;
-      // Highest level first, so nobody moves up twice in one run.
-      for (let index = STUDY_LEVELS.length - 2; index >= 0; index -= 1) {
+      // Highest level first, so nobody moves up twice in one run. Other (Infoschol,
+      // part-time…) and Alumni aren't in the progression, so they stay put.
+      for (let index = STUDY_PROGRESSION.length - 2; index >= 0; index -= 1) {
         const promoted = await tx.member.updateMany({
-          where: { yearOfStudy: STUDY_LEVELS[index], status: { not: "ALUMNI" } },
-          data: { yearOfStudy: STUDY_LEVELS[index + 1] },
+          where: { yearOfStudy: STUDY_PROGRESSION[index], status: { not: "ALUMNI" } },
+          data: { yearOfStudy: STUDY_PROGRESSION[index + 1] },
         });
         summary.promoted += promoted.count;
       }

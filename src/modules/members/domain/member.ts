@@ -28,9 +28,18 @@ export const MEMBER_STATUS_LABELS: Record<MemberStatus, string> = {
   ALUMNI: "Alumni",
 };
 
-/** IIT levels in order. Members move up one every 1 September; after L6 they become alumni. */
-export const STUDY_LEVELS = ["FOUNDATION", "L4", "L5", "PLACEMENT", "L6"] as const;
+/**
+ * Every year of study: the IIT levels in order, then Alumni (finished) and
+ * Other (e.g. Infoschol or part-time students, outside the usual levels).
+ */
+export const STUDY_LEVELS = ["FOUNDATION", "L4", "L5", "PLACEMENT", "L6", "ALUMNI", "OTHER"] as const;
 export type StudyLevel = (typeof STUDY_LEVELS)[number];
+
+/** The levels members move up through every 1 September; after L6 they become alumni. */
+export const STUDY_PROGRESSION = ["FOUNDATION", "L4", "L5", "PLACEMENT", "L6"] as const satisfies readonly StudyLevel[];
+
+/** Levels a practice can be for (alumni have alumni practices instead). */
+export const CURRENT_STUDY_LEVELS = [...STUDY_PROGRESSION, "OTHER"] as const satisfies readonly StudyLevel[];
 
 export const STUDY_LEVEL_LABELS: Record<StudyLevel, string> = {
   FOUNDATION: "Foundation",
@@ -38,12 +47,15 @@ export const STUDY_LEVEL_LABELS: Record<StudyLevel, string> = {
   L5: "L5",
   PLACEMENT: "Placement Year",
   L6: "L6",
+  ALUMNI: "Alumni",
+  OTHER: "Other",
 };
 
-/** The level after the September rollover, or "GRADUATED" after L6. */
-export function nextStudyLevel(level: StudyLevel): StudyLevel | "GRADUATED" {
-  const index = STUDY_LEVELS.indexOf(level);
-  return STUDY_LEVELS[index + 1] ?? "GRADUATED";
+/** The level after the September rollover: up one, Alumni after L6; Alumni and Other stay as they are. */
+export function nextStudyLevel(level: StudyLevel): StudyLevel {
+  const index = (STUDY_PROGRESSION as readonly string[]).indexOf(level);
+  if (index === -1) return level;
+  return STUDY_PROGRESSION[index + 1] ?? "ALUMNI";
 }
 
 export const MAX_DIETARY_PREFERENCE_LENGTH = 200;
@@ -84,13 +96,15 @@ export function parseStudyLevel(raw: string): Parsed<StudyLevel> {
   if (text.includes("placement") || text.includes("industr") || text.includes("internship"))
     return success("PLACEMENT");
   if (text.includes("final")) return success("L6");
-  if (["done", "finished", "completed", "graduated", "passed out", "alumni"].some((word) => text.startsWith(word)))
-    return success("L6");
+  if (["done", "finished", "completed", "graduated", "passed out", "alum"].some((word) => text.startsWith(word)))
+    return success("ALUMNI");
+  if (["other", "info", "part time", "part-time", "parttime"].some((word) => text.startsWith(word)))
+    return success("OTHER");
   const level = text.match(/^(?:l|level)\s*([4-6])\b/);
   if (level) return success(`L${level[1]}` as StudyLevel);
   const year = text.match(/^(?:year\s*)?([1-4])(?:st|nd|rd|th)?(?:\s*year)?$/);
   if (year) return success((["L4", "L5", "PLACEMENT", "L6"] as const)[Number(year[1]) - 1]!);
-  return failure("Choose Foundation, L4, L5, Placement Year or L6");
+  return failure("Choose Foundation, L4, L5, Placement Year, L6, Alumni or Other");
 }
 
 /** Optional free text such as "Vegetarian, no nuts". Empty → null. */
