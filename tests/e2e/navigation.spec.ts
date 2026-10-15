@@ -64,6 +64,14 @@ test("upcoming practices show four and scroll the rest inside the card", async (
   expect(fourthBottom).toBeLessThanOrEqual(top + clientHeight + 1); // four fully shown
   expect(fifthTop).toBeGreaterThanOrEqual(top + clientHeight - 1); // the fifth starts below the fold
   await page.screenshot({ path: "test-results/dashboard-capped.png", fullPage: true });
+
+  // Scrolling past the end of the list carries on scrolling the page ("contain" would trap it).
+  expect(await region.evaluate((element) => getComputedStyle(element).overscrollBehaviorY)).toBe("auto");
+  await region.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+  await region.hover();
+  const before = await page.evaluate(() => window.scrollY);
+  await page.mouse.wheel(0, 600);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
 });
 
 test("access changes show straight away, without a refresh", async ({ page }) => {

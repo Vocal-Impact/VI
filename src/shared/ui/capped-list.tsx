@@ -58,7 +58,9 @@ export function CappedList({
       tabIndex={scrolls ? 0 : undefined}
       style={scrolls ? { maxHeight } : undefined}
       className={cn(
-        scrolls && "overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-brand-600",
+        // No overscroll-contain: once the list reaches its end, the page carries on scrolling
+        // (so you don't have to move the pointer or finger outside the list to scroll the page).
+        scrolls && "overflow-y-auto focus-visible:outline-2 focus-visible:outline-brand-600",
         items?.includes("tr") && "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-white",
         className,
       )}
