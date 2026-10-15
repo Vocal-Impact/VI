@@ -7,6 +7,7 @@ import { Check } from "lucide-react";
 import type { ChecklistEntry } from "@/modules/attendance";
 import { attendanceProgress } from "@/modules/attendance/domain";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
+import { byVoicePart, VoicePartSelect, type VoicePartFilter } from "@/modules/members/ui";
 import { cn } from "@/shared/lib/cn";
 import { Input } from "@/shared/ui/form";
 import { Badge, Card, EmptyState } from "@/shared/ui/layout";
@@ -28,14 +29,16 @@ export function AttendanceChecklist({
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [query, setQuery] = useState("");
+  const [part, setPart] = useState<VoicePartFilter>("ALL");
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter((entry) => entry.name.toLowerCase().includes(q) || entry.studentId.toLowerCase().includes(q));
-  }, [entries, query]);
+    const inPart = byVoicePart(entries, part);
+    if (!q) return inPart;
+    return inPart.filter((entry) => entry.name.toLowerCase().includes(q) || entry.studentId.toLowerCase().includes(q));
+  }, [entries, query, part]);
   const presentCount = entries.filter((entry) => entry.present).length;
 
   function toggle(entry: ChecklistEntry) {
@@ -80,13 +83,17 @@ export function AttendanceChecklist({
           </span>
           {readOnly ? <Badge>View only</Badge> : <span className="text-slate-500">Tap a name to mark present</span>}
         </div>
-        <Input
-          type="search"
-          placeholder="Search by name or student ID"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label="Search members"
-        />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            type="search"
+            placeholder="Search by name or student ID"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label="Search members"
+            className="sm:flex-1"
+          />
+          <VoicePartSelect value={part} onChange={setPart} />
+        </div>
       </div>
 
       {filtered.length === 0 ? (

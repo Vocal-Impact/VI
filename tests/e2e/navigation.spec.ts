@@ -96,3 +96,34 @@ test("access changes show straight away, without a refresh", async ({ page }) =>
   await expect(select).toHaveValue("NONE");
   await expect(row.getByRole("button", { name: "Save" })).toBeVisible();
 });
+
+test("replies and the attendance list can be narrowed to one voice part", async ({ page }) => {
+  await openDashboard(page);
+  // A practice nobody has replied to: Mala (a soprano) is in "No reply yet".
+  await schedulePractice(page, { date: isoDaysAgo(-30), start: "18:00", title: "Section check" });
+  await page.goto("/attendance");
+  await page.getByRole("link", { name: /^Open Section check/ }).click();
+  const replies = page.getByRole("region", { name: "Replies" });
+  const noReply = replies.locator("section").filter({ hasText: "No reply yet" });
+  await expect(noReply.getByRole("link", { name: "Mala Member" })).toBeVisible();
+  await replies.getByLabel("Voice part").selectOption("TENOR");
+  await expect(noReply.getByRole("link", { name: "Mala Member" })).toHaveCount(0);
+  await replies.getByLabel("Voice part").selectOption("SOPRANO");
+  await expect(noReply.getByRole("link", { name: "Mala Member" })).toBeVisible();
+
+  // Today's practice: the attendance list filters the same way.
+  await page.goto("/attendance");
+  await page.getByRole("link", { name: "Take attendance" }).click();
+  const list = page.getByRole("list", { name: "Members" });
+  await expect(list.getByText("Mala Member")).toBeVisible();
+  await page.getByRole("combobox", { name: "Voice part" }).last().selectOption("TENOR");
+  await expect(list.getByText("Mala Member")).toHaveCount(0);
+  await page.getByRole("combobox", { name: "Voice part" }).last().selectOption("ALL");
+  await expect(list.getByText("Mala Member")).toBeVisible();
+});
+
+test("the members list says how many there are and pages them", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/members");
+  await expect(page.getByRole("navigation", { name: "Pages" })).toContainText(/Showing 1–\d+ of \d+ members/);
+});

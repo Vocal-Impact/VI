@@ -17,7 +17,6 @@ import {
   getVenueRequestLinks,
 } from "@/modules/attendance";
 import { PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
-import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { todayLocal } from "@/shared/lib/clock";
 import { isFeatureEnabled } from "@/shared/config/features";
 import { formatIsoDate } from "@/shared/lib/dates";
@@ -28,6 +27,7 @@ import { Alert, Card, CardBody, CardHeader, PageHeader } from "@/shared/ui/layou
 import { deletePracticeAction, setPracticeCancelledAction, setVenueBookingAction } from "../actions";
 import { AttendanceChecklist } from "./attendance-checklist";
 import { EditPracticeDialog } from "./edit-practice-dialog";
+import { RsvpBoard, type RsvpBoardPerson } from "./rsvp-board";
 import { VenueConfirmButton } from "./venue-confirm-button";
 
 export const metadata = { title: "Practice" };
@@ -258,28 +258,12 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
       ) : null}
 
       {(canManage || hasPermission(user.role, "rsvps:read")) && practice.status === "SCHEDULED" ? (
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
-          <RsvpList
-            title="Going"
-            tone="text-emerald-700"
-            people={summary.going}
-            showTime
-            linkToProfiles={canOpenProfiles}
-          />
-          <RsvpList
-            title="Can't make it"
-            tone="text-red-600"
-            people={summary.notGoing}
-            showTime
-            linkToProfiles={canOpenProfiles}
-          />
-          <RsvpList
-            title="No reply yet"
-            tone="text-slate-500"
-            people={summary.noResponse}
-            linkToProfiles={canOpenProfiles}
-          />
-        </div>
+        <RsvpBoard
+          going={summary.going.map(forBoard)}
+          notGoing={summary.notGoing.map(forBoard)}
+          noResponse={summary.noResponse.map(forBoard)}
+          linkToProfiles={canOpenProfiles}
+        />
       ) : null}
 
       {!canSeeAttendance ? null : practice.status === "CANCELLED" ? (
@@ -306,55 +290,22 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   );
 }
 
-function RsvpList({
-  title,
-  tone,
-  people,
-  showTime = false,
-  linkToProfiles = true,
-}: {
-  title: string;
-  tone: string;
-  people: RsvpPerson[];
-  showTime?: boolean;
-  /** Off for alumni organisers, who can't open member profiles. */
-  linkToProfiles?: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader title={`${title} (${people.length})`} className={tone} />
-      <CardBody>
-        {people.length === 0 ? (
-          <p className="text-sm text-slate-500">Nobody.</p>
-        ) : (
-          <ul className="max-h-72 space-y-1.5 overflow-y-auto text-sm">
-            {people.map((person) => (
-              <li key={person.memberId} className="flex justify-between gap-2">
-                {linkToProfiles ? (
-                  <Link href={`/members/${person.memberId}`} className="truncate hover:underline">
-                    {person.name}
-                  </Link>
-                ) : (
-                  <span className="truncate">{person.name}</span>
-                )}
-                <span className="shrink-0 text-xs text-slate-500">
-                  {showTime && person.respondedAt
-                    ? person.respondedAt.toLocaleString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        timeZone: "Asia/Colombo",
-                      })
-                    : VOICE_TYPE_LABELS[person.voiceType as VoiceType]}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardBody>
-    </Card>
-  );
+/** A reply for the board, with the time formatted here so the browser shows the same text. */
+function forBoard(person: RsvpPerson): RsvpBoardPerson {
+  return {
+    memberId: person.memberId,
+    name: person.name,
+    voiceType: person.voiceType,
+    replied: person.respondedAt
+      ? person.respondedAt.toLocaleString("en-GB", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Asia/Colombo",
+        })
+      : null,
+  };
 }
 
 /** "Tue, 7 Oct, 3:45 PM" in Sri Lanka time. */
