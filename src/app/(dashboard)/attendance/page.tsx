@@ -45,7 +45,7 @@ export default async function PracticesPage() {
   const canInvite = hasPermission(user.role, "practices:invite-manage");
   const [todays, upcoming, past, progress, invitable] = await Promise.all([
     getTodaysPractice(),
-    listUpcomingPractices({ includeCancelled: true }),
+    listUpcomingPractices({ includeCancelled: true, take: 100 }),
     listPastPractices(),
     listProspectiveProgress(),
     canInvite ? listInvitableMembers() : Promise.resolve([]),

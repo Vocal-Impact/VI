@@ -20,7 +20,7 @@ export async function BatchLeadPractices({ level }: { level: StudyLevel }) {
   const today = todayLocal();
   const label = STUDY_LEVEL_LABELS[level];
   const [upcoming, past] = await Promise.all([
-    listUpcomingPractices({ includeCancelled: true, audiences: ["LEVELS"], levels: [level] }),
+    listUpcomingPractices({ includeCancelled: true, audiences: ["LEVELS"], levels: [level], take: 100 }),
     listPastPractices(20, ["LEVELS"], [level]),
   ]);
 
