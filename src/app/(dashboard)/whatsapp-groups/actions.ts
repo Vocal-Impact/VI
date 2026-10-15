@@ -5,6 +5,7 @@ import { requirePermission } from "@/modules/auth";
 import {
   createGroup,
   markInviteJoined,
+  undoInviteJoined,
   reorderGroups,
   sendInvites,
   setGroupArchived,
@@ -81,6 +82,17 @@ export async function sendInvitesAction(input: {
 export async function markJoinedAction(memberId: string, groupId: string): Promise<void> {
   const user = await requirePermission("invites:send");
   await markInviteJoined(memberId, groupId, user);
+  revalidatePath(`/whatsapp-groups/${groupId}`);
+  revalidatePath("/whatsapp-groups");
+  revalidatePath(`/members/${memberId}`);
+  revalidatePath("/whatsapp-groups/ready");
+  revalidatePath("/");
+}
+
+/** Admins: take back a "joined" mark made by mistake (they go back to invited). */
+export async function undoJoinedAction(memberId: string, groupId: string): Promise<void> {
+  const user = await requirePermission("invites:undo-joined");
+  await undoInviteJoined(memberId, groupId, user);
   revalidatePath(`/whatsapp-groups/${groupId}`);
   revalidatePath("/whatsapp-groups");
   revalidatePath(`/members/${memberId}`);

@@ -13,6 +13,7 @@ export {
   getInviteContext,
   sendInvites,
   markInviteJoined,
+  undoInviteJoined,
   listInviteHistory,
   countPendingInvites,
   exportInvitesCsv,

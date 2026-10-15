@@ -10,6 +10,7 @@ import { validationError } from "@/shared/lib/validation";
 import { toCsv } from "@/shared/lib/csv";
 import { findDuplicates, type DuplicateMatch } from "../domain/duplicates";
 import {
+  MEMBER_STATUSES,
   normalizeWhatsappNumber,
   STUDY_LEVEL_LABELS,
   VOICE_TYPE_LABELS,
@@ -339,6 +340,40 @@ export async function markAddedToWhatsapp(id: string, actorId: string, db: DbCli
     db,
   );
   return ok(null);
+}
+
+/**
+ * Undoes markAddedToWhatsapp after a "joined the main group" mark was a mistake:
+ * the member goes back to the status they had before it (e.g. Prospective).
+ * Only when that mark is what made them Active and they're still Active;
+ * anything changed since (e.g. they became alumni) is left alone.
+ */
+export async function undoAddedToWhatsapp(id: string, actorId: string, db: DbClient = prisma): Promise<Result<null>> {
+  const current = await db.member.findUnique({ where: { id } });
+  if (!current) return err("NOT_FOUND", "Member not found");
+  const added = await db.auditLog.findFirst({
+    where: { entity: "member", entityId: id, action: "member.added-to-whatsapp" },
+    orderBy: { createdAt: "desc" },
+  });
+  const before = (added?.diff as { from?: string } | null)?.from;
+  if (current.status !== "ACTIVE" || !before || before === "ACTIVE" || !isMemberStatus(before)) return ok(null);
+
+  await db.member.update({ where: { id }, data: { status: before, addedToWhatsappAt: null } });
+  await writeAuditLog(
+    {
+      actorId,
+      action: "member.added-to-whatsapp-undone",
+      entity: "member",
+      entityId: id,
+      diff: { from: "ACTIVE", to: before },
+    },
+    db,
+  );
+  return ok(null);
+}
+
+function isMemberStatus(value: string): value is MemberStatus {
+  return (MEMBER_STATUSES as readonly string[]).includes(value);
 }
 
 export async function softDeleteMember(id: string, actorId: string): Promise<Result<null>> {

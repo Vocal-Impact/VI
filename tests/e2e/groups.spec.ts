@@ -56,3 +56,31 @@ test("groups are reordered by dragging and archived from the edit form", async (
   await expect(page.getByRole("button", { name: "Archive Order One" })).toBeVisible();
   await expect(page.getByText("Order & archive")).toHaveCount(0);
 });
+
+test("an admin can take someone back out of a group they were marked as joined by mistake", async ({ page }) => {
+  await openDashboard(page);
+  await page.goto("/whatsapp-groups");
+  const add = await openFormDialog(page, "Add group");
+  await add.getByLabel("Group name").fill("Undo check");
+  await add.getByLabel("Invite link").fill("https://chat.whatsapp.com/UndoCheckLink12345");
+  await add.getByRole("button", { name: "Add group" }).click();
+  await confirmDialog(page);
+  await expect(add).toBeHidden();
+
+  // Marked as joined from her profile…
+  await page.goto("/members?q=mala");
+  await page.getByRole("link", { name: "Mala Member" }).click();
+  const row = page.getByRole("listitem").filter({ hasText: "Undo check" });
+  await row.getByRole("button", { name: "Joined" }).click();
+  await confirmDialog(page, { title: "Mark Mala as joined Undo check?" });
+  await expect(row.getByRole("button", { name: "Remove" })).toBeVisible();
+
+  // …and removed again from the group's member list.
+  await page.goto("/whatsapp-groups");
+  await page.getByRole("link", { name: /Undo check/ }).click();
+  await page.getByRole("link", { name: /^In the group/ }).click();
+  const member = page.getByRole("row").filter({ hasText: "Mala Member" });
+  await member.getByRole("button", { name: "Remove" }).click();
+  await confirmDialog(page, { title: "Remove Mala Member from Undo check?" });
+  await expect(page.getByText("Nobody marked as in this group yet")).toBeVisible();
+});

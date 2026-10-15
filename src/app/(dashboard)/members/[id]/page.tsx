@@ -15,7 +15,7 @@ import { ConfirmSubmit, FormDialog, SubmitButton } from "@/shared/ui/client";
 import { LinkButton } from "@/shared/ui/button";
 import { Select } from "@/shared/ui/form";
 import { Alert, Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
-import { markJoinedAction } from "../../whatsapp-groups/actions";
+import { markJoinedAction, undoJoinedAction } from "../../whatsapp-groups/actions";
 import {
   changeStatusAction,
   eraseMemberAction,
@@ -48,6 +48,9 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
   if (!member) notFound();
 
   const canWrite = hasPermission(user.role, "members:write");
+  const canUndoJoined = hasPermission(user.role, "invites:undo-joined");
+  // Alumni only stay in the main group(s); the part groups etc. no longer apply to them.
+  const shownGroups = member.status === "ALUMNI" ? groups.filter((group) => group.isMainGroup) : groups;
   const attended = member.attendances.length;
   const eligible = isEligibleForWhatsApp(member.status, attended, threshold);
   const audit = hasPermission(user.role, "audit:read")
@@ -219,7 +222,9 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
           <Card>
             <CardHeader title="WhatsApp groups" />
             <CardBody>
-              {groups.length === 0 ? (
+              {shownGroups.length === 0 && groups.length > 0 ? (
+                <p className="text-sm text-slate-600">Alumni are only listed in the main group, and none is set up.</p>
+              ) : shownGroups.length === 0 ? (
                 <EmptyState title="No groups set up yet">
                   {hasPermission(user.role, "groups:manage") ? (
                     <Link href="/whatsapp-groups" className="text-brand-700 underline">
@@ -231,7 +236,7 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                 </EmptyState>
               ) : (
                 <ul className="divide-y divide-slate-100">
-                  {groups.map((group) => {
+                  {shownGroups.map((group) => {
                     const status = membershipStatus(member.invites, group.id);
                     const lastInvite = member.invites.find((invite) => invite.groupId === group.id);
                     return (
@@ -250,7 +255,25 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge tone={GROUP_STATUS[status].tone}>{GROUP_STATUS[status].label}</Badge>
-                          {status !== "JOINED" && canWrite ? (
+                          {status === "JOINED" && canUndoJoined ? (
+                            <form action={undoJoinedAction.bind(null, member.id, group.id)}>
+                              <ConfirmSubmit
+                                size="sm"
+                                variant="ghost"
+                                pendingText="Removing…"
+                                confirm={{
+                                  title: `Remove ${member.firstName} from ${group.name}?`,
+                                  description: group.isMainGroup
+                                    ? "For when they were marked as joined by mistake. They go back to invited, and if this mark is what made them Active, back to their earlier status."
+                                    : "For when they were marked as joined by mistake. They go back to invited, waiting to join.",
+                                  confirmLabel: "Remove from group",
+                                }}
+                              >
+                                Remove
+                              </ConfirmSubmit>
+                            </form>
+                          ) : null}
+                          {status !== "JOINED" && canWrite && member.status !== "ALUMNI" ? (
                             <form action={markJoinedAction.bind(null, member.id, group.id)}>
                               <SubmitButton
                                 size="sm"

@@ -30,6 +30,8 @@ export const PERMISSIONS = [
   "groups:manage",
   "invites:send",
   "invites:override-eligibility",
+  /** Take someone back out of a group they were marked as joined by mistake. Admins only. */
+  "invites:undo-joined",
   "birthdays:read",
   "carpool:read",
   "carpool:write",

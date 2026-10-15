@@ -14,6 +14,7 @@ export {
   updateMember,
   changeMemberStatus,
   markAddedToWhatsapp,
+  undoAddedToWhatsapp,
   softDeleteMember,
   restoreMember,
   hardDeleteMember,

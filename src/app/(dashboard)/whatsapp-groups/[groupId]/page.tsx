@@ -7,8 +7,8 @@ import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { isEmailDeliveryEnabled } from "@/modules/notifications";
 import { cn } from "@/shared/lib/cn";
 import { Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
-import { FormDialog } from "@/shared/ui/client";
-import { setGroupArchivedAction } from "../actions";
+import { ConfirmSubmit, FormDialog } from "@/shared/ui/client";
+import { setGroupArchivedAction, undoJoinedAction } from "../actions";
 import { GroupForm } from "../group-form";
 import { ArchiveGroupButton } from "./archive-group-button";
 import { GroupRoster } from "./group-roster";
@@ -23,6 +23,7 @@ export default async function GroupPage(props: PageProps<"/whatsapp-groups/[grou
   if (!roster) notFound();
   const { group, toInvite, inGroup, stats, threshold } = roster;
   const showMembers = tab === "members";
+  const canUndoJoined = hasPermission(user.role, "invites:undo-joined");
 
   const tabClass = (active: boolean) =>
     cn(
@@ -111,6 +112,7 @@ export default async function GroupPage(props: PageProps<"/whatsapp-groups/[grou
                   <Th>Part</Th>
                   <Th>Status</Th>
                   <Th>Joined</Th>
+                  {canUndoJoined ? <Th className="text-right">Marked by mistake?</Th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -124,6 +126,26 @@ export default async function GroupPage(props: PageProps<"/whatsapp-groups/[grou
                     <Td>{VOICE_TYPE_LABELS[member.voiceType as VoiceType]}</Td>
                     <Td className="lowercase first-letter:uppercase">{member.status}</Td>
                     <Td className="text-slate-500">{member.joinedAt?.toLocaleDateString("en-GB") ?? "Unknown"}</Td>
+                    {canUndoJoined ? (
+                      <Td className="text-right">
+                        <form action={undoJoinedAction.bind(null, member.id, group.id)}>
+                          <ConfirmSubmit
+                            size="sm"
+                            variant="ghost"
+                            pendingText="Removing…"
+                            confirm={{
+                              title: `Remove ${member.firstName} ${member.lastName} from ${group.name}?`,
+                              description: group.isMainGroup
+                                ? "For when they were marked as joined by mistake. They go back to invited, and if this mark is what made them Active, back to their earlier status."
+                                : "For when they were marked as joined by mistake. They go back to invited, waiting to join.",
+                              confirmLabel: "Remove from group",
+                            }}
+                          >
+                            Remove
+                          </ConfirmSubmit>
+                        </form>
+                      </Td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

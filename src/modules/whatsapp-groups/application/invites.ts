@@ -7,7 +7,7 @@ import { errorMessage, logger } from "@/shared/lib/logger";
 import { getSettings } from "@/shared/settings/settings";
 import { toCsv } from "@/shared/lib/csv";
 import { validationError } from "@/shared/lib/validation";
-import { getMembersByIds, markAddedToWhatsapp } from "@/modules/members";
+import { getMembersByIds, markAddedToWhatsapp, undoAddedToWhatsapp } from "@/modules/members";
 import { getAttendedCounts } from "@/modules/attendance";
 import { brandLogoUrl, getEmailSender, groupInviteEmail } from "@/modules/notifications";
 import { hasPermission, type AccessRole } from "@/modules/auth/domain";
@@ -194,6 +194,42 @@ export async function markInviteJoined(memberId: string, groupId: string, actor:
   return ok(null);
 }
 
+/**
+ * Takes back a "joined" mark made by mistake: they go back to invited (waiting
+ * to join). If it was a main group and they're in no other main group, their
+ * status goes back to what it was before that mark made them Active.
+ */
+export async function undoInviteJoined(memberId: string, groupId: string, actor: InviteActor): Promise<Result<null>> {
+  const group = await prisma.whatsAppGroup.findUnique({ where: { id: groupId } });
+  if (!group) return err("NOT_FOUND", "Group not found");
+  const joined = await prisma.groupInvite.count({ where: { memberId, groupId, status: "JOINED" } });
+  if (joined === 0) return err("NOT_FOUND", "They aren't marked as in this group");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.groupInvite.updateMany({
+      where: { memberId, groupId, status: "JOINED" },
+      data: { status: "SENT", joinedAt: null },
+    });
+    await writeAuditLog(
+      {
+        actorId: actor.id,
+        action: "invite.joined-undone",
+        entity: "member",
+        entityId: memberId,
+        diff: { group: group.name },
+      },
+      tx,
+    );
+    if (group.isMainGroup) {
+      const otherMain = await tx.groupInvite.count({
+        where: { memberId, status: "JOINED", group: { isMainGroup: true } },
+      });
+      if (otherMain === 0) await undoAddedToWhatsapp(memberId, actor.id, tx);
+    }
+  });
+  return ok(null);
+}
+
 export async function listInviteHistory(take = 50) {
   return prisma.groupInvite.findMany({
     orderBy: { sentAt: "desc" },
@@ -251,7 +287,7 @@ export async function exportInvitesCsv(): Promise<string> {
 
 // ─── Group roster ──────────────────────────────────────────────────────
 
-/** Members who can be in WhatsApp groups (not alumni, not removed). */
+/** Members who can be invited to WhatsApp groups (not alumni, not removed). */
 const ROSTER_STATUSES = ["PROSPECTIVE", "ACTIVE", "INACTIVE"] as const;
 
 export interface RosterRow {
@@ -282,7 +318,11 @@ export async function getGroupRoster(groupId: string) {
   const [settings, members, invites] = await Promise.all([
     getSettings(),
     prisma.member.findMany({
-      where: { deletedAt: null, status: { in: [...ROSTER_STATUSES] } },
+      // Alumni stay in the main group(s), so they're listed there (as members, never to invite).
+      where: {
+        deletedAt: null,
+        status: { in: group.isMainGroup ? [...ROSTER_STATUSES, "ALUMNI"] : [...ROSTER_STATUSES] },
+      },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
       select: {
         id: true,
@@ -332,7 +372,9 @@ export async function getGroupRoster(groupId: string) {
     if (row.status === "ACTIVE") return 0; // active members missing from the group come first
     return notInvited(row) ? 1 : 2;
   };
-  const toInvite = rows.filter((row) => row.membership !== "JOINED").sort((a, b) => rank(a) - rank(b));
+  const toInvite = rows
+    .filter((row) => row.membership !== "JOINED" && row.status !== "ALUMNI")
+    .sort((a, b) => rank(a) - rank(b));
   const inGroup = rows
     .filter((row) => row.membership === "JOINED")
     .sort((a, b) => (b.joinedAt?.getTime() ?? 0) - (a.joinedAt?.getTime() ?? 0));
