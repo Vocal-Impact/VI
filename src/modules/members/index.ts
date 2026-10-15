@@ -1,6 +1,8 @@
 // Public API of the members module.
 export {
   listMembers,
+  listMembersPage,
+  MEMBERS_PAGE_SIZE,
   getMember,
   getMembersByIds,
   countMembersByStatus,

@@ -124,6 +124,28 @@ export async function listMembers(filter: MemberFilter = {}) {
   return members.map(revealMember);
 }
 
+/** Members per page on the Members list. */
+export const MEMBERS_PAGE_SIZE = 25;
+
+/**
+ * One page of the Members list. `page` is 1-based and is kept within range (a
+ * page past the end, e.g. after a filter shrank the list, shows the last page).
+ */
+export async function listMembersPage(filter: MemberFilter = {}, page = 1, pageSize = MEMBERS_PAGE_SIZE) {
+  const where = whereForFilter(filter);
+  const total = await prisma.member.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.min(Math.max(1, Math.floor(page) || 1), pageCount);
+  const members = await prisma.member.findMany({
+    where,
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
+    include: { _count: { select: { attendances: true } } },
+    skip: (current - 1) * pageSize,
+    take: pageSize,
+  });
+  return { members: members.map(revealMember), total, page: current, pageCount, pageSize };
+}
+
 export async function countRemovedMembers(): Promise<number> {
   return prisma.member.count({ where: { deletedAt: { not: null } } });
 }

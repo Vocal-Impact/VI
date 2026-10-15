@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePermission, hasPermission } from "@/modules/auth";
-import { countRemovedMembers, listMembers, parseMemberFilter, REMOVED_FILTER } from "@/modules/members";
+import { countRemovedMembers, listMembersPage, parseMemberFilter, REMOVED_FILTER } from "@/modules/members";
 import {
   MEMBER_STATUSES,
   MEMBER_STATUS_LABELS,
@@ -15,6 +15,7 @@ import { Input, Select } from "@/shared/ui/form";
 import { Alert, Badge, Card, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
 import { FormDialog, SubmitButton } from "@/shared/ui/client";
 import { FilterForm } from "@/shared/ui/filter-form";
+import { Pagination } from "@/shared/ui/pagination";
 import { createMemberAction, restoreMemberAction } from "./actions";
 import { MemberForm } from "./member-form";
 
@@ -26,7 +27,22 @@ export default async function MembersPage(props: PageProps<"/members">) {
   const user = await requirePermission("members:read");
   const searchParams = await props.searchParams;
   const filter = parseMemberFilter(searchParams);
-  const [members, removedCount] = await Promise.all([listMembers(filter), countRemovedMembers()]);
+  const requestedPage = Number(Array.isArray(searchParams.page) ? searchParams.page[0] : searchParams.page) || 1;
+  const [{ members, total, page, pageCount, pageSize }, removedCount] = await Promise.all([
+    listMembersPage(filter, requestedPage),
+    countRemovedMembers(),
+  ]);
+  // Page links keep the search and filters (but not one-off flags like ?new=1).
+  const hrefForPage = (n: number) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(searchParams)) {
+      const single = Array.isArray(value) ? value[0] : value;
+      if (single && !["page", "new", "erased"].includes(key)) params.set(key, single);
+    }
+    if (n > 1) params.set("page", String(n));
+    const query = params.toString();
+    return query ? `/members?${query}` : "/members";
+  };
   const canWrite = hasPermission(user.role, "members:write");
   const exportQuery = new URLSearchParams(
     Object.entries({ ...filter, removed: undefined, status: filter.removed ? REMOVED_FILTER : filter.status }).flatMap(
@@ -40,7 +56,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
         title={filter.removed ? "Removed members" : "Members"}
         description={
           <>
-            {`${members.length} member${members.length === 1 ? "" : "s"}${Object.keys(filter).length ? " match your filters" : ""}`}
+            {`${total} member${total === 1 ? "" : "s"}${Object.keys(filter).length ? " match your filters" : ""}`}
             {!filter.removed && removedCount > 0 ? (
               <>
                 {" · "}
@@ -211,6 +227,7 @@ export default async function MembersPage(props: PageProps<"/members">) {
             </tbody>
           </Table>
         )}
+        <Pagination page={page} pageCount={pageCount} total={total} pageSize={pageSize} hrefFor={hrefForPage} />
       </Card>
     </>
   );
