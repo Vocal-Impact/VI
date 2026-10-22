@@ -16,23 +16,27 @@ test.describe("signed out", () => {
 
   test("wrong password is rejected", async ({ page }) => {
     await page.goto("/sign-in");
-    await page.getByLabel("Email").fill("e2e-admin@iit.ac.lk");
-    await page.getByLabel("Password").fill("wrong-password");
     // The sign-in form's error box (Next.js also has a hidden route-announcer "alert").
     const error = page.getByRole("alert").filter({ hasText: /\S/ });
+    // Waits for the server's answer, so a message left over from the last try is never read as this one's.
     const submit = async () => {
+      // React clears the form after each attempt, so fill it in every time.
+      await page.getByLabel("Email").fill("e2e-admin@iit.ac.lk");
+      await page.getByLabel("Password").fill("wrong-password");
+      const response = page.waitForResponse((res) => res.url().includes("/api/auth/sign-in/email"));
       await page.getByRole("button", { name: "Sign in with password" }).click();
-      await expect(error).toBeVisible();
-      return (await error.textContent()) ?? "";
+      return (await response).status();
     };
-    let message = await submit();
+    let status = await submit();
     // The setup project has just signed in three test accounts; sign-in is rate-limited to
     // 3 attempts per 10 s, so wait for the window to pass rather than test the limiter.
-    if (/too many requests/i.test(message)) {
+    if (status === 429) {
       await page.waitForTimeout(11_000);
-      message = await submit();
+      status = await submit();
     }
-    expect(message).toMatch(/invalid email or password/i);
+    expect(status).not.toBe(429);
+    // toHaveText keeps checking until the form shows this attempt's message.
+    await expect(error).toHaveText(/invalid email or password/i);
     await expect(page).toHaveURL(/\/sign-in/);
   });
 });
