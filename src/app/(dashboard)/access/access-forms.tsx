@@ -29,6 +29,8 @@ export interface MemberAccessRow {
   status: string;
   level: AccessLevel;
   receivesBirthdayReminders: boolean;
+  /** Adds recordings and sheet music for their part to the song bank. */
+  sectionLead: boolean;
   hasSignedIn: boolean;
   isSelf: boolean;
 }
@@ -47,35 +49,57 @@ export function MemberAccessForm({ row, action }: { row: MemberAccessRow; action
 
   return (
     <form action={formAction} className={cn("px-4 py-3 sm:px-5", row.level !== "NONE" && "bg-brand-50/40")}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 font-medium">
-            <Link href={`/members/${row.memberId}`} className="hover:text-brand-700 hover:underline">
-              {row.name}
-            </Link>
-            <AccessBadge level={row.level} />
-            {row.isSelf ? <Badge tone="brand">You</Badge> : null}
-          </p>
-          <p className="truncate text-xs text-slate-500">
-            {row.email} · {VOICE_TYPE_LABELS[row.voiceType as VoiceType]} · {row.status.toLowerCase()}
-            {row.level !== "NONE" ? ` · ${row.hasSignedIn ? "has signed in" : "not signed in yet"}` : ""}
-          </p>
-        </div>
-        {/* A new key after every save rebuilds the controls from what was saved. */}
-        <AccessControls key={`${row.level}-${row.receivesBirthdayReminders}-${state.submissions ?? 0}`} row={row} />
-      </div>
+      {/* A new key after every save rebuilds the controls from what was saved. */}
+      <AccessRowBody
+        key={`${row.level}-${row.receivesBirthdayReminders}-${row.sectionLead}-${state.submissions ?? 0}`}
+        row={row}
+      />
       {row.isSelf ? <p className="mt-1 text-xs text-slate-500">Ask another admin to change your own access.</p> : null}
       <ActionFeedback state={state} />
     </form>
   );
 }
 
-function AccessControls({ row }: { row: MemberAccessRow }) {
+function AccessRowBody({ row }: { row: MemberAccessRow }) {
+  const [sectionLead, setSectionLead] = useState(row.sectionLead);
+  return (
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-center gap-2 font-medium">
+          <Link href={`/members/${row.memberId}`} className="hover:text-brand-700 hover:underline">
+            {row.name}
+          </Link>
+          <AccessBadge level={row.level} />
+          {row.isSelf ? <Badge tone="brand">You</Badge> : null}
+        </p>
+        <p className="truncate text-xs text-slate-500">
+          {row.email} · {VOICE_TYPE_LABELS[row.voiceType as VoiceType]} · {row.status.toLowerCase()}
+          {row.level !== "NONE" ? ` · ${row.hasSignedIn ? "has signed in" : "not signed in yet"}` : ""}
+        </p>
+        {/* Under the name, so the controls on the right stay compact. Works with any access level. */}
+        <Checkbox
+          name="sectionLead"
+          checked={sectionLead}
+          onChange={(event) => setSectionLead(event.target.checked)}
+          label="Section lead"
+          hint={sectionLead ? "Adds recordings and sheet music to the song bank" : undefined}
+          className="mt-1.5 text-xs [&_.font-medium]:font-normal [&_.font-medium]:text-slate-600"
+          disabled={row.isSelf}
+        />
+      </div>
+      <AccessControls row={row} sectionLead={sectionLead} />
+    </div>
+  );
+}
+
+function AccessControls({ row, sectionLead }: { row: MemberAccessRow; sectionLead: boolean }) {
   const [level, setLevel] = useState<AccessLevel>(row.level);
   const changed = level !== row.level;
+  const sectionLeadChanged = sectionLead !== row.sectionLead;
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-3">
+      <input type="hidden" name="previousLevel" value={row.level} />
       {/* defaultValue, not value: the form's reset after saving then goes back to the saved access. */}
       <Select
         name="level"
@@ -102,20 +126,26 @@ function AccessControls({ row }: { row: MemberAccessRow }) {
       ) : null}
       <SubmitButton
         size="sm"
-        variant={changed ? "primary" : "outline"}
+        variant={changed || sectionLeadChanged ? "primary" : "outline"}
         disabled={row.isSelf}
         confirm={{
           title: changed
             ? `Change ${row.name}'s access to ${ACCESS_LEVEL_LABELS[level]}?`
-            : `Save ${row.name}'s access settings?`,
+            : sectionLeadChanged
+              ? sectionLead
+                ? `Make ${row.name} a section lead?`
+                : `Stop ${row.name} being a section lead?`
+              : `Save ${row.name}'s access settings?`,
           description:
-            level === "ADMIN"
-              ? "Admins can do everything, including managing access, settings and erasing members."
-              : level === "COMMITTEE"
-                ? "Committee can manage members, practices, attendance and invites."
-                : level === "BATCH_LEAD"
-                  ? "Batch leads can schedule practices for their own level and see who's coming."
-                  : "They can still sign in to see practices and reply.",
+            !changed && sectionLeadChanged
+              ? "Section leads add recordings and sheet music to the song bank, and change what they added."
+              : level === "ADMIN"
+                ? "Admins can do everything, including managing access, settings and erasing members."
+                : level === "COMMITTEE"
+                  ? "Committee can manage members, practices, attendance and invites."
+                  : level === "BATCH_LEAD"
+                    ? "Batch leads can schedule practices for their own level and see who's coming."
+                    : "They can still sign in to see practices and reply.",
           confirmLabel: changed ? "Change access" : "Save",
           tone: changed && (row.level === "ADMIN" || level === "NONE") ? "danger" : "primary",
         }}

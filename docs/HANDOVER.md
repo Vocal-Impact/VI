@@ -14,6 +14,7 @@ Fill this table in and keep it up to date (names, not passwords):
 | Google Cloud project          | "Sign in with Google" OAuth client   |              |
 | Brevo account (email sending) | Birthday and invite emails           |              |
 | OpenRouteService (optional)   | Carpool route matching               |              |
+| Cloudflare account (R2)       | Song bank recordings and sheet music |              |
 | App admins (Settings → Users) | Who can manage the app               |              |
 
 ## Checklist

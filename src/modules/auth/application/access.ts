@@ -51,6 +51,7 @@ export async function listMemberAccess(filter: AccessFilter = {}) {
       studentId: true,
       voiceType: true,
       status: true,
+      sectionLead: true,
       user: { select: userSelect },
     },
   });
@@ -96,6 +97,8 @@ const setAccessSchema = z.object({
   memberId: z.uuid(),
   level: z.enum(ACCESS_LEVELS),
   receivesBirthdayReminders: z.boolean(),
+  /** Section lead for the song bank (any access level). Left out = unchanged. */
+  sectionLead: z.boolean().optional(),
 });
 
 /**
@@ -104,10 +107,13 @@ const setAccessSchema = z.object({
  * that email). "NONE" turns it back into a plain member login, which can still
  * see practices and RSVP.
  */
-export async function setMemberAccess(raw: unknown, actorId: string): Promise<Result<{ level: AccessLevel }>> {
+export async function setMemberAccess(
+  raw: unknown,
+  actorId: string,
+): Promise<Result<{ level: AccessLevel; sectionLeadChanged: boolean }>> {
   const parsed = setAccessSchema.safeParse(raw);
   if (!parsed.success) return err("VALIDATION", "Invalid access change");
-  const { memberId, level, receivesBirthdayReminders } = parsed.data;
+  const { memberId, level, receivesBirthdayReminders, sectionLead } = parsed.data;
 
   const member = await prisma.member.findUnique({ where: { id: memberId }, include: { user: true } });
   if (!member || member.deletedAt) return err("NOT_FOUND", "Member not found");
@@ -119,9 +125,25 @@ export async function setMemberAccess(raw: unknown, actorId: string): Promise<Re
   const existing = member.user ?? byEmail;
   if (existing?.id === actorId) return err("FORBIDDEN", "You can't change your own access. Ask another admin.");
 
+  // Section leads add recordings and sheet music to the song bank, whatever their access level.
+  // Saved last, so a refused access change doesn't half-apply.
+  const sectionLeadChanged = sectionLead !== undefined && sectionLead !== member.sectionLead;
+  const done = async (): Promise<Result<{ level: AccessLevel; sectionLeadChanged: boolean }>> => {
+    if (sectionLeadChanged) {
+      await prisma.$transaction(async (tx) => {
+        await tx.member.update({ where: { id: memberId }, data: { sectionLead } });
+        await writeAuditLog(
+          { actorId, action: "access.section-lead", entity: "member", entityId: memberId, diff: { sectionLead } },
+          tx,
+        );
+      });
+    }
+    return ok({ level, sectionLeadChanged });
+  };
+
   if (level === "NONE") {
     // Back to a plain member login: they can still sign in to see practices and RSVP.
-    if (!existing || accessLevelOf(existing) === "NONE") return ok({ level });
+    if (!existing || accessLevelOf(existing) === "NONE") return done();
     const result = await updateUser(
       { userId: existing.id, role: "MEMBER", active: true, receivesBirthdayReminders: false },
       actorId,
@@ -134,7 +156,7 @@ export async function setMemberAccess(raw: unknown, actorId: string): Promise<Re
       entityId: memberId,
       diff: { from: accessLevelOf(existing), to: "NONE" },
     });
-    return ok({ level });
+    return done();
   }
 
   if (!existing) {
@@ -157,7 +179,7 @@ export async function setMemberAccess(raw: unknown, actorId: string): Promise<Re
         tx,
       );
     });
-    return ok({ level });
+    return done();
   }
 
   if (!existing.memberId) {
@@ -175,5 +197,5 @@ export async function setMemberAccess(raw: unknown, actorId: string): Promise<Re
     entityId: memberId,
     diff: { from: accessLevelOf(existing), to: level },
   });
-  return ok({ level });
+  return done();
 }

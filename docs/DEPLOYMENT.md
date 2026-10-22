@@ -236,6 +236,30 @@ Signed in as admin:
 
 The monthly free allowance covers a choir many times over.
 
+**Song bank storage (Cloudflare R2).** Without this, the song bank still works with folders and links (e.g. Google Drive), but recordings and PDFs can't be uploaded. R2's free tier is 10 GB with no charge for downloads, which fits years of part recordings.
+
+1. Create a free Cloudflare account and open **R2 Object Storage**. Cloudflare asks for a card to enable R2, even on the free tier.
+2. **Create bucket**, e.g. `vocal-impact-song-bank`. Leave public access **off**: the app only hands out signed links that expire.
+3. Open the bucket → **Settings → CORS policy** and paste this, using your app's address:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://vocal-impact.vercel.app"],
+       "AllowedMethods": ["GET", "PUT", "HEAD"],
+       "AllowedHeaders": ["Content-Type", "Range"],
+       "ExposeHeaders": ["Content-Length", "Content-Range", "Accept-Ranges"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+4. Go to **R2 → Manage API tokens → Create API token**, with **Object Read & Write** on that bucket only.
+5. In Vercel, set `R2_ACCOUNT_ID` (shown on the R2 overview page), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`, then redeploy.
+6. Make section leads on **Access & roles** (tick **Section lead**). They, the committee and admins can then upload.
+
+To hide the song bank until it's ready, set `FEATURE_SONG_BANK=false`.
+
 **Weekly encrypted database backups (GitHub Actions):**
 
 1. Go to GitHub → **Settings → Secrets and variables → Actions → New repository secret** and add:
@@ -299,3 +323,4 @@ Avoid Vercel **preview deployments** for now. They would use the live database, 
 | `GOOGLE_CLIENT_SECRET`                       | Vercel                       | Yes; create a new secret in Google Cloud.                                            |
 | Neon password (`DATABASE_URL`, `DIRECT_URL`) | Vercel, GitHub backup secret | Yes; reset it in Neon, then update both places.                                      |
 | `BACKUP_PASSPHRASE`                          | GitHub secret                | Keep the old one until old backups expire (90 days).                                 |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`   | Vercel                       | Yes; create a new R2 API token, update Vercel, then delete the old token.            |

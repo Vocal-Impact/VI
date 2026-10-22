@@ -16,7 +16,11 @@ const securityHeaders = [
       // https: allows previewing the public email logo (EMAIL_LOGO_URL) and map tiles.
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      // Song bank: uploads go straight to Cloudflare R2, and recordings and sheet music are read from it.
+      "connect-src 'self' https://*.r2.cloudflarestorage.com",
+      "media-src 'self' https://*.r2.cloudflarestorage.com",
+      // The PDF viewer (pdf.js) renders sheet music in a web worker served from /pdfjs.
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "form-action 'self' https://accounts.google.com",
       "base-uri 'self'",

@@ -18,12 +18,24 @@ export async function setMemberAccessAction(
   const actor = await requirePermission("users:manage");
   const values = formValues(formData);
   const result = await setMemberAccess(
-    { memberId, level: values.level, receivesBirthdayReminders: values.receivesBirthdayReminders === "on" },
+    {
+      memberId,
+      level: values.level,
+      receivesBirthdayReminders: values.receivesBirthdayReminders === "on",
+      sectionLead: values.sectionLead === "on",
+    },
     actor.id,
   );
   if (result.ok) refresh(memberId);
   const label = ACCESS_LEVEL_LABELS[(values.level as AccessLevel) ?? "NONE"] ?? values.level;
-  return toActionState(result, result.ok && result.value.level === "NONE" ? "Access removed" : `Saved: ${label}`);
+  const message = !result.ok
+    ? ""
+    : result.value.level !== "NONE"
+      ? `Saved: ${label}`
+      : values.previousLevel === "NONE"
+        ? "Saved"
+        : "Access removed";
+  return toActionState(result, message);
 }
 
 export async function createUserAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

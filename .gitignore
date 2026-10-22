@@ -29,6 +29,10 @@ src/generated/
 # ─── Local database (embedded Postgres via `npm run db:local`) ──
 .local-db/
 .local-db-test/
+# Song bank uploads during local development (no R2 configured)
+.local-storage/
+# pdf.js runtime files, copied from node_modules on install (scripts/copy-pdfjs-assets.mjs)
+/public/pdfjs/
 
 # ─── Real member data (personal data — PDPA) ────────────────────
 # Google Form exports must never be committed. Fake fixtures only.

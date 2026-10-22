@@ -12,3 +12,4 @@ coverage
 asset
 docs
 **/__pycache__
+.local-storage

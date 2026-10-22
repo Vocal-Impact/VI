@@ -117,6 +117,13 @@ enum CronRunStatus {
   FAILED
 }
 
+/// What a song bank item is: an uploaded recording, an uploaded PDF (sheet music), or a link (e.g. Google Drive).
+enum SongFileKind {
+  AUDIO
+  PDF
+  LINK
+}
+
 // ─── Auth (Better Auth core tables + app fields) ────────────────────────────
 
 model User {
@@ -139,6 +146,8 @@ model User {
   sentInvites      GroupInvite[]
   importBatches    ImportBatch[]
   auditLogs        AuditLog[]
+  songFolders      SongFolder[]
+  songFiles        SongFile[]
 
   @@map("user")
 }
@@ -208,6 +217,8 @@ model Member {
   /// Optional free text ("Vegetarian", "No nuts"), encrypted — can reveal religion or health.
   dietaryPreferenceEncrypted String?
   status                     MemberStatus @default(PROSPECTIVE)
+  /// Records their part for the song bank (uploads recordings and sheet music). Set on the Access page.
+  sectionLead                Boolean      @default(false)
   source                     MemberSource @default(MANUAL)
   addedToWhatsappAt          DateTime?
   deletedAt                  DateTime?
@@ -358,6 +369,52 @@ model GroupInvite {
 
   @@index([memberId, groupId])
   @@map("group_invite")
+}
+
+// ─── Song bank ──────────────────────────────────────────────────────────────
+
+/// A folder of songs (e.g. "2025 / Christmas concert / Silent Night"). No parent = top level.
+model SongFolder {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  parentId    String?  @db.Uuid
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parent    SongFolder?  @relation("SongFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  SongFolder[] @relation("SongFolderTree")
+  files     SongFile[]
+  createdBy User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([parentId])
+  @@map("song_folder")
+}
+
+/// A recording, sheet music PDF or link in a song bank folder. Uploaded files live in object storage (R2) under `storageKey`.
+model SongFile {
+  id           String       @id @default(uuid()) @db.Uuid
+  folderId     String       @db.Uuid
+  kind         SongFileKind
+  title        String
+  /// The part it's for. Null = the whole choir (full track, full score).
+  voicePart    VoiceType?
+  storageKey   String?      @unique
+  /// For LINK items: where it opens (https only).
+  linkUrl      String?
+  fileName     String?
+  contentType  String?
+  sizeBytes    Int?
+  uploadedById String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  folder     SongFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  uploadedBy User?      @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([folderId])
+  @@index([createdAt])
+  @@map("song_file")
 }
 
 // ─── Imports, email, settings, audit, jobs ──────────────────────────────────

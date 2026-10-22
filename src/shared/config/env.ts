@@ -46,6 +46,17 @@ const envSchema = z
     ORS_API_KEY: z.string().optional(),
     /** Feature flag: "false" hides Lifts home (carpool planning). On when unset. See features.ts. */
     FEATURE_LIFTS_HOME: z.string().optional(),
+    /** Feature flag: "false" hides the Song bank. On when unset. See features.ts. */
+    FEATURE_SONG_BANK: z.string().optional(),
+    /**
+     * Cloudflare R2 bucket for song bank recordings and sheet music (all four, or none).
+     * Without them, uploads are saved in `.local-storage/` on local development and
+     * turned off on Vercel (links to Google Drive etc. still work). See docs/DEPLOYMENT.md.
+     */
+    R2_ACCOUNT_ID: z.string().optional(),
+    R2_ACCESS_KEY_ID: z.string().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().optional(),
+    R2_BUCKET: z.string().optional(),
     /** Optional Google Maps Geocoding API key — tried first for landmarks when set (needs a billing account). */
     GOOGLE_MAPS_API_KEY: z.string().optional(),
 
@@ -65,6 +76,15 @@ const envSchema = z
         code: "custom",
         path: ["BREVO_API_KEY"],
         message: "BREVO_API_KEY is required when EMAIL_TRANSPORT=brevo (Brevo → SMTP & API → API keys).",
+      });
+    }
+    const r2 = [env.R2_ACCOUNT_ID, env.R2_ACCESS_KEY_ID, env.R2_SECRET_ACCESS_KEY, env.R2_BUCKET];
+    if (r2.some(Boolean) && !r2.every(Boolean)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["R2_BUCKET"],
+        message:
+          "Set all of R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET for the song bank, or none.",
       });
     }
     if (env.EMAIL_TRANSPORT === "smtp" && (!env.SMTP_USER || !env.SMTP_PASSWORD)) {

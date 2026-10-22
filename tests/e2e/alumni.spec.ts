@@ -17,7 +17,7 @@ test("alumni see choir practices read-only and organise and reply to their own p
 
   // Very limited menu, and committee pages are off limits.
   const nav = alumna.getByRole("navigation", { name: "Main" });
-  await expect(nav.getByRole("link")).toHaveText([/^Dashboard/, /^Alumni practices/, /^Birthdays/]);
+  await expect(nav.getByRole("link")).toHaveText([/^Dashboard/, /^Alumni practices/, /^Song bank/, /^Birthdays/]);
   await alumna.goto("/members");
   await expect(alumna).toHaveURL(/\/forbidden$/);
 

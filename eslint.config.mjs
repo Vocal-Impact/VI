@@ -59,5 +59,7 @@ export default defineConfig([
     "src/generated/**",
     "playwright-report/**",
     "test-results/**",
+    // pdf.js runtime files copied from node_modules (scripts/copy-pdfjs-assets.mjs).
+    "public/pdfjs/**",
   ]),
 ]);

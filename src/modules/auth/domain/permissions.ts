@@ -35,6 +35,10 @@ export const PERMISSIONS = [
   "birthdays:read",
   "carpool:read",
   "carpool:write",
+  /** Listen to recordings and read sheet music in the song bank. */
+  "songbank:read",
+  /** Add, rename, move and delete any song bank folder or file. (Section leads add their own, see song-bank.) */
+  "songbank:manage",
   "users:manage",
   "settings:manage",
   "audit:read",
@@ -57,12 +61,24 @@ const COMMITTEE_PERMISSIONS: readonly Permission[] = [
   "birthdays:read",
   "carpool:read",
   "carpool:write",
+  "songbank:read",
+  "songbank:manage",
 ];
 
-const MEMBER_PERMISSIONS: readonly Permission[] = ["birthdays:read", "practices:read", "practices:rsvp"];
+const MEMBER_PERMISSIONS: readonly Permission[] = [
+  "birthdays:read",
+  "practices:read",
+  "practices:rsvp",
+  "songbank:read",
+];
 
-/** Alumni: the dashboard and birthdays, and replying to alumni practices. */
-const ALUMNI_PERMISSIONS: readonly Permission[] = ["birthdays:read", "practices:read", "practices:alumni-rsvp"];
+/** Alumni: the dashboard and birthdays, replying to alumni practices, and the song bank (for guest performances). */
+const ALUMNI_PERMISSIONS: readonly Permission[] = [
+  "birthdays:read",
+  "practices:read",
+  "practices:alumni-rsvp",
+  "songbank:read",
+];
 
 /**
  * What a signed-in person can do. The stored role (ADMIN / COMMITTEE / MEMBER / BATCH_LEAD)

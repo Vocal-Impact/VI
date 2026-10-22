@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/shared/db/prisma";
 import { getAuth } from "../infrastructure/better-auth";
 import { effectiveRole, hasPermission, type AccessRole, type Permission } from "../domain/permissions";
-import type { StudyLevel } from "@/modules/members/domain";
+import type { StudyLevel, VoiceType } from "@/modules/members/domain";
 import { canMemberSignIn, isMemberLogin } from "../domain/access";
 
 export interface SessionUser {
@@ -18,6 +18,10 @@ export interface SessionUser {
   memberId: string | null;
   /** That member's level (batch leads organise practices for it). */
   studyLevel: StudyLevel | null;
+  /** That member's part (the song bank puts it first). */
+  voiceType: VoiceType | null;
+  /** A section lead adds recordings and sheet music to the song bank. Never for alumni. */
+  sectionLead: boolean;
 }
 
 /**
@@ -37,7 +41,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       role: true,
       active: true,
       memberId: true,
-      member: { select: { status: true, deletedAt: true, yearOfStudy: true } },
+      member: { select: { status: true, deletedAt: true, yearOfStudy: true, voiceType: true, sectionLead: true } },
     },
   });
   if (!user || !user.active) return null;
@@ -50,6 +54,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     role: effectiveRole(user.role, user.member?.status),
     memberId: user.memberId,
     studyLevel: user.member?.yearOfStudy ?? null,
+    voiceType: user.member?.voiceType ?? null,
+    sectionLead: user.member?.sectionLead === true && user.member.status !== "ALUMNI",
   };
 });
 

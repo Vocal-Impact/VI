@@ -83,6 +83,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
                     status: row.status,
                     level: row.level,
                     receivesBirthdayReminders: row.user?.receivesBirthdayReminders ?? false,
+                    sectionLead: row.sectionLead,
                     hasSignedIn: row.hasSignedIn,
                     isSelf: row.user?.id === actor.id,
                   }}

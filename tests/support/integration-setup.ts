@@ -6,6 +6,8 @@ Object.assign(process.env, TEST_ENV);
 const { prisma } = await import("@/shared/db/prisma");
 
 const TABLES = [
+  "song_file",
+  "song_folder",
   "group_invite",
   "whatsapp_group",
   "attendance",

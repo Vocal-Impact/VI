@@ -58,3 +58,15 @@ describe("alumni access", () => {
     expect(hasPermission("MEMBER", "practices:alumni-rsvp")).toBe(false);
   });
 });
+
+describe("song bank", () => {
+  it("lets everyone listen, and admins and committee manage it", () => {
+    for (const role of ["ADMIN", "COMMITTEE", "MEMBER", "BATCH_LEAD", "ALUMNI", "ALUMNI_COMMITTEE"] as const) {
+      expect(hasPermission(role, "songbank:read")).toBe(true);
+    }
+    expect(hasPermission("COMMITTEE", "songbank:manage")).toBe(true);
+    expect(hasPermission("MEMBER", "songbank:manage")).toBe(false);
+    expect(hasPermission("BATCH_LEAD", "songbank:manage")).toBe(false);
+    expect(hasPermission("ALUMNI_COMMITTEE", "songbank:manage")).toBe(false);
+  });
+});

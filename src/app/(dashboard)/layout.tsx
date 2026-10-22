@@ -9,6 +9,7 @@ const NAV: Array<NavItem & { permission?: Permission | Permission[]; feature?: F
   // Committee: every practice. Batch leads: their own level's practices.
   { href: "/attendance", label: "Practices", icon: "check", permission: ["attendance:read", "practices:level-manage"] },
   { href: "/alumni", label: "Alumni practices", icon: "alumni", permission: "practices:alumni-manage" },
+  { href: "/song-bank", label: "Song bank", icon: "library", permission: "songbank:read", feature: "songBank" },
   { href: "/whatsapp-groups", label: "WhatsApp", icon: "chat", permission: "groups:read" },
   { href: "/birthdays", label: "Birthdays", icon: "cake", permission: "birthdays:read" },
   { href: "/carpool", label: "Lifts home", icon: "car", permission: "carpool:read", feature: "liftsHome" },
