@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, fromIsoDate, isIsoDate, isLeapYear, localIsoDate, toIsoDate } from "./dates";
+import { addDays, fromIsoDate, isIsoDate, isLeapYear, localIsoDate, localTime, toIsoDate } from "./dates";
 
 describe("dates", () => {
   it("validates ISO dates strictly", () => {
@@ -25,5 +25,13 @@ describe("dates", () => {
 
   it("knows leap years", () => {
     expect([2024, 2000, 1900, 2026].map(isLeapYear)).toEqual([true, true, false, false]);
+  });
+});
+
+describe("localTime", () => {
+  it("gives the 24-hour wall-clock time in the time zone", () => {
+    // 12:15 UTC is 17:45 in Sri Lanka (UTC+5:30); midnight shows as 00, not 24.
+    expect(localTime(new Date("2026-10-22T12:15:00Z"), "Asia/Colombo")).toBe("17:45");
+    expect(localTime(new Date("2026-10-21T18:30:00Z"), "Asia/Colombo")).toBe("00:00");
   });
 });

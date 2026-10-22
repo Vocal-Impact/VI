@@ -61,7 +61,7 @@ export default async function AlumniPracticesPage() {
                   label={`${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`}
                 />
                 <div className="space-y-2">
-                  <PracticeDetails practice={practice} today={today} />
+                  <PracticeDetails practice={practice} today={today} phase={practice.phase} />
                   {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : null}
                 </div>
                 <div className="relative z-10 flex gap-2">
@@ -89,7 +89,9 @@ export default async function AlumniPracticesPage() {
                         className="flex items-center justify-between gap-3 py-2.5 hover:bg-slate-50"
                       >
                         <span>
-                          <span className="font-medium">{formatIsoDate(practice.date)}</span>{" "}
+                          <span className="font-medium">
+                            {practice.date === today ? "Earlier today" : formatIsoDate(practice.date)}
+                          </span>{" "}
                           <span className="text-slate-500">· {practice.title}</span>
                         </span>
                         {practice.status === "CANCELLED" ? <Badge tone="red">Cancelled</Badge> : null}

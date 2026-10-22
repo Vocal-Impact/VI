@@ -220,6 +220,42 @@ export function canMoveFolderTo(folders: Iterable<FolderNode>, folderId: string,
   return !descendantIds(folders, folderId).has(newParentId);
 }
 
+/**
+ * Every folder in tree order: each one followed by its subfolders (depth-first),
+ * siblings by name, with how deep it is (0 = top level). A folder whose parent is
+ * missing is treated as top level, so nothing is ever left out.
+ */
+export function folderTree<T extends FolderNode>(folders: Iterable<T>): Array<T & { depth: number }> {
+  const all = [...folders];
+  const ids = new Set(all.map((folder) => folder.id));
+  const children = new Map<string | null, T[]>();
+  for (const folder of all) {
+    const parent = folder.parentId && ids.has(folder.parentId) ? folder.parentId : null;
+    if (!children.has(parent)) children.set(parent, []);
+    children.get(parent)!.push(folder);
+  }
+  for (const list of children.values()) {
+    list.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+  }
+  const ordered: Array<T & { depth: number }> = [];
+  const seen = new Set<string>();
+  const visit = (parent: string | null, depth: number) => {
+    for (const folder of children.get(parent) ?? []) {
+      if (seen.has(folder.id)) continue;
+      seen.add(folder.id);
+      ordered.push({ ...folder, depth });
+      visit(folder.id, depth + 1);
+    }
+  };
+  visit(null, 0);
+  return ordered;
+}
+
+/** A picker entry indented by its depth ("   └ Silent Night"); non-breaking spaces so the browser keeps them. */
+export function indentedFolderName(name: string, depth: number): string {
+  return depth === 0 ? name : `${"\u00A0\u00A0\u00A0".repeat(depth)}└\u00A0${name}`;
+}
+
 /** "2025 / Christmas concert / Silent Night", for pickers. */
 export function folderLabel(folders: ReadonlyMap<string, FolderNode>, id: string): string {
   return folderPath(folders, id)

@@ -2,15 +2,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { hasPermission, requireUser } from "@/modules/auth";
 import {
-  getTodaysPractice,
   listPastPractices,
   listProspectiveProgress,
   listInvitableMembers,
+  listTodaysPractices,
   listUpcomingPractices,
 } from "@/modules/attendance";
-import { attendanceProgress, canManagePractice, TENTATIVE_VENUE } from "@/modules/attendance/domain";
+import {
+  attendanceProgress,
+  canManagePractice,
+  CHOIR_AUDIENCES,
+  formatTime,
+  TENTATIVE_VENUE,
+} from "@/modules/attendance/domain";
 import {
   AudienceBadge,
+  LiveBadge,
   PracticeCardLink,
   PracticeDetails,
   RsvpCountBadges,
@@ -18,7 +25,7 @@ import {
 } from "@/modules/attendance/ui";
 import { CURRENT_STUDY_LEVELS, STUDY_LEVEL_LABELS, VOICE_TYPE_LABELS } from "@/modules/members/domain";
 import { cn } from "@/shared/lib/cn";
-import { todayLocal } from "@/shared/lib/clock";
+import { nowLocal } from "@/shared/lib/clock";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { LinkButton } from "@/shared/ui/button";
 import { Badge, Card, CardBody, CardHeader, EmptyState, PageHeader } from "@/shared/ui/layout";
@@ -41,16 +48,22 @@ export default async function PracticesPage() {
   }
   const canManage = hasPermission(user.role, "practices:manage");
   const canBookVenues = hasPermission(user.role, "venues:book");
-  const today = todayLocal();
+  const now = nowLocal();
+  const today = now.date;
   const canInvite = hasPermission(user.role, "practices:invite-manage");
+  const canMark = hasPermission(user.role, "attendance:write");
   const [todays, upcoming, past, progress, invitable] = await Promise.all([
-    getTodaysPractice(),
-    listUpcomingPractices({ includeCancelled: true, take: 100 }),
-    listPastPractices(),
+    listTodaysPractices(now),
+    listUpcomingPractices({ includeCancelled: true, take: 100, now }),
+    listPastPractices(30, CHOIR_AUDIENCES, undefined, now),
     listProspectiveProgress(),
     canInvite ? listInvitableMembers() : Promise.resolve([]),
   ]);
   const showProgress = progress.members.length > 0;
+  // Every practice on right now gets its own Take attendance (two can overlap, e.g. two levels).
+  const ongoing = todays.filter((practice) => practice.phase === "ONGOING");
+  const ongoingIds = new Set(ongoing.map((practice) => practice.id));
+  const laterToday = todays.find((practice) => practice.phase === "UPCOMING");
 
   return (
     <>
@@ -95,66 +108,85 @@ export default async function PracticesPage() {
 
       <div className={cn("grid gap-6", showProgress && "lg:grid-cols-3")}>
         <div className={cn("space-y-6", showProgress && "lg:col-span-2")}>
-          <Card className={todays ? "border-brand-200 bg-brand-50" : undefined}>
-            <CardBody className="flex flex-wrap items-center justify-between gap-3">
-              {todays ? (
-                <>
-                  <div>
-                    <PracticeDetails practice={todays} today={today} />
-                    <p className="mt-1 text-sm text-brand-700">{todays.attended} marked present so far</p>
-                  </div>
-                  {hasPermission(user.role, "attendance:write") ? (
-                    <LinkButton href={`/attendance/${todays.id}`} size="lg">
-                      Take attendance
+          {ongoing.length > 0 ? (
+            <Card className="border-2 border-emerald-500 shadow-md">
+              <CardHeader
+                title={<LiveBadge className="px-3 py-1 text-sm" />}
+                className="rounded-t-[10px] border-emerald-100 bg-emerald-50"
+              />
+              <ul className="divide-y divide-slate-100">
+                {ongoing.map((practice) => (
+                  <li key={practice.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-5">
+                    <div className="min-w-0">
+                      <PracticeDetails practice={practice} today={today} showDayBadge={false} />
+                      <p className="mt-1.5 text-sm font-semibold text-emerald-700">
+                        {practice.attended} marked present so far
+                      </p>
+                    </div>
+                    <LinkButton
+                      href={`/attendance/${practice.id}`}
+                      size="lg"
+                      variant={canMark ? "primary" : "outline"}
+                      className="w-full sm:w-auto"
+                    >
+                      {canMark ? "Take attendance" : "Open"}
                     </LinkButton>
-                  ) : null}
-                </>
-              ) : (
-                <div>
-                  <p className="font-semibold text-ink">{formatIsoDate(today, { weekday: "long", month: "long" })}</p>
-                  <p className="text-sm text-slate-600">
-                    No practice is scheduled for today, so there&apos;s no attendance to take.
-                  </p>
-                </div>
-              )}
-            </CardBody>
-          </Card>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : (
+            <Card>
+              <CardBody>
+                <p className="font-semibold text-ink">{formatIsoDate(today, { weekday: "long", month: "long" })}</p>
+                <p className="text-sm text-slate-600">
+                  {laterToday
+                    ? `No practice is on right now. ${laterToday.title} starts at ${formatTime(laterToday.startTime ?? "")}.`
+                    : todays.length > 0
+                      ? "Today's practice has finished. You'll find it under Past practices."
+                      : "No practice is scheduled for today, so there's no attendance to take."}
+                </p>
+              </CardBody>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Upcoming" />
             <CappedList visible={4} label="Upcoming practices" className="space-y-3 px-4 py-4 sm:px-5">
-              {upcoming.length === 0 ? (
+              {upcoming.every((practice) => ongoingIds.has(practice.id)) ? (
                 <EmptyState title="Nothing scheduled">
                   {canManage ? "Use Schedule practice above so members can reply." : "Nothing has been scheduled yet."}
                 </EmptyState>
               ) : null}
-              {upcoming.map((practice) => (
-                <div
-                  key={practice.id}
-                  className="group relative flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-3 pr-9 transition-colors hover:border-brand-300 hover:bg-slate-50/70"
-                >
-                  <PracticeCardLink
-                    practiceId={practice.id}
-                    label={`${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`}
-                  />
-                  <div className="space-y-2">
-                    <PracticeDetails practice={practice} today={today} />
-                    {practice.status === "SCHEDULED" ? (
-                      <span className="flex flex-wrap gap-1.5">
-                        <RsvpCountBadges counts={practice.counts} />
-                        {canBookVenues ? <VenueBookingBadge practice={practice} /> : null}
-                      </span>
+              {upcoming
+                .filter((practice) => !ongoingIds.has(practice.id))
+                .map((practice) => (
+                  <div
+                    key={practice.id}
+                    className="group relative flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-3 pr-9 transition-colors hover:border-brand-300 hover:bg-slate-50/70"
+                  >
+                    <PracticeCardLink
+                      practiceId={practice.id}
+                      label={`${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`}
+                    />
+                    <div className="space-y-2">
+                      <PracticeDetails practice={practice} today={today} phase={practice.phase} />
+                      {practice.status === "SCHEDULED" ? (
+                        <span className="flex flex-wrap gap-1.5">
+                          <RsvpCountBadges counts={practice.counts} />
+                          {canBookVenues ? <VenueBookingBadge practice={practice} /> : null}
+                        </span>
+                      ) : null}
+                    </div>
+                    {canManagePractice(user, practice) ? (
+                      <div className="relative z-10 flex gap-2">
+                        <LinkButton href={`/attendance/${practice.id}?edit=1`} size="sm" variant="outline">
+                          Edit
+                        </LinkButton>
+                      </div>
                     ) : null}
                   </div>
-                  {canManagePractice(user, practice) ? (
-                    <div className="relative z-10 flex gap-2">
-                      <LinkButton href={`/attendance/${practice.id}?edit=1`} size="sm" variant="outline">
-                        Edit
-                      </LinkButton>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+                ))}
             </CappedList>
           </Card>
 
@@ -173,7 +205,9 @@ export default async function PracticesPage() {
                           className="flex items-center justify-between gap-3 py-2.5 hover:bg-slate-50"
                         >
                           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                            <span className="font-medium">{formatIsoDate(practice.date)}</span>
+                            <span className="font-medium">
+                              {practice.date === today ? "Earlier today" : formatIsoDate(practice.date)}
+                            </span>
                             <span className="text-slate-500">· {practice.title}</span>
                             <AudienceBadge practice={practice} />
                           </span>

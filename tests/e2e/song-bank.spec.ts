@@ -85,6 +85,20 @@ test("song bank: folders, uploads, playing a part and reading the score", async 
   await expect(page.getByRole("link", { name: "Silent Night - Alto" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Full score" })).toBeVisible();
 
+  // The "move to" picker lists folders as a tree: the song sits indented under its concert.
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Silent Night - Alto" })
+    .getByRole("button", { name: "Edit" })
+    .click();
+  form = page.locator("dialog[open]:not([data-confirm])");
+  await expect(form).toBeVisible();
+  const folderOptions = await form.getByLabel("Folder").locator("option").allTextContents();
+  const concertAt = folderOptions.indexOf(folder);
+  expect(concertAt).toBeGreaterThanOrEqual(0);
+  expect(folderOptions[concertAt + 1]).toBe("   └ Silent Night");
+  await form.getByRole("button", { name: "Cancel" }).click();
+
   // Only parts that have files get a filter button (here: Alto).
   await page.getByRole("button", { name: "Alto", exact: true }).click();
   await expect(page.getByRole("link", { name: "Silent Night - Alto" })).toBeVisible();

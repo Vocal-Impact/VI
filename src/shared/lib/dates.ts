@@ -20,6 +20,13 @@ export function localIsoDate(now: Date, timeZone: string): IsoDate {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 
+/** The wall-clock time at `now` in the given IANA time zone, as "HH:mm" (24-hour). */
+export function localTime(now: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(
+    now,
+  );
+}
+
 /** Converts a `DATE` column value (UTC midnight) to an ISO date string. */
 export function toIsoDate(date: Date): IsoDate {
   return date.toISOString().slice(0, 10);

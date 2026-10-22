@@ -7,6 +7,7 @@ import { FileAudio, FileText, Upload, X } from "lucide-react";
 import {
   formatBytes,
   guessPartFromName,
+  indentedFolderName,
   MAX_UPLOAD_BYTES,
   mayNotPlayOnIphone,
   partLabel,
@@ -41,6 +42,10 @@ import {
 
 export interface FolderOption {
   id: string;
+  name: string;
+  /** 0 = top level; the picker indents subfolders under their parent. */
+  depth: number;
+  /** Full path, e.g. "2026 / Christmas / Silent Night". */
   label: string;
 }
 
@@ -133,8 +138,8 @@ export function EditFolderForm({
         >
           <option value="">Song bank (top level)</option>
           {folderOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
+            <option key={option.id} value={option.id} title={option.label}>
+              {indentedFolderName(option.name, option.depth)}
             </option>
           ))}
         </Select>
@@ -264,8 +269,8 @@ export function EditFileForm({
       <Field label="Folder" htmlFor={`${prefix}-folder`} errors={state.fieldErrors?.folderId}>
         <Select id={`${prefix}-folder`} name="folderId" defaultValue={values?.folderId ?? file.folderId}>
           {folderOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
+            <option key={option.id} value={option.id} title={option.label}>
+              {indentedFolderName(option.name, option.depth)}
             </option>
           ))}
         </Select>

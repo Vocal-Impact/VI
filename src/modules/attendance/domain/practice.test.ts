@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  practicePhase,
   canManagePractice,
   canReplyTo,
   canRsvp,
@@ -124,5 +125,31 @@ describe("canManagePractice", () => {
     expect(canManagePractice({ role: "ADMIN" }, selected)).toBe(true);
     expect(canManagePractice({ role: "COMMITTEE" }, selected)).toBe(false);
     expect(canManagePractice({ role: "COMMITTEE" }, forLevels("L4", "L5"))).toBe(true);
+  });
+});
+
+describe("practicePhase", () => {
+  const at = (time: string) => ({ date: "2026-10-22", time });
+  const practice = { date: "2026-10-22", startTime: "17:30", endTime: "19:30" };
+
+  it("is upcoming before the start, ongoing until the end time, then ended", () => {
+    expect(practicePhase(practice, at("09:00"))).toBe("UPCOMING");
+    expect(practicePhase(practice, at("17:30"))).toBe("ONGOING");
+    expect(practicePhase(practice, at("19:29"))).toBe("ONGOING");
+    expect(practicePhase(practice, at("19:30"))).toBe("ENDED");
+    expect(practicePhase(practice, at("23:59"))).toBe("ENDED");
+  });
+
+  it("goes by the date on other days", () => {
+    expect(practicePhase({ ...practice, date: "2026-10-23" }, at("18:00"))).toBe("UPCOMING");
+    expect(practicePhase({ ...practice, date: "2026-10-21" }, at("18:00"))).toBe("ENDED");
+  });
+
+  it("takes two hours when there's no end time, and all day when there's no start time", () => {
+    const open = { ...practice, endTime: null };
+    expect(practicePhase(open, at("19:29"))).toBe("ONGOING");
+    expect(practicePhase(open, at("19:30"))).toBe("ENDED");
+    expect(practicePhase({ ...open, startTime: "23:00" }, at("23:59"))).toBe("ONGOING");
+    expect(practicePhase({ ...practice, startTime: null, endTime: null }, at("23:00"))).toBe("ONGOING");
   });
 });

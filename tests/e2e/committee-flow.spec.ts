@@ -103,9 +103,14 @@ test("new member journey: add → WhatsApp group → 3 practices → invite → 
   await expect(page.getByText("No practice is scheduled for today")).toBeVisible();
   await expect(page.getByRole("link", { name: "Take attendance" })).toHaveCount(0);
 
-  // Schedule today's practice, then take attendance.
-  await schedulePractice(page, { date: isoDaysAgo(0), start: "17:30", end: "19:30", venue: "IIT Auditorium" });
+  // Schedule a practice that's on now (all day, so the test passes at any hour), then take attendance.
+  await schedulePractice(page, { date: isoDaysAgo(0), start: "00:00", end: "23:59", venue: "IIT Auditorium" });
+  await expect(page.getByRole("heading", { name: "Happening now" })).toBeVisible();
+  await page.screenshot({ path: "test-results/practices-happening-now.png", fullPage: true });
   await page.getByRole("link", { name: "Take attendance" }).click();
+  // On the practice page, attendance comes first and says what it is.
+  await expect(page.getByRole("heading", { name: /Take attendance/ })).toBeVisible();
+  await page.screenshot({ path: "test-results/practice-take-attendance.png" });
   await page.getByPlaceholder("Search by name or student ID").fill("nethmi");
   await page.getByRole("button", { name: /Nethmi Perera/ }).click();
   await expect(page.getByRole("button", { name: /Nethmi Perera/ })).toHaveAttribute("aria-pressed", "true");

@@ -6,6 +6,7 @@ import {
   canTakeAttendance,
   canUnmarkAttendance,
   isTentativeVenue,
+  practicePhase,
   venueReminderDueDate,
   type RsvpPerson,
 } from "@/modules/attendance";
@@ -17,7 +18,7 @@ import {
   getVenueRequestLinks,
 } from "@/modules/attendance";
 import { PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
-import { todayLocal } from "@/shared/lib/clock";
+import { nowLocal } from "@/shared/lib/clock";
 import { isFeatureEnabled } from "@/shared/config/features";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { buttonClasses, LinkButton } from "@/shared/ui/button";
@@ -43,7 +44,9 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   const canSeeAttendance = !alumni && hasPermission(user.role, "attendance:read");
   if (!canManage && !canSeeAttendance) redirect("/forbidden");
 
-  const today = todayLocal();
+  const now = nowLocal();
+  const today = now.date;
+  const phase = practicePhase(practice, now);
   const practiceLabel = `${practice.title} on ${formatIsoDate(practice.date, { weekday: "long", month: "long", year: undefined })}`;
   const canOpenProfiles = hasPermission(user.role, "members:read");
   // Batch leads have their own level's Practices page; others reaching here manage it from the dashboard.
@@ -62,6 +65,32 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
     getAttendanceThreshold(),
     canBookVenue ? getVenueRequestLinks(practiceId, user) : Promise.resolve(null),
   ]);
+
+  // On the practice day, attendance comes straight after the details: it's what the page is for then.
+  const attendanceToday =
+    canSeeAttendance && attendanceOpen && practice.date === today && practice.status === "SCHEDULED";
+  const attendanceSection = !canSeeAttendance ? null : practice.status === "CANCELLED" ? (
+    <Alert tone="warning">This practice was cancelled, so there is no attendance to take.</Alert>
+  ) : isFuture ? (
+    <Alert tone="info">Attendance opens on the practice day.</Alert>
+  ) : (
+    <>
+      {!attendanceOpen ? (
+        <Alert tone="info" className="mb-4">
+          This practice has passed. Only admins can change its attendance.
+        </Alert>
+      ) : null}
+      <AttendanceChecklist
+        practiceId={practice.id}
+        entries={entries}
+        threshold={threshold}
+        readOnly={!attendanceOpen || !hasPermission(user.role, "attendance:write")}
+        canUnmark={canUnmarkAttendance(user.role, practice.date, today)}
+        prominent={attendanceToday}
+        live={attendanceToday && phase === "ONGOING"}
+      />
+    </>
+  );
 
   return (
     <>
@@ -137,10 +166,12 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
 
       <Card className="mb-6">
         <CardBody className="flex flex-wrap items-center justify-between gap-3">
-          <PracticeDetails practice={practice} today={today} />
+          <PracticeDetails practice={practice} today={today} phase={phase} />
           {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={summary.counts} /> : null}
         </CardBody>
       </Card>
+
+      {attendanceToday ? <div className="mb-6">{attendanceSection}</div> : null}
 
       {venueRequest ? (
         <Card className="mb-6">
@@ -266,26 +297,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
         />
       ) : null}
 
-      {!canSeeAttendance ? null : practice.status === "CANCELLED" ? (
-        <Alert tone="warning">This practice was cancelled, so there is no attendance to take.</Alert>
-      ) : isFuture ? (
-        <Alert tone="info">Attendance opens on the practice day.</Alert>
-      ) : (
-        <>
-          {!attendanceOpen ? (
-            <Alert tone="info" className="mb-4">
-              This practice has passed. Only admins can change its attendance.
-            </Alert>
-          ) : null}
-          <AttendanceChecklist
-            practiceId={practice.id}
-            entries={entries}
-            threshold={threshold}
-            readOnly={!attendanceOpen || !hasPermission(user.role, "attendance:write")}
-            canUnmark={canUnmarkAttendance(user.role, practice.date, today)}
-          />
-        </>
-      )}
+      {attendanceToday ? null : attendanceSection}
     </>
   );
 }

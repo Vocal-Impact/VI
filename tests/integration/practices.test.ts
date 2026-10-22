@@ -3,6 +3,8 @@ import {
   getMemberRsvps,
   getRsvpSummary,
   getTodaysPractice,
+  listPastPractices,
+  listTodaysPractices,
   listUpcomingPractices,
   schedulePractice,
   setAttendance,
@@ -145,5 +147,36 @@ describe("member sign-in", () => {
   it("defaults new logins to MEMBER, never committee", async () => {
     await prisma.user.create({ data: { id: "plain", name: "Plain", email: "plain@iit.ac.lk" } });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: "plain" } })).role).toBe("MEMBER");
+  });
+});
+
+describe("practices through the day", () => {
+  it("moves today's practices from upcoming to happening now to past as the clock goes on", async () => {
+    const committee = await createUser({ role: "COMMITTEE" });
+    const at = (time: string) => ({ date: today, time });
+    for (const [title, startTime, endTime] of [
+      ["Sopranos", "17:00", "19:00"],
+      ["Basses", "17:30", "18:30"],
+    ] as const) {
+      const scheduled = await schedulePractice({ date: today, startTime, endTime, title }, committee);
+      expect(scheduled.ok).toBe(true);
+    }
+    const titles = (list: Array<{ title: string }>) => list.map((practice) => practice.title);
+    const ongoing = async (time: string) =>
+      titles((await listTodaysPractices(at(time))).filter((practice) => practice.phase === "ONGOING"));
+
+    // Morning: both still to come.
+    expect(titles(await listUpcomingPractices({ now: at("09:00") }))).toEqual(["Sopranos", "Basses"]);
+    expect(await ongoing("09:00")).toEqual([]);
+    // 18:00: both on at once, and still listed as not over.
+    expect(await ongoing("18:00")).toEqual(["Sopranos", "Basses"]);
+    expect((await listUpcomingPractices({ now: at("18:00") })).map((p) => p.phase)).toEqual(["ONGOING", "ONGOING"]);
+    // 18:45: Basses finished, Sopranos still going.
+    expect(await ongoing("18:45")).toEqual(["Sopranos"]);
+    expect(titles(await listPastPractices(30, undefined, undefined, at("18:45")))).toEqual(["Basses"]);
+    // Evening: both over, so neither is "upcoming" any more.
+    expect(await listUpcomingPractices({ now: at("21:00") })).toEqual([]);
+    // Most recent first: the later start comes first.
+    expect(titles(await listPastPractices(30, undefined, undefined, at("21:00")))).toEqual(["Basses", "Sopranos"]);
   });
 });

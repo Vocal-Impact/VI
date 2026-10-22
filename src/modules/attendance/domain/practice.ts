@@ -53,6 +53,36 @@ interface PracticeLike {
   status: PracticeStatus | string;
 }
 
+/** Where a practice is in time: still to come, on right now, or over. */
+export type PracticePhase = "UPCOMING" | "ONGOING" | "ENDED";
+
+/** How long a practice without an end time is taken to last. */
+export const DEFAULT_PRACTICE_MINUTES = 120;
+
+function addMinutes(time: string, minutes: number): string {
+  const [hours = 0, mins = 0] = time.split(":").map(Number);
+  // Capped at "24:00" (the end of the day), which still sorts after every real time.
+  const total = Math.min(hours * 60 + mins + minutes, 24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/**
+ * Upcoming until it starts, ongoing from its start to its end time (or
+ * DEFAULT_PRACTICE_MINUTES after the start when there's no end time), then
+ * ended. A practice with no start time is "on" all day. `now` is local time.
+ */
+export function practicePhase(
+  practice: { date: IsoDate; startTime: string | null; endTime: string | null },
+  now: { date: IsoDate; time: string },
+): PracticePhase {
+  if (practice.date > now.date) return "UPCOMING";
+  if (practice.date < now.date) return "ENDED";
+  if (!practice.startTime) return "ONGOING";
+  if (now.time < practice.startTime) return "UPCOMING";
+  const end = practice.endTime ?? addMinutes(practice.startTime, DEFAULT_PRACTICE_MINUTES);
+  return now.time < end ? "ONGOING" : "ENDED";
+}
+
 /**
  * Attendance can only be taken for a scheduled (not cancelled) practice, on its
  * day. Admins may also correct past practices; nobody can mark future ones.

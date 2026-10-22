@@ -122,11 +122,12 @@ test("replies and the attendance list can be narrowed to one voice part", async 
   // Today's practice: the attendance list filters the same way.
   await page.goto("/attendance");
   await page.getByRole("link", { name: "Take attendance" }).click();
-  const list = page.getByRole("list", { name: "Members" });
+  const attendance = page.getByRole("region", { name: "Attendance" });
+  const list = attendance.getByRole("list", { name: "Members" });
   await expect(list.getByText("Mala Member")).toBeVisible();
-  await page.getByRole("combobox", { name: "Voice part" }).last().selectOption("TENOR");
+  await attendance.getByRole("combobox", { name: "Voice part" }).selectOption("TENOR");
   await expect(list.getByText("Mala Member")).toHaveCount(0);
-  await page.getByRole("combobox", { name: "Voice part" }).last().selectOption("ALL");
+  await attendance.getByRole("combobox", { name: "Voice part" }).selectOption("ALL");
   await expect(list.getByText("Mala Member")).toBeVisible();
 });
 

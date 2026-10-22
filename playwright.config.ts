@@ -68,6 +68,11 @@ export default defineConfig({
       // Tests cover every feature, whatever a developer's .env switches off.
       FEATURE_LIFTS_HOME: "true",
       FEATURE_SONG_BANK: "true",
+      // Song bank uploads go to .local-storage/, never a developer's real R2 bucket.
+      R2_ACCOUNT_ID: "",
+      R2_ACCESS_KEY_ID: "",
+      R2_SECRET_ACCESS_KEY: "",
+      R2_BUCKET: "",
       ALLOWED_EMAIL_DOMAIN: "iit.ac.lk",
       GOOGLE_CLIENT_ID: "",
       GOOGLE_CLIENT_SECRET: "",

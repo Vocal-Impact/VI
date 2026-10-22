@@ -12,6 +12,7 @@ import {
   descendantIds,
   folderLabel,
   folderPath,
+  folderTree,
   type FolderNode,
   type SongBankViewer,
 } from "../domain/song-bank";
@@ -86,12 +87,22 @@ export async function getFolderView(id: string) {
   return { folder, path: folderPath(folders, id), subfolders, files };
 }
 
-/** Every folder as "2025 / Christmas concert / Silent Night", for "move to" pickers. */
-export async function listFolderOptions(): Promise<Array<{ id: string; label: string; parentId: string | null }>> {
+/**
+ * Every folder for "move to" pickers, in tree order (each followed by its
+ * subfolders) with its depth for indenting, and its full path
+ * ("2025 / Christmas concert / Silent Night").
+ */
+export async function listFolderOptions(): Promise<
+  Array<{ id: string; name: string; depth: number; label: string; parentId: string | null }>
+> {
   const folders = await loadFolders();
-  return [...folders.values()]
-    .map((folder) => ({ id: folder.id, parentId: folder.parentId, label: folderLabel(folders, folder.id) }))
-    .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" }));
+  return folderTree(folders.values()).map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    depth: folder.depth,
+    parentId: folder.parentId,
+    label: folderLabel(folders, folder.id),
+  }));
 }
 
 /** Ids of every folder inside `id` (to leave out of its own "move to" picker). */

@@ -9,6 +9,8 @@ import {
   filterByPart,
   folderLabel,
   folderPath,
+  folderTree,
+  indentedFolderName,
   guessPartFromName,
   sanitizeFileName,
   sortForPart,
@@ -104,6 +106,31 @@ describe("folder tree", () => {
       ["b", { id: "b", name: "B", parentId: "a" }],
     ]);
     expect(folderPath(loop, "a").map((folder) => folder.id)).toEqual(["b", "a"]);
+  });
+
+  it("lists folders as a tree: each followed by its subfolders, siblings by name", () => {
+    const tree = folderTree([
+      ...nodes,
+      { id: "e", name: "Easter", parentId: "y" },
+      { id: "x", name: "2025", parentId: null },
+    ]);
+    expect(tree.map((folder) => [folder.name, folder.depth])).toEqual([
+      ["2025", 0],
+      ["2026", 0],
+      ["Christmas", 1],
+      ["Silent Night", 2],
+      ["Easter", 1],
+      ["Other", 0],
+    ]);
+    // A folder whose parent is gone still shows up, at the top level.
+    expect(folderTree([{ id: "lost", name: "Lost", parentId: "deleted" }])).toEqual([
+      { id: "lost", name: "Lost", parentId: "deleted", depth: 0 },
+    ]);
+  });
+
+  it("indents picker entries by depth with spaces the browser keeps", () => {
+    expect(indentedFolderName("2026", 0)).toBe("2026");
+    expect(indentedFolderName("Silent Night", 2)).toBe(" ".repeat(6) + "└ Silent Night");
   });
 
   it("won't move a folder into itself or its own subfolders", () => {

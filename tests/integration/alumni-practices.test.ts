@@ -64,7 +64,11 @@ describe("alumni practices", () => {
       practice({ date: todayLocal(), title: "Renamed", audience: "MEMBERS" }),
       admin,
     );
-    expect((await listUpcomingPractices({ audiences: ["ALUMNI"] })).map((p) => p.title)).toEqual(["Renamed"]);
+    // Before it starts (18:00), so it's still upcoming whatever time the test runs.
+    const morning = { date: todayLocal(), time: "09:00" };
+    expect((await listUpcomingPractices({ audiences: ["ALUMNI"], now: morning })).map((p) => p.title)).toEqual([
+      "Renamed",
+    ]);
 
     const marked = await setAttendance({ practiceId: guest.value.id, memberId: member.id, present: true }, admin);
     expect(!marked.ok && marked.error.message).toBe("Attendance isn't taken at alumni practices");

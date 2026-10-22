@@ -3,7 +3,13 @@ import { CalendarDays, ChevronRight, Clock, MapPin } from "lucide-react";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { cn } from "@/shared/lib/cn";
 import { Badge } from "@/shared/ui/layout";
-import { describeAudience, formatTimeRange, type PracticeTarget, type RsvpCounts } from "../domain/practice";
+import {
+  describeAudience,
+  formatTimeRange,
+  type PracticePhase,
+  type PracticeTarget,
+  type RsvpCounts,
+} from "../domain/practice";
 
 interface PracticeLike {
   date: string;
@@ -19,22 +25,53 @@ interface PracticeLike {
   inviteeIds?: PracticeTarget["inviteeIds"];
 }
 
+/** "Happening now", with a live dot. */
+export function LiveBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-white",
+        className,
+      )}
+    >
+      <span className="relative flex size-2" aria-hidden="true">
+        <span className="absolute inline-flex size-full rounded-full bg-white opacity-75 motion-safe:animate-ping" />
+        <span className="relative inline-flex size-2 rounded-full bg-white" />
+      </span>
+      Happening now
+    </span>
+  );
+}
+
 /** Date, time and venue of a practice, as shown on dashboards. */
 export function PracticeDetails({
   practice,
   today,
+  phase,
+  showDayBadge = true,
   className,
 }: {
   practice: PracticeLike;
   today: string;
+  /** When given: "Happening now" while it's on, "Ended" once today's is over. */
+  phase?: PracticePhase;
+  /** False where the card around it already says it's on now. */
+  showDayBadge?: boolean;
   className?: string;
 }) {
   const cancelled = practice.status === "CANCELLED";
+  const isToday = showDayBadge && practice.date === today && !cancelled;
   return (
     <div className={cn("space-y-1", className)}>
       <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
         <span className={cn(cancelled && "line-through")}>{practice.title}</span>
-        {practice.date === today && !cancelled ? <Badge tone="green">Today</Badge> : null}
+        {isToday && phase === "ONGOING" ? (
+          <LiveBadge />
+        ) : isToday && phase === "ENDED" ? (
+          <Badge>Ended</Badge>
+        ) : isToday ? (
+          <Badge tone="green">Today</Badge>
+        ) : null}
         {cancelled ? <Badge tone="red">Cancelled</Badge> : null}
         <AudienceBadge practice={practice} />
       </p>

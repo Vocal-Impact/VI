@@ -3,7 +3,7 @@ import type { Practice } from "@/generated/prisma/client";
 import type { StudyLevel } from "@/modules/members/domain";
 import { prisma } from "@/shared/db/prisma";
 import { writeAuditLog } from "@/shared/audit/audit-log";
-import { todayLocal } from "@/shared/lib/clock";
+import { nowLocal, todayLocal, type LocalNow } from "@/shared/lib/clock";
 import { fromIsoDate, toIsoDate } from "@/shared/lib/dates";
 import { err, ok, type Result } from "@/shared/lib/result";
 import { validationError } from "@/shared/lib/validation";
@@ -14,6 +14,7 @@ import {
   CHOIR_AUDIENCES,
   countRsvps,
   isInvited,
+  practicePhase,
   type MemberLike,
   type PracticeAudience,
   type PracticeOrganiser,
@@ -90,41 +91,54 @@ interface ListOptions {
   audiences?: readonly PracticeAudience[];
   /** Only practices for exactly these levels (a batch lead's own practices). */
   levels?: StudyLevel[];
+  /** Local date and time (for tests); defaults to now. */
+  now?: LocalNow;
 }
 
-/** Practices from today onwards, soonest first, with RSVP counts among the people invited. */
+/** Practices that haven't ended yet (on now or still to come), soonest first, with RSVP counts among the people invited. */
 export async function listUpcomingPractices(options: ListOptions = {}) {
+  const now = options.now ?? nowLocal();
+  const take = options.take ?? 10;
   const [practices, members] = await Promise.all([
     prisma.practice.findMany({
       where: {
-        date: { gte: fromIsoDate(todayLocal()) },
+        date: { gte: fromIsoDate(now.date) },
         status: options.includeCancelled ? undefined : "SCHEDULED",
         audience: { in: [...(options.audiences ?? CHOIR_AUDIENCES)] },
         ...(options.levels ? { levels: { equals: options.levels } } : {}),
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
-      take: options.take ?? 10,
+      // Some of today's may have ended already: fetch a few extra so `take` still fills.
+      take: take + 10,
       include: { ...withInvitees, rsvps: { select: { memberId: true, response: true } } },
     }),
     loadMembers(),
   ]);
-  return practices.map((practice) => {
-    const view = toView(practice);
-    return { ...view, counts: countRsvps(practice.rsvps, invitedIds(members, view)) };
-  });
+  return practices
+    .map((practice) => {
+      const view = toView(practice);
+      return {
+        ...view,
+        phase: practicePhase(view, now),
+        counts: countRsvps(practice.rsvps, invitedIds(members, view)),
+      };
+    })
+    .filter((practice) => practice.phase !== "ENDED")
+    .slice(0, take);
 }
 
 /**
  * The upcoming practices one member is asked to: whole-choir practices, their
  * level's, ones they were picked for, and alumni practices for alumni.
  */
-export async function listUpcomingPracticesFor(memberId: string, options: { take?: number } = {}) {
+export async function listUpcomingPracticesFor(memberId: string, options: { take?: number; now?: LocalNow } = {}) {
   const member = await getInviteProfile(memberId);
   if (!member) return [];
+  const now = options.now ?? nowLocal();
   const [practices, members] = await Promise.all([
     prisma.practice.findMany({
       where: {
-        date: { gte: fromIsoDate(todayLocal()) },
+        date: { gte: fromIsoDate(now.date) },
         OR: [
           { audience: "MEMBERS" },
           { audience: "ALUMNI" },
@@ -140,9 +154,13 @@ export async function listUpcomingPracticesFor(memberId: string, options: { take
   return practices
     .map((practice) => {
       const view = toView(practice);
-      return { ...view, counts: countRsvps(practice.rsvps, invitedIds(members, view)) };
+      return {
+        ...view,
+        phase: practicePhase(view, now),
+        counts: countRsvps(practice.rsvps, invitedIds(members, view)),
+      };
     })
-    .filter((practice) => canReplyTo(member, practice))
+    .filter((practice) => practice.phase !== "ENDED" && canReplyTo(member, practice))
     .slice(0, options.take ?? 10);
 }
 
@@ -164,23 +182,34 @@ export async function listInvitableMembers() {
   return [...members.filter((m) => m.status !== "ALUMNI"), ...members.filter((m) => m.status === "ALUMNI")];
 }
 
-/** Past practices, most recent first, with attendance counts. `levels`: only practices for exactly these levels. */
+/**
+ * Practices that have ended (including earlier today), most recent first, with
+ * attendance counts. `levels`: only practices for exactly these levels.
+ */
 export async function listPastPractices(
   take = 30,
   audiences: readonly PracticeAudience[] = CHOIR_AUDIENCES,
   levels?: StudyLevel[],
+  now: LocalNow = nowLocal(),
 ) {
   const practices = await prisma.practice.findMany({
     where: {
-      date: { lt: fromIsoDate(todayLocal()) },
+      date: { lte: fromIsoDate(now.date) },
       audience: { in: [...audiences] },
       ...(levels ? { levels: { equals: levels } } : {}),
     },
     orderBy: [{ date: "desc" }, { startTime: "desc" }],
-    take,
+    // Today's that haven't ended are left out below: fetch a few extra so `take` still fills.
+    take: take + 10,
     include: { ...withInvitees, _count: { select: { attendances: true } } },
   });
-  return practices.map((practice) => ({ ...toView(practice), attended: practice._count.attendances }));
+  return practices
+    .map((practice) => {
+      const view = toView(practice);
+      return { ...view, phase: practicePhase(view, now), attended: practice._count.attendances };
+    })
+    .filter((practice) => practice.phase === "ENDED")
+    .slice(0, take);
 }
 
 export async function getPractice(id: string): Promise<PracticeView | null> {
@@ -196,6 +225,23 @@ export async function getTodaysPractice() {
     include: { ...withInvitees, _count: { select: { attendances: true } } },
   });
   return practice ? { ...toView(practice), attended: practice._count.attendances } : null;
+}
+
+/**
+ * Every scheduled choir practice today, in start order, with how many are
+ * marked present and whether each is on now. Attendance can be taken for any
+ * of them until the day ends.
+ */
+export async function listTodaysPractices(now: LocalNow = nowLocal()) {
+  const practices = await prisma.practice.findMany({
+    where: { date: fromIsoDate(now.date), status: "SCHEDULED", audience: { in: [...CHOIR_AUDIENCES] } },
+    orderBy: { startTime: "asc" },
+    include: { ...withInvitees, _count: { select: { attendances: true } } },
+  });
+  return practices.map((practice) => {
+    const view = toView(practice);
+    return { ...view, phase: practicePhase(view, now), attended: practice._count.attendances };
+  });
 }
 
 export interface RsvpPerson {

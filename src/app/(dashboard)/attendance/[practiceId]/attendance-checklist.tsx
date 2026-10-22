@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Check } from "lucide-react";
 import type { ChecklistEntry } from "@/modules/attendance";
 import { attendanceProgress } from "@/modules/attendance/domain";
+import { LiveBadge } from "@/modules/attendance/ui";
 import { VOICE_TYPE_LABELS, type VoiceType } from "@/modules/members/domain";
 import { byVoicePart, VoicePartSelect, type VoicePartFilter } from "@/modules/members/ui";
 import { cn } from "@/shared/lib/cn";
@@ -20,12 +21,18 @@ export function AttendanceChecklist({
   threshold,
   readOnly,
   canUnmark,
+  prominent = false,
+  live = false,
 }: {
   practiceId: string;
   entries: ChecklistEntry[];
   threshold: number;
   readOnly: boolean;
   canUnmark: boolean;
+  /** On the practice day: a big "Take attendance" heading, so it's the obvious thing on the page. */
+  prominent?: boolean;
+  /** The practice is on right now. */
+  live?: boolean;
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [query, setQuery] = useState("");
@@ -75,13 +82,46 @@ export function AttendanceChecklist({
   }
 
   return (
-    <Card>
-      <div className="sticky top-[57px] z-10 space-y-2 border-b border-slate-100 bg-white p-4 lg:top-0">
+    <Card
+      id="attendance"
+      aria-label="Attendance"
+      className={cn(
+        "scroll-mt-20",
+        prominent && (live ? "border-2 border-emerald-500 shadow-md" : "border-2 border-brand-300 shadow-md"),
+      )}
+    >
+      <div
+        className={cn(
+          // Rounded to fit inside the card's corners (rounded-xl less its border); the card can't clip it without breaking sticky.
+          "sticky top-[57px] z-10 space-y-2 rounded-t-[10px] border-b border-slate-100 p-4 lg:top-0",
+          prominent && live ? "bg-emerald-50" : "bg-white",
+        )}
+      >
+        {prominent ? (
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <h2 className="flex flex-wrap items-center gap-2 font-display text-xl font-black text-ink sm:text-2xl">
+              {readOnly ? "Attendance" : "Take attendance"}
+              {live ? <LiveBadge /> : null}
+            </h2>
+            <p className="text-sm text-slate-600">
+              <span className="font-display text-2xl font-black text-ink tabular-nums">{presentCount}</span> present of{" "}
+              {entries.length}
+            </p>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">
-            {presentCount} present <span className="text-slate-500">of {entries.length}</span>
-          </span>
-          {readOnly ? <Badge>View only</Badge> : <span className="text-slate-500">Tap a name to mark present</span>}
+          {prominent ? null : (
+            <span className="font-medium">
+              {presentCount} present <span className="text-slate-500">of {entries.length}</span>
+            </span>
+          )}
+          {readOnly ? (
+            <Badge>View only</Badge>
+          ) : (
+            <span className={prominent ? "font-medium text-slate-700" : "text-slate-500"}>
+              Tap a name to mark present
+            </span>
+          )}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Input
@@ -107,7 +147,14 @@ export function AttendanceChecklist({
           </EmptyState>
         </div>
       ) : (
-        <CappedList visible={10} items=":scope > ul > li" label="Attendance">
+        <CappedList
+          visible={10}
+          items=":scope > ul > li"
+          label="Members to mark"
+          // Rounded like the card's bottom corners (less its border), so the scrollbar and
+          // the green "present" rows don't cover the card's outline there.
+          className={prominent ? "rounded-b-[10px]" : "rounded-b-[11px]"}
+        >
           <ul className="divide-y divide-slate-100" aria-label="Members">
             {filtered.map((entry) => (
               <li key={entry.memberId}>

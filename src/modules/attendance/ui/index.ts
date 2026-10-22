@@ -1,5 +1,6 @@
 export {
   AudienceBadge,
+  LiveBadge,
   PracticeCardLink,
   PracticeDetails,
   RsvpCountBadges,

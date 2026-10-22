@@ -7,7 +7,8 @@ import {
 import { canManagePractice, canReplyTo, canRsvp, type PracticeAudience } from "@/modules/attendance/domain";
 import { hasPermission, type SessionUser } from "@/modules/auth";
 import { PracticeCardLink, PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
-import { todayLocal } from "@/shared/lib/clock";
+import { nowLocal } from "@/shared/lib/clock";
+import { cn } from "@/shared/lib/cn";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { LinkButton } from "@/shared/ui/button";
 import { Card, CardHeader, EmptyState } from "@/shared/ui/layout";
@@ -15,9 +16,9 @@ import { RsvpButtons } from "./attendance/rsvp-buttons";
 import { CappedList } from "@/shared/ui/capped-list";
 
 /**
- * Upcoming practices on the dashboard. Each practice gets Going / Can't make
- * it if the viewer is invited to it, and reply counts with Edit (and Take
- * attendance on the day) if the viewer organises it.
+ * Upcoming practices on the dashboard (including any on right now). Each
+ * practice gets Going / Can't make it if the viewer is invited to it, and reply
+ * counts with Edit (and Take attendance while it's on) if the viewer organises it.
  */
 export async function UpcomingPractices({
   viewer,
@@ -40,13 +41,14 @@ export async function UpcomingPractices({
   /** Where to schedule one (shown as a button), if the viewer can. */
   scheduleHref?: string | null;
 }) {
-  const today = todayLocal();
+  const now = nowLocal();
+  const today = now.date;
   const [practices, member] = await Promise.all([
     source === "mine"
       ? viewer.memberId
-        ? listUpcomingPracticesFor(viewer.memberId, { take })
+        ? listUpcomingPracticesFor(viewer.memberId, { take, now })
         : Promise.resolve([])
-      : listUpcomingPractices({ take, includeCancelled: true, audiences: source }),
+      : listUpcomingPractices({ take, includeCancelled: true, audiences: source, now }),
     canReply && viewer.memberId ? getInviteProfile(viewer.memberId) : Promise.resolve(null),
   ]);
   const replyable = new Set(
@@ -76,17 +78,18 @@ export async function UpcomingPractices({
         {practices.map((practice) => {
           const label = `${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`;
           const manage = canManagePractice(viewer, practice);
+          const live = practice.phase === "ONGOING" && practice.status === "SCHEDULED";
           return (
             <div
               key={practice.id}
-              className={
-                manage
-                  ? "group relative space-y-3 rounded-lg border border-slate-200 p-3 transition-colors hover:border-brand-300 hover:bg-slate-50/70"
-                  : "space-y-3 rounded-lg border border-slate-200 p-3"
-              }
+              className={cn(
+                "space-y-3 rounded-lg border p-3",
+                live ? "border-2 border-emerald-500 bg-emerald-50/40" : "border-slate-200",
+                manage && "group relative transition-colors hover:border-brand-300 hover:bg-slate-50/70",
+              )}
             >
               {manage ? <PracticeCardLink practiceId={practice.id} label={label} /> : null}
-              <PracticeDetails practice={practice} today={today} className="pr-6" />
+              <PracticeDetails practice={practice} today={today} phase={practice.phase} className="pr-6" />
               {showVenueBooking && practice.status === "SCHEDULED" ? <VenueBookingBadge practice={practice} /> : null}
               {replyable.has(practice.id) ? (
                 <div className="relative z-10">
@@ -102,10 +105,7 @@ export async function UpcomingPractices({
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                   {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : <span />}
                   <div className="relative z-10 flex gap-2">
-                    {practice.audience !== "ALUMNI" &&
-                    practice.date === today &&
-                    practice.status === "SCHEDULED" &&
-                    hasPermission(viewer.role, "attendance:write") ? (
+                    {practice.audience !== "ALUMNI" && live && hasPermission(viewer.role, "attendance:write") ? (
                       <LinkButton href={`/attendance/${practice.id}`} size="sm">
                         Take attendance
                       </LinkButton>

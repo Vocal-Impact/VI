@@ -8,6 +8,7 @@ export {
   listPastPractices,
   getPractice,
   getTodaysPractice,
+  listTodaysPractices,
   getRsvpSummary,
   getMemberRsvps,
   schedulePractice,

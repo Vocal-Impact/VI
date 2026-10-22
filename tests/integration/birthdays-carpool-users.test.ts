@@ -43,6 +43,11 @@ describe("birthday reminders", () => {
     expect(sender.sent[0]?.to).toBe("on@iit.ac.lk");
     expect(sender.sent[0]?.subject).toBe("🎂 2 Vocal Impact birthdays today");
     expect(sender.sent[0]?.text).toContain("turning 22");
+    // Everyone with a birthday that day is in the one email.
+    expect(sender.sent[0]?.text).toContain("Amaya Test");
+    expect(sender.sent[0]?.text).toContain("Kavindu Test");
+    expect(sender.sent[0]?.html).toContain("Amaya Test");
+    expect(sender.sent[0]?.html).toContain("Kavindu Test");
 
     const again = await sendBirthdayReminders({ clock, sender });
     expect(again).toMatchObject({ emailsSent: 0, skippedAlreadySent: 2 });

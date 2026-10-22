@@ -3,7 +3,14 @@ import { notFound } from "next/navigation";
 import { isFeatureEnabled } from "@/shared/config/features";
 import { requirePermission, hasPermission } from "@/modules/auth";
 import { getCarpoolOverview } from "@/modules/carpool";
-import { getPractice, getPracticeAttendeeIds, getTodaysPractice, listUpcomingPractices } from "@/modules/attendance";
+import {
+  getPractice,
+  getPracticeAttendeeIds,
+  getTodaysPractice,
+  listUpcomingPractices,
+  practicePhase,
+} from "@/modules/attendance";
+import { nowLocal } from "@/shared/lib/clock";
 import { formatTimeRange } from "@/modules/attendance/domain";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { Select } from "@/shared/ui/form";
@@ -32,7 +39,11 @@ export default async function CarpoolPage(props: PageProps<"/carpool">) {
   const attendeeIds = practice ? await getPracticeAttendeeIds(practice.id) : undefined;
   const choices = [...upcoming];
   if (practice && !choices.some((choice) => choice.id === practice.id))
-    choices.unshift({ ...practice, counts: { going: 0, notGoing: 0, noResponse: 0 } });
+    choices.unshift({
+      ...practice,
+      phase: practicePhase(practice, nowLocal()),
+      counts: { going: 0, notGoing: 0, noResponse: 0 },
+    });
 
   const overview = await getCarpoolOverview({ attendeeIds });
   const { suggestions, venue } = overview;
