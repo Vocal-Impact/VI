@@ -7,6 +7,9 @@ import { confirmDialog, isoDaysAgo, openDashboard, openFormDialog } from "./help
  * collapsed it to nothing.
  */
 
+/** Saving goes to the server, which can take a few seconds on a busy CI machine. */
+const SAVE_TIMEOUT = 15_000;
+
 /** The dialog shows its form: the body has real height and the save button can be reached. */
 async function expectUsable(dialog: Locator, saveButton: string) {
   await dialog.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
@@ -28,11 +31,15 @@ async function expectUsable(dialog: Locator, saveButton: string) {
   );
   expect(smallestText).toBeGreaterThanOrEqual(16);
   const save = dialog.getByRole("button", { name: saveButton });
-  await save.scrollIntoViewIfNeeded();
+  // Scroll it into view directly: scrollIntoViewIfNeeded first waits for the button to keep still
+  // over two animation frames, which can hang in WebKit on a slow CI machine. toBeInViewport retries.
+  await save.evaluate((element) => element.scrollIntoView({ block: "nearest" }));
   await expect(save).toBeInViewport();
 }
 
 test("add and edit forms open fully, in every browser", async ({ page }, testInfo) => {
+  // Opens and saves several forms in a row; Safari's engine is slow on CI.
+  test.setTimeout(60_000);
   // Unique per run and retry: a retry must not trip over the group a failed attempt already added.
   const tag = `${testInfo.project.name} ${Date.now().toString(36)}`;
   await openDashboard(page);
@@ -52,7 +59,7 @@ test("add and edit forms open fully, in every browser", async ({ page }, testInf
   await dialog.getByLabel("Invite link").fill(`https://chat.whatsapp.com/DialogCheck${tag.replace(/\W/g, "")}`);
   await dialog.getByRole("button", { name: "Add group" }).click();
   await confirmDialog(page);
-  await expect(dialog).toBeHidden();
+  await expect(dialog).toBeHidden({ timeout: SAVE_TIMEOUT });
   await page.getByRole("link", { name: new RegExp(`Dialog check ${tag}`) }).click();
   dialog = await openFormDialog(page, "Edit group");
   await expectUsable(dialog, "Save group");
@@ -67,7 +74,7 @@ test("add and edit forms open fully, in every browser", async ({ page }, testInf
   await dialog.getByLabel("Title").fill(`Dialog check ${tag}`);
   await dialog.getByRole("button", { name: "Schedule practice" }).click();
   await confirmDialog(page);
-  await expect(dialog).toBeHidden();
+  await expect(dialog).toBeHidden({ timeout: SAVE_TIMEOUT });
   await page.goto("/attendance");
   await page.getByRole("link", { name: new RegExp(`^Open Dialog check ${tag}`) }).click();
   dialog = await openFormDialog(page, "Edit details");
