@@ -5,6 +5,7 @@ import { getInviteContext, markInviteJoined, sendInvites } from "@/modules/whats
 import { ConsoleEmailSender } from "@/modules/notifications";
 import { prisma } from "@/shared/db/prisma";
 import { todayLocal } from "@/shared/lib/clock";
+import { addDays } from "@/shared/lib/dates";
 import { createGroup, createMember, createPractice, createUser } from "../support/factories";
 
 describe("new member journey: add → 3 practices → invites → joined → active", () => {
@@ -123,24 +124,29 @@ describe("new member journey: add → 3 practices → invites → joined → act
     if (!result.ok) expect(result.error.fieldErrors?.email?.[0]).toMatch(/iit\.ac\.lk/);
   });
 
-  it("only lets admins unmark past practices", async () => {
-    const admin = await createUser({ role: "ADMIN" });
+  it("lets the committee record and correct past practices, but not future ones", async () => {
     const committee = await createUser({ role: "COMMITTEE" });
     const member = await createMember();
     const past = await createPractice("2026-01-15");
     const today = await createPractice(todayLocal());
+    const future = await createPractice(addDays(todayLocal(), 3));
 
     for (const practice of [past, today])
-      await setAttendance({ practiceId: practice.id, memberId: member.id, present: true }, admin);
+      expect((await setAttendance({ practiceId: practice.id, memberId: member.id, present: true }, committee)).ok).toBe(
+        true,
+      );
+    expect(await prisma.attendance.count()).toBe(2);
 
     expect((await setAttendance({ practiceId: past.id, memberId: member.id, present: false }, committee)).ok).toBe(
-      false,
+      true,
     );
     expect((await setAttendance({ practiceId: today.id, memberId: member.id, present: false }, committee)).ok).toBe(
       true,
     );
-    expect((await setAttendance({ practiceId: past.id, memberId: member.id, present: false }, admin)).ok).toBe(true);
     expect(await prisma.attendance.count()).toBe(0);
+
+    const early = await setAttendance({ practiceId: future.id, memberId: member.id, present: true }, committee);
+    expect(!early.ok && early.error.message).toBe("Attendance opens on the practice day");
   });
 });
 

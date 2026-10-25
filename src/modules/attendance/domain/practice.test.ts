@@ -35,17 +35,13 @@ describe("times", () => {
 
 describe("canTakeAttendance", () => {
   const scheduled = (date: string) => ({ date, status: "SCHEDULED" });
-  it("is only open on the scheduled day for committee", () => {
-    expect(canTakeAttendance("COMMITTEE", scheduled(today), today)).toBe(true);
-    expect(canTakeAttendance("COMMITTEE", scheduled("2026-10-03"), today)).toBe(false);
-    expect(canTakeAttendance("COMMITTEE", scheduled("2026-10-05"), today)).toBe(false);
-  });
-  it("lets admins correct past practices but never future ones", () => {
-    expect(canTakeAttendance("ADMIN", scheduled("2026-09-01"), today)).toBe(true);
-    expect(canTakeAttendance("ADMIN", scheduled("2026-10-05"), today)).toBe(false);
+  it("is open from the practice day onwards, never ahead of time", () => {
+    expect(canTakeAttendance(scheduled(today), today)).toBe(true);
+    expect(canTakeAttendance(scheduled("2026-09-01"), today)).toBe(true);
+    expect(canTakeAttendance(scheduled("2026-10-05"), today)).toBe(false);
   });
   it("is closed for cancelled practices", () => {
-    expect(canTakeAttendance("ADMIN", { date: today, status: "CANCELLED" }, today)).toBe(false);
+    expect(canTakeAttendance({ date: today, status: "CANCELLED" }, today)).toBe(false);
   });
 });
 

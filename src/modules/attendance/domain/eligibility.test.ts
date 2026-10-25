@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendanceProgress, canUnmarkAttendance, hasStoppedComing, isEligibleForWhatsApp } from "./eligibility";
+import { attendanceProgress, hasStoppedComing, isEligibleForWhatsApp } from "./eligibility";
 
 describe("isEligibleForWhatsApp", () => {
   it("requires a prospective member with at least the threshold", () => {
@@ -29,13 +29,5 @@ describe("hasStoppedComing", () => {
   it("gives members who never came a grace period from joining", () => {
     expect(hasStoppedComing(null, "2026-09-25", today, 4)).toBe(false);
     expect(hasStoppedComing(null, "2026-06-01", today, 4)).toBe(true);
-  });
-});
-
-describe("canUnmarkAttendance", () => {
-  it("lets committee unmark only on the practice day; admins any time", () => {
-    expect(canUnmarkAttendance("COMMITTEE", "2026-10-02", "2026-10-02")).toBe(true);
-    expect(canUnmarkAttendance("COMMITTEE", "2026-10-01", "2026-10-02")).toBe(false);
-    expect(canUnmarkAttendance("ADMIN", "2026-01-01", "2026-10-02")).toBe(true);
   });
 });

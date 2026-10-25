@@ -29,8 +29,3 @@ export function hasStoppedComing(
   if (lastAttended) return lastAttended < cutoff;
   return joined < cutoff;
 }
-
-/** Committee members may only undo a mark on the practice day; admins any time. */
-export function canUnmarkAttendance(role: string, practiceDate: IsoDate, today: IsoDate): boolean {
-  return role === "ADMIN" || practiceDate === today;
-}

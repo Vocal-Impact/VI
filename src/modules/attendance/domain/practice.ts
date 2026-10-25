@@ -84,13 +84,11 @@ export function practicePhase(
 }
 
 /**
- * Attendance can only be taken for a scheduled (not cancelled) practice, on its
- * day. Admins may also correct past practices; nobody can mark future ones.
+ * Attendance can be taken (and corrected) for a scheduled (not cancelled)
+ * practice from its day onwards, by anyone who takes attendance. Never ahead of time.
  */
-export function canTakeAttendance(role: string, practice: PracticeLike, today: IsoDate): boolean {
-  if (practice.status === "CANCELLED") return false;
-  if (practice.date === today) return true;
-  return role === "ADMIN" && practice.date < today;
+export function canTakeAttendance(practice: PracticeLike, today: IsoDate): boolean {
+  return practice.status !== "CANCELLED" && practice.date <= today;
 }
 
 /** Members can answer (and change their answer) until the practice day ends. */

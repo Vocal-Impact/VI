@@ -20,7 +20,6 @@ export function AttendanceChecklist({
   entries: initialEntries,
   threshold,
   readOnly,
-  canUnmark,
   prominent = false,
   live = false,
   canAddMembers = true,
@@ -29,7 +28,6 @@ export function AttendanceChecklist({
   entries: ChecklistEntry[];
   threshold: number;
   readOnly: boolean;
-  canUnmark: boolean;
   /** On the practice day: a big "Take attendance" heading, so it's the obvious thing on the page. */
   prominent?: boolean;
   /** The practice is on right now. */
@@ -54,10 +52,6 @@ export function AttendanceChecklist({
   function toggle(entry: ChecklistEntry) {
     if (readOnly || busy.has(entry.memberId)) return;
     const present = !entry.present;
-    if (!present && !canUnmark) {
-      toast.error("Only admins can change attendance after the practice day");
-      return;
-    }
     const update = (changes: Partial<ChecklistEntry>) =>
       setEntries((current) =>
         current.map((item) => (item.memberId === entry.memberId ? { ...item, ...changes } : item)),

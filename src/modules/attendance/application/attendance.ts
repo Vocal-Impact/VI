@@ -7,7 +7,7 @@ import { toIsoDate } from "@/shared/lib/dates";
 import { err, ok, type Result } from "@/shared/lib/result";
 import { getSettings } from "@/shared/settings/settings";
 import { toCsv } from "@/shared/lib/csv";
-import { canUnmarkAttendance, hasStoppedComing, isEligibleForWhatsApp } from "../domain/eligibility";
+import { hasStoppedComing, isEligibleForWhatsApp } from "../domain/eligibility";
 import { canTakeAttendance, type RsvpResponse } from "../domain/practice";
 import { attendanceToggleSchema } from "../schemas";
 
@@ -83,12 +83,10 @@ export async function setAttendance(
   if (!practice) return err("NOT_FOUND", "Practice not found");
   if (practice.audience === "ALUMNI") return err("FORBIDDEN", "Attendance isn't taken at alumni practices");
   const practiceDate = toIsoDate(practice.date);
-  if (!canTakeAttendance(actor.role, { date: practiceDate, status: practice.status }, todayLocal())) {
+  if (!canTakeAttendance({ date: practiceDate, status: practice.status }, todayLocal())) {
     return err(
       "FORBIDDEN",
-      practice.status === "CANCELLED"
-        ? "This practice was cancelled"
-        : "Attendance can only be taken on the scheduled practice day",
+      practice.status === "CANCELLED" ? "This practice was cancelled" : "Attendance opens on the practice day",
     );
   }
 
@@ -99,9 +97,6 @@ export async function setAttendance(
       update: {},
     });
   } else {
-    if (!canUnmarkAttendance(actor.role, practiceDate, todayLocal())) {
-      return err("FORBIDDEN", "Only admins can change attendance after the practice day");
-    }
     const removed = await prisma.attendance.deleteMany({ where: { practiceId, memberId } });
     if (removed.count > 0) {
       await writeAuditLog({

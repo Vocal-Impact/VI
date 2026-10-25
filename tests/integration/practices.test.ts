@@ -58,7 +58,7 @@ describe("practice scheduling", () => {
     expect(await prisma.auditLog.count({ where: { entityId: scheduled.value.id } })).toBe(3);
   });
 
-  it("only allows attendance on the scheduled day (admins may correct the past)", async () => {
+  it("allows attendance from the practice day onwards, never ahead or for cancelled practices", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const committee = await createUser({ role: "COMMITTEE" });
     const member = await createMember();
@@ -67,10 +67,10 @@ describe("practice scheduling", () => {
     const todays = await createPractice(today);
 
     expect((await setAttendance({ practiceId: future.id, memberId: member.id, present: true }, admin)).ok).toBe(false);
-    expect((await setAttendance({ practiceId: past.id, memberId: member.id, present: true }, committee)).ok).toBe(
+    expect((await setAttendance({ practiceId: future.id, memberId: member.id, present: true }, committee)).ok).toBe(
       false,
     );
-    expect((await setAttendance({ practiceId: past.id, memberId: member.id, present: true }, admin)).ok).toBe(true);
+    expect((await setAttendance({ practiceId: past.id, memberId: member.id, present: true }, committee)).ok).toBe(true);
     expect((await setAttendance({ practiceId: todays.id, memberId: member.id, present: true }, committee)).ok).toBe(
       true,
     );

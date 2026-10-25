@@ -4,7 +4,6 @@ import { requireUser, hasPermission, userHasPermission } from "@/modules/auth";
 import {
   canManagePractice,
   canTakeAttendance,
-  canUnmarkAttendance,
   isTentativeVenue,
   practicePhase,
   venueReminderDueDate,
@@ -55,7 +54,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
     : canSeeAttendance || hasPermission(user.role, "practices:level-manage")
       ? { href: "/attendance", label: "Practices" }
       : { href: "/", label: "Dashboard" };
-  const attendanceOpen = !alumni && canTakeAttendance(user.role, practice, today);
+  const attendanceOpen = !alumni && canTakeAttendance(practice, today);
   const isFuture = practice.date > today;
   const canBookVenue =
     hasPermission(user.role, "venues:book") && practice.status === "SCHEDULED" && practice.date >= today;
@@ -74,23 +73,15 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   ) : isFuture ? (
     <Alert tone="info">Attendance opens on the practice day.</Alert>
   ) : (
-    <>
-      {!attendanceOpen ? (
-        <Alert tone="info" className="mb-4">
-          This practice has passed. Only admins can change its attendance.
-        </Alert>
-      ) : null}
-      <AttendanceChecklist
-        practiceId={practice.id}
-        entries={entries}
-        threshold={threshold}
-        readOnly={!attendanceOpen || !userHasPermission(user, "attendance:write")}
-        canUnmark={canUnmarkAttendance(user.role, practice.date, today)}
-        prominent={attendanceToday}
-        live={attendanceToday && phase === "ONGOING"}
-        canAddMembers={hasPermission(user.role, "members:write")}
-      />
-    </>
+    <AttendanceChecklist
+      practiceId={practice.id}
+      entries={entries}
+      threshold={threshold}
+      readOnly={!attendanceOpen || !userHasPermission(user, "attendance:write")}
+      prominent={attendanceToday}
+      live={attendanceToday && phase === "ONGOING"}
+      canAddMembers={hasPermission(user.role, "members:write")}
+    />
   );
 
   return (
