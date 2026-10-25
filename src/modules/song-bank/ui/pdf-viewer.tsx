@@ -15,14 +15,22 @@ const ZOOMS = [0.75, 1, 1.25, 1.5, 2, 2.5] as const;
  * iPhones work too), the same on every phone and computer: browsers' own PDF
  * viewers show only the first page or download the file on many phones.
  * Pages are drawn as they scroll into view; zoom 1 = page fits the width.
+ *
+ * The PDF is downloaded whole, in one plain request straight to storage, and
+ * handed to pdf.js as bytes. Letting pdf.js fetch it itself fails on iPhone
+ * Safari: it follows the app's redirect to storage and asks for byte ranges,
+ * and Safari refuses ranged requests that are redirected to another site.
  */
 export function PdfViewer({
+  fileUrl,
   src,
   title,
   downloadHref,
   className,
 }: {
-  /** Same-origin link that redirects to the stored PDF. */
+  /** Signed link straight to the stored PDF (no redirect), if the page has one. */
+  fileUrl?: string | null;
+  /** Same-origin link that redirects to the stored PDF: "Open", and the fallback if `fileUrl` fails (e.g. expired). */
   src: string;
   title: string;
   downloadHref?: string;
@@ -39,11 +47,14 @@ export function PdfViewer({
     let task: PDFDocumentLoadingTask | null = null;
     (async () => {
       try {
-        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        const [pdfjs, data] = await Promise.all([
+          import("pdfjs-dist/legacy/build/pdf.mjs"),
+          downloadPdf(fileUrl ? [fileUrl, src] : [src]),
+        ]);
         if (cancelled) return;
         pdfjs.GlobalWorkerOptions.workerSrc = `${ASSETS}/pdf.worker.min.mjs`;
         task = pdfjs.getDocument({
-          url: src,
+          data,
           standardFontDataUrl: `${ASSETS}/standard_fonts/`,
           cMapUrl: `${ASSETS}/cmaps/`,
           cMapPacked: true,
@@ -53,16 +64,17 @@ export function PdfViewer({
         });
         const loaded = await task.promise;
         if (!cancelled) setDoc(loaded);
-      } catch {
+      } catch (error) {
+        console.error("Sheet music viewer couldn't load the PDF", error);
         if (!cancelled) setFailed(true);
       }
     })();
     return () => {
       cancelled = true;
-      // Stops the download and the worker.
+      // Stops the worker.
       void task?.destroy();
     };
-  }, [src]);
+  }, [fileUrl, src]);
 
   useEffect(() => {
     const element = container.current;
@@ -149,6 +161,24 @@ export function PdfViewer({
       </div>
     </div>
   );
+}
+
+/**
+ * The PDF's bytes from the first link that works. A plain GET (no Range header,
+ * no cookies), so storage on another site only needs to allow simple CORS reads.
+ */
+async function downloadPdf(urls: string[]): Promise<Uint8Array> {
+  let lastError: unknown = null;
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { credentials: url.startsWith("/") ? "same-origin" : "omit" });
+      if (!response.ok) throw new Error(`PDF download failed (${response.status})`);
+      return new Uint8Array(await response.arrayBuffer());
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("PDF download failed");
 }
 
 /** One page, drawn on a canvas once it's near the visible area (and again when the width changes). */

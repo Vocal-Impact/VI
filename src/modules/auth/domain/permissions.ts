@@ -108,3 +108,16 @@ export const ROLE_PERMISSIONS: Readonly<Record<AccessRole, readonly Permission[]
 export function hasPermission(role: AccessRole, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
+
+/**
+ * Section lead is a flag on the member, not a role: on top of their role, section
+ * leads take attendance at practices (and so see the practice pages) and see who's coming.
+ */
+export const SECTION_LEAD_PERMISSIONS: readonly Permission[] = ["attendance:read", "attendance:write", "rsvps:read"];
+
+/** hasPermission for a signed-in person: their role plus anything being a section lead adds. */
+export function userHasPermission(user: { role: AccessRole; sectionLead?: boolean }, permission: Permission): boolean {
+  return (
+    hasPermission(user.role, permission) || (user.sectionLead === true && SECTION_LEAD_PERMISSIONS.includes(permission))
+  );
+}

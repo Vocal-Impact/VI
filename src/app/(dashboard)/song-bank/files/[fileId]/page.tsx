@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { requirePermission } from "@/modules/auth";
 import {
   canChangeFile,
+  fileLinkFor,
   formatBytes,
   getSongFile,
   listFolderOptions,
@@ -32,6 +33,8 @@ export default async function SongFilePage(props: PageProps<"/song-bank/files/[f
   const canChange = canChangeFile(user, file);
   const folderOptions = canChange ? await listFolderOptions() : [];
   const src = songFileContentHref(file.id);
+  // The viewer loads the PDF straight from storage, without the redirect (iPhone Safari fails on it).
+  const pdfUrl = file.kind === "PDF" ? await fileLinkFor(file.id, { download: false }) : null;
   const downloadHref = songFileContentHref(file.id, true);
 
   return (
@@ -71,7 +74,7 @@ export default async function SongFilePage(props: PageProps<"/song-bank/files/[f
 
       {file.kind === "PDF" ? (
         <>
-          <PdfViewer src={src} downloadHref={downloadHref} title={file.title} />
+          <PdfViewer fileUrl={pdfUrl} src={src} downloadHref={downloadHref} title={file.title} />
           <PlayAlong recordings={recordings} myPart={user.voiceType} />
         </>
       ) : file.kind === "AUDIO" ? (

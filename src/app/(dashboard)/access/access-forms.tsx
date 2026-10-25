@@ -82,7 +82,7 @@ function AccessRowBody({ row }: { row: MemberAccessRow }) {
           checked={sectionLead}
           onChange={(event) => setSectionLead(event.target.checked)}
           label="Section lead"
-          hint={sectionLead ? "Adds recordings and sheet music to the song bank" : undefined}
+          hint={sectionLead ? "Takes attendance and adds to the song bank" : undefined}
           className="mt-1.5 text-xs [&_.font-medium]:font-normal [&_.font-medium]:text-slate-600"
           disabled={row.isSelf}
         />

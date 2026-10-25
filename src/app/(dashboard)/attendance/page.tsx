@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { hasPermission, requireUser } from "@/modules/auth";
+import { hasPermission, requireUser, userHasPermission } from "@/modules/auth";
 import {
   listPastPractices,
   listProspectiveProgress,
@@ -39,19 +39,20 @@ export const metadata = { title: "Practices" };
 
 export default async function PracticesPage() {
   const user = await requireUser();
-  // Batch leads get a page of their own level's practices; everyone else here is committee.
+  // Batch leads get a page of their own level's practices; everyone else here is committee or a section lead.
   if (!hasPermission(user.role, "attendance:read")) {
     if (hasPermission(user.role, "practices:level-manage") && user.studyLevel) {
       return <BatchLeadPractices level={user.studyLevel} />;
     }
-    redirect("/forbidden");
+    if (!userHasPermission(user, "attendance:read")) redirect("/forbidden");
   }
   const canManage = hasPermission(user.role, "practices:manage");
   const canBookVenues = hasPermission(user.role, "venues:book");
   const now = nowLocal();
   const today = now.date;
   const canInvite = hasPermission(user.role, "practices:invite-manage");
-  const canMark = hasPermission(user.role, "attendance:write");
+  const canMark = userHasPermission(user, "attendance:write");
+  const canOpenProfiles = hasPermission(user.role, "members:read");
   const [todays, upcoming, past, progress, invitable] = await Promise.all([
     listTodaysPractices(now),
     listUpcomingPractices({ includeCancelled: true, take: 100, now }),
@@ -69,7 +70,9 @@ export default async function PracticesPage() {
     <>
       <PageHeader
         title="Practices"
-        description={`Schedule practices, see who's coming and take attendance.`}
+        description={
+          canManage ? "Schedule practices, see who's coming and take attendance." : "Take attendance at practices."
+        }
         actions={
           <>
             {canManage ? (
@@ -237,9 +240,15 @@ export default async function PracticesPage() {
               <ul className="space-y-2 text-sm">
                 {progress.members.map((member) => (
                   <li key={member.id} className="flex items-center justify-between gap-2">
-                    <Link href={`/members/${member.id}`} className="hover:underline">
-                      {member.firstName} {member.lastName}
-                    </Link>
+                    {canOpenProfiles ? (
+                      <Link href={`/members/${member.id}`} className="hover:underline">
+                        {member.firstName} {member.lastName}
+                      </Link>
+                    ) : (
+                      <span>
+                        {member.firstName} {member.lastName}
+                      </span>
+                    )}
                     <Badge tone="amber">{attendanceProgress(member.attendedCount, progress.threshold)}</Badge>
                   </li>
                 ))}

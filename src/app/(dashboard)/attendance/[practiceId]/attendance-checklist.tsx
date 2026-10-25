@@ -23,6 +23,7 @@ export function AttendanceChecklist({
   canUnmark,
   prominent = false,
   live = false,
+  canAddMembers = true,
 }: {
   practiceId: string;
   entries: ChecklistEntry[];
@@ -33,6 +34,8 @@ export function AttendanceChecklist({
   prominent?: boolean;
   /** The practice is on right now. */
   live?: boolean;
+  /** Offer "add them as a member" when nobody matches (section leads can't add members). */
+  canAddMembers?: boolean;
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [query, setQuery] = useState("");
@@ -139,11 +142,17 @@ export function AttendanceChecklist({
       {filtered.length === 0 ? (
         <div className="p-4">
           <EmptyState title="No one matches">
-            New face?{" "}
-            <Link href="/members?new=1" className="text-brand-700 underline">
-              Add them as a member
-            </Link>{" "}
-            first.
+            {canAddMembers ? (
+              <>
+                New face?{" "}
+                <Link href="/members?new=1" className="text-brand-700 underline">
+                  Add them as a member
+                </Link>{" "}
+                first.
+              </>
+            ) : (
+              "New face? Ask the committee to add them as a member."
+            )}
           </EmptyState>
         </div>
       ) : (

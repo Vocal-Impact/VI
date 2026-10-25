@@ -10,6 +10,14 @@ export {
   type AccessFilter,
 } from "./application/access";
 export { getAuth, isGoogleSignInConfigured, isPasswordSignInEnabled } from "./infrastructure/better-auth";
-export { hasPermission, ROLES, PERMISSIONS, ROLE_PERMISSIONS, type Role, type Permission } from "./domain/permissions";
+export {
+  hasPermission,
+  userHasPermission,
+  ROLES,
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  type Role,
+  type Permission,
+} from "./domain/permissions";
 export { ACCESS_LEVELS, ACCESS_LEVEL_LABELS, accessLevelOf, canMemberSignIn, type AccessLevel } from "./domain/access";
 export { mayCreateLogin, linkNewLoginToMember, maySignIn } from "./application/provisioning";

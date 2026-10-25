@@ -5,7 +5,7 @@ import {
   listUpcomingPracticesFor,
 } from "@/modules/attendance";
 import { canManagePractice, canReplyTo, canRsvp, type PracticeAudience } from "@/modules/attendance/domain";
-import { hasPermission, type SessionUser } from "@/modules/auth";
+import { userHasPermission, type SessionUser } from "@/modules/auth";
 import { PracticeCardLink, PracticeDetails, RsvpCountBadges, VenueBookingBadge } from "@/modules/attendance/ui";
 import { nowLocal } from "@/shared/lib/clock";
 import { cn } from "@/shared/lib/cn";
@@ -18,7 +18,8 @@ import { CappedList } from "@/shared/ui/capped-list";
 /**
  * Upcoming practices on the dashboard (including any on right now). Each
  * practice gets Going / Can't make it if the viewer is invited to it, and reply
- * counts with Edit (and Take attendance while it's on) if the viewer organises it.
+ * counts with Edit if the viewer organises it. Whoever takes attendance (committee,
+ * section leads) can open it, with Take attendance while it's on.
  */
 export async function UpcomingPractices({
   viewer,
@@ -29,7 +30,7 @@ export async function UpcomingPractices({
   canReply = true,
   scheduleHref = null,
 }: {
-  viewer: Pick<SessionUser, "role" | "studyLevel" | "memberId">;
+  viewer: Pick<SessionUser, "role" | "studyLevel" | "memberId" | "sectionLead">;
   /** "mine": the practices the viewer is invited to; otherwise these kinds of practice. */
   source: "mine" | readonly PracticeAudience[];
   /** Admins: show whether each practice's venue is booked. */
@@ -79,16 +80,19 @@ export async function UpcomingPractices({
           const label = `${practice.title} on ${formatIsoDate(practice.date, { year: undefined })}`;
           const manage = canManagePractice(viewer, practice);
           const live = practice.phase === "ONGOING" && practice.status === "SCHEDULED";
+          const attendance = practice.audience !== "ALUMNI" && userHasPermission(viewer, "attendance:read");
+          const takeAttendance = attendance && live && userHasPermission(viewer, "attendance:write");
+          const linked = manage || attendance;
           return (
             <div
               key={practice.id}
               className={cn(
                 "space-y-3 rounded-lg border p-3",
                 live ? "border-2 border-emerald-500 bg-emerald-50/40" : "border-slate-200",
-                manage && "group relative transition-colors hover:border-brand-300 hover:bg-slate-50/70",
+                linked && "group relative transition-colors hover:border-brand-300 hover:bg-slate-50/70",
               )}
             >
-              {manage ? <PracticeCardLink practiceId={practice.id} label={label} /> : null}
+              {linked ? <PracticeCardLink practiceId={practice.id} label={label} /> : null}
               <PracticeDetails practice={practice} today={today} phase={practice.phase} className="pr-6" />
               {showVenueBooking && practice.status === "SCHEDULED" ? <VenueBookingBadge practice={practice} /> : null}
               {replyable.has(practice.id) ? (
@@ -101,18 +105,20 @@ export async function UpcomingPractices({
                   />
                 </div>
               ) : null}
-              {manage ? (
+              {manage || takeAttendance ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                  {practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : <span />}
+                  {manage && practice.status === "SCHEDULED" ? <RsvpCountBadges counts={practice.counts} /> : <span />}
                   <div className="relative z-10 flex gap-2">
-                    {practice.audience !== "ALUMNI" && live && hasPermission(viewer.role, "attendance:write") ? (
+                    {takeAttendance ? (
                       <LinkButton href={`/attendance/${practice.id}`} size="sm">
                         Take attendance
                       </LinkButton>
                     ) : null}
-                    <LinkButton href={`/attendance/${practice.id}?edit=1`} size="sm" variant="outline">
-                      Edit
-                    </LinkButton>
+                    {manage ? (
+                      <LinkButton href={`/attendance/${practice.id}?edit=1`} size="sm" variant="outline">
+                        Edit
+                      </LinkButton>
+                    ) : null}
                   </div>
                 </div>
               ) : null}

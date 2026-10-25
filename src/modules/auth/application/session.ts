@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/shared/db/prisma";
 import { getAuth } from "../infrastructure/better-auth";
-import { effectiveRole, hasPermission, type AccessRole, type Permission } from "../domain/permissions";
+import { effectiveRole, userHasPermission, type AccessRole, type Permission } from "../domain/permissions";
 import type { StudyLevel, VoiceType } from "@/modules/members/domain";
 import { canMemberSignIn, isMemberLogin } from "../domain/access";
 
@@ -20,7 +20,7 @@ export interface SessionUser {
   studyLevel: StudyLevel | null;
   /** That member's part (the song bank puts it first). */
   voiceType: VoiceType | null;
-  /** A section lead adds recordings and sheet music to the song bank. Never for alumni. */
+  /** A section lead takes attendance and adds recordings and sheet music to the song bank. Never for alumni. */
   sectionLead: boolean;
 }
 
@@ -68,11 +68,11 @@ export async function requireUser(): Promise<SessionUser> {
 /** Server-side permission gate for pages, server actions and route handlers. */
 export async function requirePermission(permission: Permission): Promise<SessionUser> {
   const user = await requireUser();
-  if (!hasPermission(user.role, permission)) redirect("/forbidden");
+  if (!userHasPermission(user, permission)) redirect("/forbidden");
   return user;
 }
 
 export async function can(permission: Permission): Promise<boolean> {
   const user = await getCurrentUser();
-  return user !== null && hasPermission(user.role, permission);
+  return user !== null && userHasPermission(user, permission);
 }

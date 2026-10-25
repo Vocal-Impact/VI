@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveRole, hasPermission, PERMISSIONS } from "./permissions";
+import { effectiveRole, hasPermission, PERMISSIONS, userHasPermission } from "./permissions";
 
 describe("RBAC", () => {
   it("gives admins every permission", () => {
@@ -68,5 +68,19 @@ describe("song bank", () => {
     expect(hasPermission("MEMBER", "songbank:manage")).toBe(false);
     expect(hasPermission("BATCH_LEAD", "songbank:manage")).toBe(false);
     expect(hasPermission("ALUMNI_COMMITTEE", "songbank:manage")).toBe(false);
+  });
+});
+
+describe("section leads", () => {
+  it("take attendance on top of their role, and get nothing else from it", () => {
+    const lead = { role: "MEMBER", sectionLead: true } as const;
+    expect(userHasPermission(lead, "attendance:read")).toBe(true);
+    expect(userHasPermission(lead, "attendance:write")).toBe(true);
+    expect(userHasPermission(lead, "rsvps:read")).toBe(true);
+    expect(userHasPermission(lead, "practices:rsvp")).toBe(true);
+    expect(userHasPermission(lead, "members:read")).toBe(false);
+    expect(userHasPermission(lead, "practices:manage")).toBe(false);
+    expect(userHasPermission({ role: "MEMBER", sectionLead: false }, "attendance:write")).toBe(false);
+    expect(userHasPermission({ role: "MEMBER" }, "attendance:read")).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requirePermission } from "@/modules/auth";
+import { hasPermission, requirePermission } from "@/modules/auth";
 import { getAttendanceReport } from "@/modules/attendance";
 import { formatIsoDate } from "@/shared/lib/dates";
 import { Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th } from "@/shared/ui/layout";
@@ -7,7 +7,8 @@ import { Card, CardBody, CardHeader, EmptyState, PageHeader, Table, Td, Th } fro
 export const metadata = { title: "Attendance reports" };
 
 export default async function ReportsPage() {
-  await requirePermission("attendance:read");
+  const user = await requirePermission("attendance:read");
+  const canOpenProfiles = hasPermission(user.role, "members:read");
   const report = await getAttendanceReport();
   const max = Math.max(1, ...report.practices.map((practice) => practice.attended));
 
@@ -70,9 +71,13 @@ export default async function ReportsPage() {
                 {report.stoppedComing.map((member) => (
                   <tr key={member.id}>
                     <Td>
-                      <Link href={`/members/${member.id}`} className="hover:underline">
-                        {member.name}
-                      </Link>
+                      {canOpenProfiles ? (
+                        <Link href={`/members/${member.id}`} className="hover:underline">
+                          {member.name}
+                        </Link>
+                      ) : (
+                        member.name
+                      )}
                     </Td>
                     <Td>{member.lastAttended ? formatIsoDate(member.lastAttended) : "Never"}</Td>
                     <Td className="text-right tabular-nums">{member.attendedCount}</Td>

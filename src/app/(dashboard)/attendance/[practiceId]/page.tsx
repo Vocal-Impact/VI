@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireUser, hasPermission } from "@/modules/auth";
+import { requireUser, hasPermission, userHasPermission } from "@/modules/auth";
 import {
   canManagePractice,
   canTakeAttendance,
@@ -41,7 +41,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
   // The committee sees every choir practice; organisers (alumni organisers, batch leads) the ones they run.
   const alumni = practice.audience === "ALUMNI";
   const canManage = canManagePractice(user, practice);
-  const canSeeAttendance = !alumni && hasPermission(user.role, "attendance:read");
+  const canSeeAttendance = !alumni && userHasPermission(user, "attendance:read");
   if (!canManage && !canSeeAttendance) redirect("/forbidden");
 
   const now = nowLocal();
@@ -84,10 +84,11 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
         practiceId={practice.id}
         entries={entries}
         threshold={threshold}
-        readOnly={!attendanceOpen || !hasPermission(user.role, "attendance:write")}
+        readOnly={!attendanceOpen || !userHasPermission(user, "attendance:write")}
         canUnmark={canUnmarkAttendance(user.role, practice.date, today)}
         prominent={attendanceToday}
         live={attendanceToday && phase === "ONGOING"}
+        canAddMembers={hasPermission(user.role, "members:write")}
       />
     </>
   );
@@ -288,7 +289,7 @@ export default async function PracticePage(props: PageProps<"/attendance/[practi
         </Card>
       ) : null}
 
-      {(canManage || hasPermission(user.role, "rsvps:read")) && practice.status === "SCHEDULED" ? (
+      {(canManage || userHasPermission(user, "rsvps:read")) && practice.status === "SCHEDULED" ? (
         <RsvpBoard
           going={summary.going.map(forBoard)}
           notGoing={summary.notGoing.map(forBoard)}
